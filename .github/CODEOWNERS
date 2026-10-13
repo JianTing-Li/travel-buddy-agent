@@ -1,11 +1,11 @@
-# Ownership from CLAUDE.md. Replace @CHEICH_USERNAME with Cheich's GitHub username.
+# Ownership from CLAUDE.md.
 
 # Cheich
-/backend/app/agent/               @CHEICH_USERNAME
-/backend/app/harness/             @CHEICH_USERNAME
-/backend/tests/unit/harness/      @CHEICH_USERNAME
-/backend/tests/evals/             @CHEICH_USERNAME
-/docs/work-log/cheich.md          @CHEICH_USERNAME
+/backend/app/agent/               @Cheicht
+/backend/app/harness/             @Cheicht
+/backend/tests/unit/harness/      @Cheicht
+/backend/tests/evals/             @Cheicht
+/docs/work-log/cheich.md          @Cheicht
 
 # Jian
 /backend/app/tools/               @JianTing-Li
@@ -20,9 +20,9 @@
 /.env.example                     @JianTing-Li
 
 # Shared: both must approve
-/backend/app/contract/            @CHEICH_USERNAME @JianTing-Li
-/backend/app/config.py            @CHEICH_USERNAME @JianTing-Li
-/.github/CODEOWNERS               @CHEICH_USERNAME @JianTing-Li
-/CLAUDE.md                        @CHEICH_USERNAME @JianTing-Li
-/TASKS.md                         @CHEICH_USERNAME @JianTing-Li
-/README.md                        @CHEICH_USERNAME @JianTing-Li
+/backend/app/contract/            @Cheicht @JianTing-Li
+/backend/app/config.py            @Cheicht @JianTing-Li
+/.github/CODEOWNERS               @Cheicht @JianTing-Li
+/CLAUDE.md                        @Cheicht @JianTing-Li
+/TASKS.md                         @Cheicht @JianTing-Li
+/README.md                        @Cheicht @JianTing-Li
