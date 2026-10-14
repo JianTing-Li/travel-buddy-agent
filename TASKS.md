@@ -9,14 +9,14 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [ ] Decide: UI scope for MVP 1 and deadline
 
 ## Cheich: agent and harness
-- [ ] System Prompt v0 from PRD 3b (agent/prompts/)
-- [ ] Tool-use loop with Claude (agent/loop.py)
+- [x] System Prompt v0 from PRD 3b (agent/prompts/)
+- [x] Tool-use loop with Claude (agent/loop.py), tested with stub tools (agent/stub_tools.py)
 - [ ] Requirement extraction: required limits vs preferences, clarifying questions (agent/decide.py)
 - [ ] Limits filter: budget, arrival window, connections, passenger count (harness/limits.py)
 - [ ] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py)
 - [ ] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
 - [ ] Unit tests for harness
-- [ ] Eval cases 1-4 from PRD 3d, expected behavior written first (tests/evals/cases/)
+- [x] Eval cases 1-4 from PRD 3d, expected behavior written first (tests/evals/cases/), written as JSON; no runner yet
 - [ ] Automated checks: unknown eligibility, wrong cost/currency, unavailable option, changed details, tool failure, duplicates, other traveler's booking, mock/Duffel mixing
 
 ## Jian: tools, services and API
