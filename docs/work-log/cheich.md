@@ -24,3 +24,7 @@ Not done / handoff
 - `agent/stub_tools.py`: `build_stub_completer` is the MOCK completion (simulated confirmation, no real ticket). TODO: the contract has no confirmation model yet.
 - ASK FOR JIAN: `registry.py` also needs `complete_rebooking(booking_id, option_id) -> dict` (completes after confirmation, routes by option source, raises on failure). Swap is `get_tool_source("real")`; the gate is unchanged.
 - Tests: `tests/unit/harness/test_confirmation.py` (7). Whole suite: `.venv/bin/python -m pytest backend/tests/unit -rs`.
+
+### Eval cases
+- The 4 PRD eval cases are in `backend/tests/evals/cases/` as JSON (setup, expected behavior, must-not lists). Expected behavior was written before any run.
+- Not done: no automated runner yet; they were checked by hand in the live chat only.

@@ -16,7 +16,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [ ] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py)
 - [ ] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
 - [ ] Unit tests for harness
-- [ ] Eval cases 1-4 from PRD 3d, expected behavior written first (tests/evals/cases/)
+- [x] Eval cases 1-4 from PRD 3d, expected behavior written first (tests/evals/cases/), written as JSON; no runner yet
 - [ ] Automated checks: unknown eligibility, wrong cost/currency, unavailable option, changed details, tool failure, duplicates, other traveler's booking, mock/Duffel mixing
 
 ## Jian: tools, services and API
