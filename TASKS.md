@@ -9,8 +9,8 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [ ] Decide: UI scope for MVP 1 and deadline
 
 ## Cheich: agent and harness
-- [ ] System Prompt v0 from PRD 3b (agent/prompts/)
-- [ ] Tool-use loop with Claude (agent/loop.py)
+- [x] System Prompt v0 from PRD 3b (agent/prompts/)
+- [x] Tool-use loop with Claude (agent/loop.py), tested with stub tools (agent/stub_tools.py)
 - [ ] Requirement extraction: required limits vs preferences, clarifying questions (agent/decide.py)
 - [ ] Limits filter: budget, arrival window, connections, passenger count (harness/limits.py)
 - [ ] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py)
