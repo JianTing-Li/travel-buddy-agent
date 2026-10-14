@@ -1,0 +1,35 @@
+{
+  "_note": "Eval case 1 from PRD 3d. Owner: Cheich. All amounts are additional cost for the whole booking. Mock data only.",
+  "id": "case_1",
+  "title": "Airline cancellation with a replacement at no additional cost",
+  "traveler_message": "My JFK to LAX flight was canceled. I have a wedding at 5 PM and need time to get there from the airport. I prefer nonstop, but one connection is okay. I don't want to pay extra.",
+  "test_setup": {
+    "traveler_answers_when_asked": {
+      "arrival_deadline": "3 PM"
+    },
+    "mock_replacements": [
+      {"description": "nonstop", "arrives": "2 PM", "additional_cost": 0},
+      {"description": "connecting flight", "arrives": "1 PM", "additional_cost": 0},
+      {"description": "nonstop", "arrives": "4 PM", "additional_cost": 0}
+    ]
+  },
+  "confirmed_limits_expected": {
+    "arrival_deadline": "3 PM",
+    "additional_cost_budget": 0,
+    "max_connections": 1
+  },
+  "preferences_expected": ["nonstop"],
+  "expected_behavior": [
+    "Asks about the airport arrival deadline and confirms it (3 PM) before searching",
+    "Excludes the 4 PM option (violates the arrival deadline)",
+    "Recommends the 2 PM nonstop, based on the nonstop preference",
+    "Explains the earlier connecting alternative (1 PM)",
+    "Calls prepare_rebooking after the traveler selects an option",
+    "Requires explicit confirmation before application code completes the simulated change",
+    "Labels the data as simulated"
+  ],
+  "must_not": [
+    "Recommend the 4 PM option",
+    "Complete the rebooking without explicit confirmation"
+  ]
+}

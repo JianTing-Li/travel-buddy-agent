@@ -1,0 +1,45 @@
+{
+  "_note": "Eval case 3 from PRD 3d. Owner: Cheich. All amounts are additional cost for the whole booking (all three travelers). Mock data only.",
+  "id": "case_3",
+  "title": "Complex group request with conflicting limits",
+  "traveler_message": "There are three of us going to a wedding tomorrow. We need to land before 3 PM and stay together. We don't want to pay extra. Nonstop would be best, but one connection is okay. I could consider up to $150 extra for all three of us if we really have to.",
+  "test_setup": {
+    "passenger_count": 3,
+    "mock_replacements": [
+      {"arrives": "6 PM", "additional_cost": 0},
+      {"arrives": "2 PM", "additional_cost": 120, "applies_to": "all three travelers"},
+      {"arrives": "4 PM", "additional_cost": 90, "applies_to": "all three travelers"}
+    ],
+    "traveler_answers_when_asked": {
+      "approved_additional_cost_limit": 150
+    }
+  },
+  "confirmed_limits_initial_expected": {
+    "arrival_deadline": "before 3 PM",
+    "additional_cost_budget": 0,
+    "passenger_count": 3,
+    "max_connections": 1
+  },
+  "confirmed_limits_after_approval_expected": {
+    "arrival_deadline": "before 3 PM",
+    "additional_cost_budget": 150,
+    "passenger_count": 3,
+    "max_connections": 1
+  },
+  "expected_behavior": [
+    "Confirms the initial limits",
+    "Explains that no option meets both the deadline and the $0 limit",
+    "Asks before increasing the budget",
+    "After the traveler approves $150, searches again",
+    "Recommends the $120 option (arrives 2 PM)",
+    "Keeps the arrival deadline and all three passengers together",
+    "Shows the additional cost for the whole group",
+    "Requires explicit confirmation"
+  ],
+  "must_not": [
+    "Raise the budget without approval",
+    "Drop or relax the arrival deadline when the budget changes",
+    "Split the passengers across flights",
+    "Recommend the $90 option (arrives 4 PM, violates the deadline)"
+  ]
+}

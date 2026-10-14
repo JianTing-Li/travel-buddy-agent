@@ -1,0 +1,31 @@
+{
+  "_note": "Eval case 2 from PRD 3d. Owner: Cheich. All amounts are additional cost for the whole booking. Mock data only.",
+  "id": "case_2",
+  "title": "Traveler misses their flight",
+  "traveler_message": "Traffic was terrible and I missed boarding. I need to get to LAX today, preferably before 6 PM. I can pay up to $150 extra, but please check whether I have any free options.",
+  "test_setup": {
+    "mock_service_confirms": "The booking permits two replacements",
+    "mock_replacements": [
+      {"arrives": "5 PM", "additional_cost": 80},
+      {"arrives": "3 PM", "additional_cost": 140}
+    ],
+    "no_eligible_replacement_at_zero_extra": true
+  },
+  "confirmed_limits_expected": {
+    "additional_cost_budget": 150
+  },
+  "open_question": "Whether 6 PM is a required deadline or a preference. The agent must ask; the traveler's answer is not defined in the PRD.",
+  "expected_behavior": [
+    "Asks whether 6 PM is a required deadline or a preference",
+    "Explains the supplied eligibility and costs without assuming that missing the flight always requires payment",
+    "Reports that no free option is available, based on the service response",
+    "Compares saving $60 (the $80 option) with arriving two hours earlier (the $140 option)",
+    "Requires selection, validation (prepare_rebooking) and explicit confirmation",
+    "Labels the data as simulated"
+  ],
+  "must_not": [
+    "Promise reimbursement",
+    "Assume the missed flight means a payment is always required",
+    "Complete the rebooking without explicit confirmation"
+  ]
+}
