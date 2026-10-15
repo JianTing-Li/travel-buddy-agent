@@ -20,8 +20,8 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [ ] Automated checks: unknown eligibility, wrong cost/currency, unavailable option, changed details, tool failure, duplicates, other traveler's booking, mock/Duffel mixing
 
 ## Jian: tools, services and API
-- [ ] Find what Duffel's test API supports; record in docs/duffel-notes.md
-- [ ] Duffel client (services/duffel/client.py)
+- [x] Find what Duffel's test API supports; record in docs/duffel-notes.md
+- [x] Duffel client (services/duffel/client.py)
 - [ ] Mock service + scenarios for the 4 eval cases (services/mock/, data/mock/scenarios/)
 - [ ] Tools: get_trip_context, search_replacements, prepare_rebooking, escalate_to_support, plus registry
 - [ ] Source tagging so each option uses its matching validation and confirmation service
