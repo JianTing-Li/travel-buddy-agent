@@ -5,6 +5,7 @@ import { BookingDetail } from '../features/booking/BookingDetail.tsx'
 import { BookingsList } from '../features/booking/BookingsList.tsx'
 import type { BookingsApi } from './dataSource.ts'
 import { createFixtureApi } from './fixtures.ts'
+import { createHttpApi } from './httpApi.ts'
 import { listHref, parseHash, useHash } from './route.ts'
 
 type Theme = 'light' | 'dark'
@@ -20,8 +21,13 @@ function initialTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+/** The real API by default; run with VITE_USE_SAMPLE_DATA=true to use built-in sample data without a backend. */
+function createApi(): BookingsApi {
+  return import.meta.env.VITE_USE_SAMPLE_DATA === 'true' ? createFixtureApi() : createHttpApi()
+}
+
 function App() {
-  const [api] = useState<BookingsApi>(createFixtureApi)
+  const [api] = useState<BookingsApi>(createApi)
   const [theme, setTheme] = useState<Theme>(initialTheme)
   const route = parseHash(useHash())
 
