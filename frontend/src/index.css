@@ -1,111 +1,125 @@
+/* Theme tokens and base styles. Owner: Jian. Light by default, dark by system setting or the header toggle. */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --text: #14181f;
+  --text-2: #4b5563;
+  --text-3: #5f6875;
+  --border: #e2e5ea;
+  --border-strong: #cfd4dc;
+  --accent: #2457d6;
+  --accent-bg: #e8effd;
+  --accent-text: #1a3fa0;
+  --danger-bg: #fdecec;
+  --danger-text: #a12525;
+  --danger-border: #f3c4c4;
+  --warn-bg: #fdf3dc;
+  --warn-text: #7a4c07;
+  --success-bg: #e6f5ec;
+  --success-text: #1c6b3b;
+  --sim-bg: #efe9fb;
+  --sim-text: #4e2f9b;
+  --primary: #14181f;
+  --on-primary: #ffffff;
+  --radius: 10px;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f1216;
+  --surface: #171b21;
+  --surface-2: #1e232b;
+  --text: #eef0f3;
+  --text-2: #aab1bc;
+  --text-3: #8f97a4;
+  --border: #2a303a;
+  --border-strong: #3a424e;
+  --accent: #7ea2ff;
+  --accent-bg: #1b2742;
+  --accent-text: #aac2ff;
+  --danger-bg: #3a1c1e;
+  --danger-text: #ffb4b4;
+  --danger-border: #6b2d31;
+  --warn-bg: #3b2e12;
+  --warn-text: #f3cf86;
+  --success-bg: #12301f;
+  --success-text: #8fdcae;
+  --sim-bg: #2a2247;
+  --sim-text: #c9b8ff;
+  --primary: #eef0f3;
+  --on-primary: #14181f;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0f1216;
+    --surface: #171b21;
+    --surface-2: #1e232b;
+    --text: #eef0f3;
+    --text-2: #aab1bc;
+    --text-3: #8f97a4;
+    --border: #2a303a;
+    --border-strong: #3a424e;
+    --accent: #7ea2ff;
+    --accent-bg: #1b2742;
+    --accent-text: #aac2ff;
+    --danger-bg: #3a1c1e;
+    --danger-text: #ffb4b4;
+    --danger-border: #6b2d31;
+    --warn-bg: #3b2e12;
+    --warn-text: #f3cf86;
+    --success-bg: #12301f;
+    --success-text: #8fdcae;
+    --sim-bg: #2a2247;
+    --sim-text: #c9b8ff;
+    --primary: #eef0f3;
+    --on-primary: #14181f;
   }
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
+h2,
+h3,
 p {
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+a {
+  color: var(--accent);
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#root {
+  min-height: 100vh;
 }
