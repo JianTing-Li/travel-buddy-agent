@@ -82,9 +82,18 @@ All one-way, 1 passenger, booked with the `ZZ` offer only.
 
 Not run: LHR to STN "requested offer no longer available" on orders beyond the above, PVD to RAI (no flights), STN to LHR (timeout), the card-payment and airline-credit scenarios.
 
+## Live run through the app (verified 2026-10-15, real test API and the real model)
+Run through `DuffelService` (`services/duffel/service.py`) and the API, on a one-way LHR to LTN test order:
+- **Reading the order does not create changes.** Three polls of `GET /air/orders/{id}` found 0 new changes each time. A single call to the list endpoint (the dev "simulate airline change" button) created exactly one, and the next polls found it once and then nothing. The order's `airline_initiated_changes` array carries the same changes, so the app polls the order and never the list endpoint.
+- **A fresh order is not disrupted.** The booking status is "on time" until Duffel has an open (not yet actioned) change; the UI shows a neutral banner for it.
+- **Replacement offers for the order** came back as one flat cost again (125.00 USD change total, 25.00 penalty). The agent prepared the earliest one and the app completed it through `create pending change` + `confirm` with the pending change's own amount; a repeat confirm was refused by the app before reaching Duffel.
+- The change summary is built from the `removed` and `added` slices: "moved the departure from ... to ...". Its `kind` is always `delay` because Duffel's changes are time shifts.
+- The mapping rules (eligibility, validity, cost, search dates, de-duplicating the 9 identical-looking offers) are provisional and documented in the module docstring of `services/duffel/service.py`.
+- Each live run creates real orders on the Duffel test account.
+
 ## What this means for Travel Buddy (inferences, not observations)
 - **get_trip_context**: order, passengers, slices and `airline_initiated_changes` can come from `GET /air/orders/{id}`. Airline-initiated changes can be simulated on LHR to LTN orders only, and only as a one-hour delay; cancellations and missed flights (eval cases 1 and 2) still need the mock service.
-- **Airline-change polling**: because the list call creates a change on LHR to LTN orders, a poller in test mode will see a new change every time. Track which change ids were already shown.
+- **Airline-change polling**: the list call creates a change on LHR to LTN orders, so a poller must not use it. Read the order instead (see "Live run through the app" below), and track which change ids were already shown.
 - **Price rechecks**: a changed offer price can be detected with `GET /air/offers/{id}`, and a stale amount is rejected at order time. This supports "recheck the cost before confirming".
 - **Eligibility**: Duffel returns no eligibility field. Signals available: `available_actions` contains `change`, `conditions.change_before_departure.allowed`, and whether any offers come back. The harness must decide how those map; an unknown must block rebooking.
 - **search_replacements / prepare_rebooking**: `order_change_requests` + offers work. Re-fetching the offer (`GET .../order_change_offers/{id}`) is available to recheck cost and `expires_at`.

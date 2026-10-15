@@ -1,5 +1,24 @@
 # Jian work log
 
+## 2026-10-15: airline-change check, mock extras, dev panel and the Duffel path (branch feature/duffel-client)
+Done
+- Airline-change check: `POST /bookings/{id}/changes/check` is application code (not the agent). It returns each change once per session (ids are remembered) and queues an `[App notice]` for the agent's next turn. The open booking page polls it every 8 seconds and shows a banner. Shared `AirlineChange` model in `services/airline_change.py`.
+- Mock extras: six fault switches (`unknown_eligibility`, `wrong_currency`, `unavailable_option`, `changed_details`, `tool_failure`, `uncertain_completion`) that change what the mock reports, never its data; delay and cancellation simulation; runtime bookings; a seeded generator (`services/mock/generator.py`, same seed gives the same booking, or an eval case under a new id).
+- Dev endpoints (`/dev/bookings`, `/dev/bookings/{id}/disrupt`, `/dev/bookings/{id}/faults`, `/dev/duffel-bookings`) exist only when the app is created with `dev=True`: `uvicorn backend.app.api.main:dev_app --no-access-log`. The UI dev panel needs `VITE_DEV_PANEL=true`. Both are test tools, not traveler features, and not in the PRD.
+- Duffel path: `DuffelService` (`services/duffel/service.py`) has the same methods as `MockService` for Duffel TEST orders. `ord_...` ids route to it and `MOCK-...` ids to the mock, in the router, tools, sessions and API; an option's `data_source` must match its booking's service, so a mock option never reaches Duffel. Shared errors and checks moved to `services/errors.py` and `services/validation.py`.
+- Verified live with the real model and Duffel's test API: create a test order, poll (no stray changes), simulate a change, search, prepare, confirm (a repeat is refused), status becomes rebooked. 365 backend tests pass; frontend build and lint pass.
+
+Handoff for Cheich
+- `get_tool_source("real")` now serves both sources. A Duffel booking is created from the dev panel; the agent's tools, your gate and `/confirm` work the same for it.
+- The gate treats a dropped connection while completing as pending; for Duffel that is the `DuffelTransportError` (not a `ServiceError`), and the mock's `uncertain_completion` fault produces the same case for your automated checks. Faults can be set per mock booking with `POST /dev/bookings/{id}/faults` (or `MockService.set_faults`).
+- Reminders still open on your side: the gate drops `changes_to_review` on a changed option, the `max_tokens` cut-off in `decide.py`, the limits filter hook (`build_tools(limits_filter=...)`), and `confirmed_needs` injection for `escalate_to_support`.
+- Mapping rules for Duffel (eligibility, validity, cost) are provisional until we agree the contract models; they are in one place (`services/duffel/service.py`) with the allowed values in `services/mock/provisional.py`.
+
+Not done
+- Contract models are still a DRAFT; frontend ownership, the router (`react-router`), and the dev panel scope are still to agree (see TASKS.md).
+- Deployment items (in-memory sessions need one worker or a store), a Duffel airline-change accept through the app, and the `PATCH` update.
+- Duffel offers are all one flat cost and the same few departure times, so the cost and arrival cases of the evals still use mock data.
+
 ## 2026-10-15: API and types.ts (branch feature/duffel-client)
 Done
 - `api/`: FastAPI app. `POST /sessions` (random session id, per-session MockService, tools and gate), `GET /bookings`, `GET /bookings/{id}`, `POST /chat` (runs your `run_turn`), `POST /confirm` (your `ConfirmationGate`). Every call except `/sessions` and `/health` needs the `X-Session-Id` header; a booking outside the session gets the same 404 as an unknown one. Logs hold only request id, method, route template, status and duration; unexpected errors return a generic 500. CORS allows only the Vite dev server. In-memory sessions: restart drops them, idle sessions expire after 12 hours, at most 200.
