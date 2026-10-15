@@ -1,0 +1,36 @@
+{
+  "_note": "MOCK data for PRD eval case 3 (group of three, conflicting limits). Owner: Jian. Costs are for the whole booking (all three travelers). Times are local; day_offset counts days from today.",
+  "scenario_id": "case_3",
+  "booking_id": "MOCK-CASE-3",
+  "passenger_count": 3,
+  "disruption": {"type": "airline cancellation", "status": "canceled"},
+  "original_itinerary": {
+    "flight": "Mock Air 100",
+    "origin": "JFK",
+    "destination": "LAX",
+    "departs": {"day_offset": 1, "time": "08:00", "tz": "America/New_York"}
+  },
+  "options": [
+    {
+      "option_id": "opt-3a", "flight": "Mock Air 500", "origin": "JFK", "destination": "LAX",
+      "departs": {"day_offset": 1, "time": "15:00", "tz": "America/New_York"},
+      "arrives": {"day_offset": 1, "time": "18:00", "tz": "America/Los_Angeles"},
+      "duration": "6h 0m", "connections": 0, "additional_cost": 0, "currency": "USD",
+      "extra": {"cost_applies_to": "all three travelers"}
+    },
+    {
+      "option_id": "opt-3b", "flight": "Mock Air 520", "origin": "JFK", "destination": "LAX",
+      "departs": {"day_offset": 1, "time": "11:00", "tz": "America/New_York"},
+      "arrives": {"day_offset": 1, "time": "14:00", "tz": "America/Los_Angeles"},
+      "duration": "6h 0m", "connections": 0, "additional_cost": 120, "currency": "USD",
+      "extra": {"cost_applies_to": "all three travelers"}
+    },
+    {
+      "option_id": "opt-3c", "flight": "Mock Air 540", "origin": "JFK", "destination": "LAX",
+      "departs": {"day_offset": 1, "time": "13:00", "tz": "America/New_York"},
+      "arrives": {"day_offset": 1, "time": "16:00", "tz": "America/Los_Angeles"},
+      "duration": "6h 0m", "connections": 0, "additional_cost": 90, "currency": "USD",
+      "extra": {"cost_applies_to": "all three travelers"}
+    }
+  ]
+}
