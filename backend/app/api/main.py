@@ -14,11 +14,16 @@ from typing import Annotated, Any
 import secrets
 
 import anthropic
-from fastapi import Depends, FastAPI, Header, HTTPException, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .. import config
 from ..services.airline_change import AirlineChange
+from ..services.duffel.client import DuffelClient, DuffelConfigError
+from ..services.duffel.service import DuffelServiceError
+from ..services.duffel.test_orders import create_test_booking
+from ..services.errors import ServiceError
 from ..services.mock.generator import MAX_SEED, GeneratorError, generate_scenario
 from ..services.mock.mock_service import MockServiceError
 from ..agent.loop import load_system_prompt, run_turn
@@ -35,13 +40,14 @@ from .schemas import (
     DevBookingCreate,
     DevBookingOut,
     DevDisruptIn,
+    DevDuffelBookingIn,
     DevFaultsIn,
     DevFaultsOut,
     ErrorOut,
     SessionCreate,
     SessionOut,
 )
-from .sessions import Session, SessionStore, TooManyBookingsError, UnknownScenarioError
+from .sessions import DuffelNotConfiguredError, Session, SessionStore, TooManyBookingsError, UnknownScenarioError
 
 DEV_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")  # Vite dev server
 SESSION_HEADER = "X-Session-Id"
@@ -81,9 +87,10 @@ def _notice(outcome: dict[str, Any], option_id: str) -> str:
 
 
 def _summary(session: Session, booking_id: str) -> BookingSummary:
-    trip = session.service.get_trip_context(booking_id)
+    service = session.service_for(booking_id)
+    trip = service.get_trip_context(booking_id)
     itinerary = trip.original_itinerary
-    rebooked = session.service.get_confirmation(booking_id) is not None
+    rebooked = service.get_confirmation(booking_id) is not None
     return BookingSummary(
         booking_id=booking_id,
         origin=itinerary["origin"],
@@ -103,6 +110,7 @@ def create_app(
     model_client: Any = None,
     model: str | None = None,
     dev: bool = False,
+    duffel_client: DuffelClient | None = None,
 ) -> FastAPI:
     """model_client and model are injectable for tests; by default they come from config (server-side only).
 
@@ -110,7 +118,18 @@ def create_app(
     mock-only, are not part of the traveler's app, and do not exist unless the app is created this way.
     """
     app = FastAPI(title="Travel Buddy API", description="Simulated rebooking. No real tickets are created.")
-    app.state.sessions = store or SessionStore()
+    app.state.duffel_client = duffel_client
+
+    def get_duffel_client() -> DuffelClient | None:
+        """The shared Duffel TEST client, or None when no test token is configured (the server never uses a live one)."""
+        if app.state.duffel_client is None and config.DUFFEL_ACCESS_TOKEN:
+            try:
+                app.state.duffel_client = DuffelClient(config.DUFFEL_ACCESS_TOKEN)
+            except DuffelConfigError:
+                return None
+        return app.state.duffel_client
+
+    app.state.sessions = store or SessionStore(duffel_client_factory=get_duffel_client)
     app.state.model_client = model_client
     app.state.model = model
     app.add_middleware(RedactedRequestLog)
@@ -122,6 +141,11 @@ def create_app(
         expose_headers=["X-Request-Id"],
     )
     configure_logging()
+
+    @app.exception_handler(DuffelServiceError)
+    def duffel_unavailable(_: Request, exc: DuffelServiceError) -> JSONResponse:
+        # The message holds only a Duffel error code or a fixed sentence, never raw responses or traveler data.
+        return JSONResponse({"detail": str(exc)}, status_code=status.HTTP_502_BAD_GATEWAY)
 
     def current_session(x_session_id: Annotated[str | None, Header()] = None) -> Session:
         session = app.state.sessions.get(x_session_id)
@@ -162,8 +186,8 @@ def create_app(
         with session.lock:
             return BookingDetail(
                 summary=_summary(session, booking_id),
-                trip=session.service.get_trip_context(booking_id),
-                confirmation=session.service.get_confirmation(booking_id),
+                trip=session.service_for(booking_id).get_trip_context(booking_id),
+                confirmation=session.service_for(booking_id).get_confirmation(booking_id),
             )
 
     def model_client_and_name() -> tuple[Any, str]:
@@ -180,7 +204,7 @@ def create_app(
         prepared = session.prepared.get(booking_id)
         if not prepared or prepared.get("validation_result") != "valid":
             return None
-        if session.service.get_confirmation(booking_id) is not None:
+        if session.service_for(booking_id).get_confirmation(booking_id) is not None:
             return None
         return ConfirmCard(
             booking_id=booking_id,
@@ -198,7 +222,7 @@ def create_app(
         """
         with session.lock:
             shown = session.shown_changes.setdefault(booking_id, set())
-            new = [c for c in session.service.list_airline_changes(booking_id) if c.change_id not in shown]
+            new = [c for c in session.service_for(booking_id).list_airline_changes(booking_id) if c.change_id not in shown]
             notices = session.notices.setdefault(booking_id, [])
             for change in new:
                 shown.add(change.change_id)
@@ -251,11 +275,11 @@ def create_app(
                               confirmation=outcome.get("result"), repeat=repeat)
 
     if dev:
-        add_dev_routes(app, SessionDep, BookingDep)
+        add_dev_routes(app, SessionDep, BookingDep, get_duffel_client)
     return app
 
 
-def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any) -> None:
+def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_client: Any) -> None:
     errors = {401: {"model": ErrorOut}, 404: {"model": ErrorOut}, 409: {"model": ErrorOut}, 422: {"model": ErrorOut}}
 
     @app.post("/dev/bookings", status_code=status.HTTP_201_CREATED, response_model=DevBookingOut, responses=errors)
@@ -280,21 +304,50 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any) -> None:
         """Simulate an airline change. The open page finds it through the normal change check."""
         try:
             with session.lock:
-                return session.service.add_airline_change(booking_id, body.kind, body.delay_minutes)
+                service = session.service_for(booking_id)
+                if service is session.duffel:
+                    if body.kind != "delay":
+                        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Duffel only simulates delays.")
+                    return service.simulate_airline_change(booking_id)
+                return service.add_airline_change(booking_id, body.kind, body.delay_minutes)
         except ValueError as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
-        except MockServiceError as exc:
+        except ServiceError as exc:
             raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
 
     @app.post("/dev/bookings/{booking_id}/faults", response_model=DevFaultsOut, responses=errors)
     def dev_set_faults(booking_id: BookingDep, body: DevFaultsIn, session: SessionDep) -> DevFaultsOut:
         """Make the mock misbehave on purpose for this booking; an empty list clears it."""
+        if session.service_for(booking_id) is session.duffel:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Faults apply to mock bookings only.")
         try:
             with session.lock:
                 return DevFaultsOut(faults=session.service.set_faults(booking_id, body.faults))
         except MockServiceError as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
 
+
+    @app.post("/dev/duffel-bookings", status_code=status.HTTP_201_CREATED, response_model=BookingSummary,
+              responses={**errors, 502: {"model": ErrorOut}, 503: {"model": ErrorOut}})
+    def dev_create_duffel_booking(session: SessionDep, body: DevDuffelBookingIn | None = None) -> BookingSummary:
+        """Create a real Duffel TEST order (test token, test balance) and add it to this session."""
+        body = body or DevDuffelBookingIn()
+        client = get_duffel_client()
+        if client is None or session.duffel is None:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Duffel isn't configured on the server.")
+        try:
+            with session.lock:
+                order_id = create_test_booking(client, body.route, body.passengers)
+                session.add_duffel_booking(order_id)
+                return _summary(session, order_id)
+        except TooManyBookingsError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
+        except DuffelNotConfiguredError as exc:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from None
+        except DuffelServiceError:
+            raise  # the app-wide handler answers 502 with the safe message
+        except ServiceError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
 
 app = create_app()
 dev_app = create_app(dev=True)

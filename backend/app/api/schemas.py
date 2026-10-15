@@ -105,6 +105,12 @@ class DevBookingOut(BaseModel):
     scenario: str | None
 
 
+class DevDuffelBookingIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    route: Literal["jfk_lax", "lhr_ltn"] = "jfk_lax"  # lhr_ltn is the route where Duffel can simulate airline changes
+    passengers: int = Field(default=1, ge=1, le=3)
+
+
 class DevDisruptIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     kind: Literal["cancellation", "delay"]

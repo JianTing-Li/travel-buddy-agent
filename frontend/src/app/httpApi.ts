@@ -17,6 +17,7 @@ import {
   type DevBookingCreate,
   type DevBookingOut,
   type DevDisruptIn,
+  type DevDuffelBookingIn,
   type DevFaultsOut,
   type SessionOut,
 } from './types.ts'
@@ -119,6 +120,8 @@ export function createHttpApi(
         ? {
             createBooking: async (body: DevBookingCreate) =>
               json<DevBookingOut>(await call('/dev/bookings', post(body)), [201]),
+            createDuffelBooking: async (body: DevDuffelBookingIn) =>
+              json<BookingSummary>(await call('/dev/duffel-bookings', post(body)), [201]),
             disrupt: async (bookingId: string, body: DevDisruptIn) =>
               json<AirlineChange>(await call(`/dev/bookings/${encodeURIComponent(bookingId)}/disrupt`, post(body)), [201]),
             setFaults: async (bookingId: string, faults: string[]) =>

@@ -138,6 +138,13 @@ export function BookingDetail({ api, bookingId }: { api: BookingsApi; bookingId:
             <p>New departure {formatLocalTime(confirmation.updated_itinerary.departs)} · arrival {formatLocalTime(confirmation.updated_itinerary.arrives)}</p>
           </div>
         </div>
+      ) : summary.status === 'on time' ? (
+        <div className="banner banner-neutral" role="status">
+          <div>
+            <h2>No disruption reported</h2>
+            <p>This booking is on time. The app keeps checking for airline changes while this page is open.</p>
+          </div>
+        </div>
       ) : (
         <div className={`banner ${summary.status === 'canceled' ? '' : 'banner-warn'}`} role="status">
           <div>

@@ -172,6 +172,7 @@
   margin-bottom: 16px;
 }
 .banner-warn { background: var(--warn-bg); color: var(--warn-text); border-color: transparent; }
+.banner-neutral { background: var(--surface-2); color: var(--text); border-color: var(--border); }
 .banner-success { background: var(--success-bg); color: var(--success-text); border-color: transparent; }
 .banner h2 { font-size: 16px; font-weight: 600; }
 .banner p { font-size: 14px; }
@@ -238,3 +239,4 @@
 }
 .dev-faults { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--border); }
 .dev-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.dev-duffel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }

@@ -23,7 +23,7 @@ def make(router: BookingRouter) -> Callable[..., dict[str, Any]]:
     @mock_errors_as_tool_errors
     def prepare_rebooking(booking_id: str, option_id: str) -> dict[str, Any]:
         service = router.service_for(booking_id)
-        router.check_source(service.get_option(booking_id, option_id))
+        router.check_source(service.get_option(booking_id, option_id), booking_id)
         return service.prepare_rebooking(booking_id, option_id).model_dump()
 
     return prepare_rebooking

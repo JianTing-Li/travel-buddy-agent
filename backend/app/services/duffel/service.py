@@ -192,6 +192,16 @@ class DuffelService:
             ))
         return [c for c in changes if c.change_id]
 
+    def simulate_airline_change(self, booking_id: str) -> AirlineChange:
+        """Ask Duffel's list endpoint for changes on this order. On one-way LHR to LTN test orders that call
+        creates a fake airline change (see docs/duffel-notes.md); on other routes it creates nothing."""
+        known = {c.change_id for c in self.list_airline_changes(booking_id)}
+        self._call(self._client.list_airline_initiated_changes, booking_id)
+        created = [c for c in self.list_airline_changes(booking_id) if c.change_id not in known]
+        if not created:
+            raise ServiceError("Duffel only simulates airline changes on one-way LHR to LTN test orders.")
+        return created[-1]
+
     # --- replacements ---------------------------------------------------------------------
 
     def _option(self, offer: dict[str, Any], changeable: bool) -> Option | None:

@@ -69,9 +69,14 @@ def test_another_sessions_booking_looks_like_an_unknown_one(service):
     assert str(other.value) == str(unknown.value)
 
 
-@pytest.mark.parametrize("booking_id", ["ord_0000A1", "off_0000B2"])
-def test_duffel_bookings_are_not_wired_yet(toolset, booking_id):
-    with pytest.raises(ToolError, match="Duffel bookings aren't supported"):
+def test_duffel_bookings_need_a_duffel_service_in_the_session(toolset):
+    with pytest.raises(ToolError, match="Duffel bookings aren't available in this session"):
+        toolset.tools["get_trip_context"](booking_id="ord_0000A1")
+
+
+@pytest.mark.parametrize("booking_id", ["off_0000B2", "oco_0000C3", "aic_0000D4"])
+def test_other_duffel_ids_are_not_bookings(toolset, booking_id):
+    with pytest.raises(ToolError, match=NOT_FOUND):
         toolset.tools["get_trip_context"](booking_id=booking_id)
 
 

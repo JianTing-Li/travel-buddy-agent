@@ -42,7 +42,7 @@ def make(router: BookingRouter, limits_filter: LimitsFilter | None = None) -> Ca
         service = router.service_for(booking_id)
         options = service.search_replacements(booking_id)
         for option in options:
-            router.check_source(option)
+            router.check_source(option, booking_id)
         checked = limits_filter is not None and limits is not None
         if checked:
             options = limits_filter(options, limits)

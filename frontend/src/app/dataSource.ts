@@ -9,12 +9,15 @@ import type {
   DevBookingCreate,
   DevBookingOut,
   DevDisruptIn,
+  DevDuffelBookingIn,
   DevFaultsOut,
 } from './types.ts'
 
 /** Test-data tools. Only present when the dev panel is switched on; the backend must be started as dev_app. */
 export interface DevApi {
   createBooking(body: DevBookingCreate): Promise<DevBookingOut>
+  /** Creates a real Duffel TEST order and adds it to the session. */
+  createDuffelBooking(body: DevDuffelBookingIn): Promise<BookingSummary>
   disrupt(bookingId: string, body: DevDisruptIn): Promise<AirlineChange>
   setFaults(bookingId: string, faults: string[]): Promise<DevFaultsOut>
 }

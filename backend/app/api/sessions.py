@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from ..harness.confirmation import ConfirmationGate
+from ..services.duffel.client import DuffelClient
+from ..services.duffel.service import DuffelService
 from ..services.mock.mock_service import MockService
 from ..services.mock.scenarios import Scenario, scenario_names
 from ..tools.registry import ToolSet, build_tools
@@ -29,6 +31,10 @@ class TooManyBookingsError(ValueError):
     pass
 
 
+class DuffelNotConfiguredError(ValueError):
+    pass
+
+
 @dataclass
 class Session:
     session_id: str
@@ -37,6 +43,7 @@ class Session:
     gate: ConfirmationGate
     tools: dict[str, Callable[..., Any]]  # the agent's tools: gate-wrapped, recording each prepare result
     allowed_ids: set[str]  # the bookings this session's tools may reach; shared with the tools, grows with new bookings
+    duffel: DuffelService | None = None  # this session's Duffel TEST bookings; None when Duffel isn't configured
     histories: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # booking_id -> chat history
     prepared: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> latest prepare_rebooking result
     notices: dict[str, list[str]] = field(default_factory=dict)  # booking_id -> app notices for the next chat turn
@@ -46,22 +53,46 @@ class Session:
 
     @property
     def booking_ids(self) -> list[str]:
-        return self.service.booking_ids()
+        return [*self.service.booking_ids(), *(self.duffel.booking_ids() if self.duffel else [])]
 
     def owns(self, booking_id: str) -> bool:
-        return booking_id in self.service.booking_ids()
+        return booking_id in self.booking_ids
+
+    def service_for(self, booking_id: str) -> MockService | DuffelService:
+        """The service that holds this booking (the caller has already checked owns())."""
+        if self.duffel is not None and booking_id in self.duffel.booking_ids():
+            return self.duffel
+        return self.service
+
+    def _check_room(self) -> None:
+        if len(self.booking_ids) >= MAX_BOOKINGS_PER_SESSION:
+            raise TooManyBookingsError(f"A session can hold at most {MAX_BOOKINGS_PER_SESSION} bookings.")
+
+    def add_duffel_booking(self, order_id: str) -> str:
+        """Track a Duffel TEST order in this session and let its tools reach it."""
+        if self.duffel is None:
+            raise DuffelNotConfiguredError("Duffel isn't configured on the server.")
+        self._check_room()
+        booking_id = self.duffel.add_booking(order_id)
+        self.allowed_ids.add(booking_id)
+        return booking_id
 
     def add_booking(self, scenario: Scenario) -> str:
         """Add a generated mock booking to this session and let its tools reach it."""
-        if len(self.service.booking_ids()) >= MAX_BOOKINGS_PER_SESSION:
-            raise TooManyBookingsError(f"A session can hold at most {MAX_BOOKINGS_PER_SESSION} bookings.")
+        self._check_room()
         booking_id = self.service.add_booking(scenario)
         self.allowed_ids.add(booking_id)
         return booking_id
 
 
 class SessionStore:
-    def __init__(self, idle_seconds: float = SESSION_IDLE_SECONDS, max_sessions: int = MAX_SESSIONS) -> None:
+    def __init__(
+        self,
+        idle_seconds: float = SESSION_IDLE_SECONDS,
+        max_sessions: int = MAX_SESSIONS,
+        duffel_client_factory: Callable[[], DuffelClient | None] | None = None,
+    ) -> None:
+        self._duffel_client_factory = duffel_client_factory
         self._idle_seconds = idle_seconds
         self._max_sessions = max_sessions
         self._sessions: dict[str, Session] = {}
@@ -75,7 +106,9 @@ class SessionStore:
             raise UnknownScenarioError(f"Unknown or empty scenarios. Choose from: {', '.join(known)}")
         service = MockService(scenarios=list(dict.fromkeys(names)))
         allowed = set(service.booking_ids())
-        toolset = build_tools(service, allowed_booking_ids=allowed)
+        client = self._duffel_client_factory() if self._duffel_client_factory else None
+        duffel = DuffelService(client) if client is not None else None
+        toolset = build_tools(service, allowed_booking_ids=allowed, duffel=duffel)
         gate = ConfirmationGate(toolset.tools, toolset.complete_rebooking, source="real")
         prepared: dict[str, dict[str, Any]] = {}
         gate_tools = gate.tools()
@@ -86,7 +119,7 @@ class SessionStore:
             return result
 
         tools = {**gate_tools, "prepare_rebooking": prepare_rebooking}
-        session = Session(secrets.token_urlsafe(32), service, toolset, gate, tools, allowed, prepared=prepared)
+        session = Session(secrets.token_urlsafe(32), service, toolset, gate, tools, allowed, duffel, prepared=prepared)
         with self._lock:
             self._expire()
             while len(self._sessions) >= self._max_sessions:

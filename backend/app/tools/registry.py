@@ -7,11 +7,12 @@ Implements the contract in agent/tool_source.py:
 
 The module-level values use a shared MockService with every mock booking allowed. The API should call
 build_tools() per session instead, passing only the bookings that session may access.
-Only mock bookings are wired today; Duffel bookings return a clear "not supported yet" error.
+Mock bookings (MOCK-...) always work. Duffel test orders (ord_...) work only when a DuffelService is passed in.
 """
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from ..services.duffel.service import DuffelService
 from ..services.mock.mock_service import MockService
 from . import escalate_to_support, get_trip_context, prepare_rebooking, search_replacements
 from .access import BookingRouter, LimitsFilter, mock_errors_as_tool_errors
@@ -36,15 +37,16 @@ def build_tools(
     service: MockService | None = None,
     allowed_booking_ids: set[str] | None = None,
     limits_filter: LimitsFilter | None = None,
+    duffel: DuffelService | None = None,
 ) -> ToolSet:
     """Build the tools for one session. allowed_booking_ids=None allows every mock booking (tests and demos)."""
-    router = BookingRouter(service or MockService(), allowed_booking_ids)
+    router = BookingRouter(service or MockService(), allowed_booking_ids, duffel)
 
     @mock_errors_as_tool_errors
     def complete_rebooking(booking_id: str, option_id: str) -> dict[str, Any]:
         """Complete after explicit confirmation. Routes by booking source and raises on any failure."""
         service = router.service_for(booking_id)
-        router.check_source(service.get_option(booking_id, option_id))
+        router.check_source(service.get_option(booking_id, option_id), booking_id)
         return service.complete_rebooking(booking_id, option_id)
 
     tools = {

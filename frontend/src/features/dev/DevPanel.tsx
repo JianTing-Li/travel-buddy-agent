@@ -15,6 +15,10 @@ const SCENARIOS = [
   { value: 'case_3', label: 'Case 3: group, conflicting limits' },
   { value: 'case_4', label: 'Case 4: embedded instructions' },
 ]
+const DUFFEL_ROUTES = [
+  { value: 'jfk_lax', label: 'JFK to LAX' },
+  { value: 'lhr_ltn', label: 'LHR to LTN (Duffel can simulate airline changes here)' },
+] as const
 const MAX_SEED = 999_999
 const NOT_AVAILABLE = "The dev endpoints aren't available. Start the backend as dev_app."
 
@@ -44,6 +48,23 @@ export function DevCreatePanel({ dev, onCreated }: { dev: DevApi; onCreated: () 
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [duffelRoute, setDuffelRoute] = useState<'jfk_lax' | 'lhr_ltn'>('lhr_ltn')
+
+  async function createDuffel() {
+    if (busy) return
+    setError('')
+    setMessage('')
+    setBusy(true)
+    try {
+      const booking = await dev.createDuffelBooking({ route: duffelRoute, passengers: 1 })
+      setMessage(`Created Duffel test booking ${booking.booking_id} (real test order, test balance).`)
+      onCreated()
+    } catch (e) {
+      setError(problem(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function create() {
     if (busy) return
@@ -82,6 +103,17 @@ export function DevCreatePanel({ dev, onCreated }: { dev: DevApi; onCreated: () 
         </label>
         <button className="btn" type="button" onClick={create} aria-busy={busy}>
           {busy ? 'Creating…' : 'Generate test booking'}
+        </button>
+      </div>
+      <div className="dev-row dev-duffel">
+        <label className="dev-field">
+          <span className="small">Duffel test order</span>
+          <select value={duffelRoute} onChange={(e) => setDuffelRoute(e.target.value === 'jfk_lax' ? 'jfk_lax' : 'lhr_ltn')}>
+            {DUFFEL_ROUTES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+          </select>
+        </label>
+        <button className="btn" type="button" onClick={createDuffel} aria-busy={busy}>
+          {busy ? 'Creating…' : 'Create Duffel test booking'}
         </button>
       </div>
       {message && <p className="muted" role="status" style={{ marginTop: 8 }}>{message}</p>}

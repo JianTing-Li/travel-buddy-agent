@@ -34,7 +34,7 @@ export function formatMoney(amount: number, currency: string): string {
 export type Tone = 'danger' | 'warn' | 'success' | 'accent' | 'sim' | 'neutral'
 
 export function statusTone(status: string): Tone {
-  if (status === 'rebooked') return 'success'
+  if (status === 'rebooked' || status === 'on time') return 'success'
   if (status === 'canceled') return 'danger'
   if (status.startsWith('missed') || status.includes('delay')) return 'warn'
   return 'neutral'

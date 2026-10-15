@@ -197,6 +197,13 @@ export interface DevBookingOut {
   scenario: string | null;
 }
 
+export interface DevDuffelBookingIn {
+  /** lhr_ltn is the route where Duffel can simulate airline changes. */
+  route?: "jfk_lax" | "lhr_ltn";
+  /** 1 to 3. */
+  passengers?: number;
+}
+
 export interface DevDisruptIn {
   kind: "cancellation" | "delay";
   /** Required and positive for a delay, at most 1440. */
