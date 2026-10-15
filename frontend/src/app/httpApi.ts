@@ -79,18 +79,31 @@ export function createHttpApi(
   }
 
   function ensureSession(): Promise<string> {
-    sessionPromise ??= Promise.resolve(readStored()).then((stored) => stored ?? createSession())
+    if (sessionPromise === null) {
+      const attempt: Promise<string> = Promise.resolve(readStored()).then((stored) => stored ?? createSession())
+      sessionPromise = attempt
+      // A failed start (for example the backend was down) must not be remembered, or the page would keep
+      // failing until it is reloaded even after the backend is back.
+      attempt.catch(() => {
+        if (sessionPromise === attempt) sessionPromise = null
+      })
+    }
     return sessionPromise
   }
 
   async function call(path: string, init: RequestInit = {}, retry = true): Promise<Response> {
-    const sessionId = await ensureSession()
+    const used = ensureSession()
+    const sessionId = await used
     const headers: Record<string, string> = { [SESSION_HEADER]: sessionId }
     if (init.body) headers['Content-Type'] = 'application/json'
     const response = await fetchImpl(`${base}${path}`, { ...init, headers })
     if (response.status === 401 && retry) {
-      sessionPromise = null
-      writeStored(null)
+      // Forget the session only if it is still the one that just failed: several requests can fail together,
+      // and only the first should start a replacement, which the others then share.
+      if (sessionPromise === used) {
+        sessionPromise = null
+        writeStored(null)
+      }
       return call(path, init, false)
     }
     return response
