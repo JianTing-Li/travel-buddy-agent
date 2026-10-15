@@ -128,6 +128,11 @@ class MockService:
         with self._lock:
             return self._booking(booking_id).scenario.trip.model_copy(deep=True)
 
+    def get_option(self, booking_id: str, option_id: str) -> Option:
+        """Read one option as it is now, without counting as shown to the traveler."""
+        with self._lock:
+            return self._option(self._booking(booking_id), option_id).model_copy(deep=True)
+
     def search_replacements(self, booking_id: str) -> list[Option]:
         """Every replacement option for the whole booking. Limits are applied by the harness, not here."""
         with self._lock:
