@@ -1,5 +1,21 @@
 # Jian work log
 
+## 2026-10-15: API and types.ts (branch feature/duffel-client)
+Done
+- `api/`: FastAPI app. `POST /sessions` (random session id, per-session MockService, tools and gate), `GET /bookings`, `GET /bookings/{id}`, `POST /chat` (runs your `run_turn`), `POST /confirm` (your `ConfirmationGate`). Every call except `/sessions` and `/health` needs the `X-Session-Id` header; a booking outside the session gets the same 404 as an unknown one. Logs hold only request id, method, route template, status and duration; unexpected errors return a generic 500. CORS allows only the Vite dev server. In-memory sessions: restart drops them, idle sessions expire after 12 hours, at most 200.
+- `frontend/src/app/types.ts`: mirrors the contract models and API schemas, plus `ChatSlotProps` (bookingId, messages, sending, onSend) as the chat component's interface. A backend test (`tests/unit/api/test_types_ts.py`) fails if field names drift. `npm run build` passes.
+- Live check with claude-haiku-5-5: two real chat turns worked end to end; the model loaded the booking, said it was simulated, and asked clarifying questions. No confirm card was reached yet.
+
+Handoff for Cheich
+- `decide.py`: a live reply was cut off mid-sentence ("If the…"). `max_tokens` is 1024, and a text reply that stops with `max_tokens` is returned as if complete (only tool calls are checked). Haiku writes long replies, so this will happen. Suggested: raise the limit and treat a `max_tokens` stop on a text reply as an error or ask for a continuation.
+- The chat endpoint prepends `[App notice]` lines to the next traveler turn after each `/confirm` (confirmed, rejected or pending), so the agent only reports what the application did. Booking id reaches the model through an app-written line in the system prompt, not the traveler's text. History is kept per booking per session.
+- `/confirm` is the traveler's explicit confirmation (the UI button); the model has no tool for it. The confirm card comes from the latest `prepare_rebooking` result, shown only when `validation_result` is `valid`.
+- Chat slot proposal (needs your OK): your chat component receives `ChatSlotProps` from `types.ts`. I own the shell and the API calls; you own `features/chat`.
+- Still open from the earlier handoff: the gate drops `changes_to_review` on a changed option, and limits filter / `confirmed_needs` injection need your harness.
+
+Not done
+- UI shell, dev endpoints and panel, airline-change check, Duffel path, mock fault modes (see TASKS.md).
+
 ## 2026-10-15: mock service and tool registry (branch feature/duffel-client)
 Done
 - `services/mock/`: scenario files for the 4 eval cases in `data/mock/scenarios/` (times are local with a day offset from today, so they never go stale), a validating loader (`scenarios.py`), and `MockService` (`mock_service.py`): trip context, replacements (all options, no limits filtering), prepare with changed-detail reporting, simulated completion once per booking, and simulated escalation. Duffel-looking ids are rejected. Provisional status values live only in `provisional.py` until the contract defines them.
