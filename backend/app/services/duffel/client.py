@@ -5,7 +5,8 @@ returns {"data_source": "duffel", "data": <Duffel's response data, unchanged>}. 
 maps to contract models, never fills in an unknown eligibility or cost, and never retries.
 Mapping and limit checks belong to the tools and the harness.
 
-Untested in test mode, so not included: fetching, accepting or updating an airline-initiated change.
+Not included: the PATCH update and the cancel and change actions on airline-initiated changes (untested).
+There is no single-change GET in Duffel's API (404); read changes through the list call.
 """
 from typing import Any
 
@@ -163,10 +164,22 @@ class DuffelClient:
     # --- airline-initiated changes ----------------------------------------------------
 
     def list_airline_initiated_changes(self, order_id: str | None = None) -> dict[str, Any]:
-        """GET /air/airline_initiated_changes. data is a list, empty in test mode."""
+        """GET /air/airline_initiated_changes. data is a list, oldest first.
+
+        In test mode this list is empty except for orders on the one-way route LHR to LTN, where every
+        call creates a new simulated change. Callers that poll must track the change ids already shown.
+        """
         return self._request(
             "GET", "/air/airline_initiated_changes", params={"order_id": order_id} if order_id else None
         )
+
+    def accept_airline_initiated_change(self, change_id: str) -> dict[str, Any]:
+        """POST /air/airline_initiated_changes/{id}/actions/accept.
+
+        Duffel only accepts the latest change for an order, which is the last item of the list. An older
+        one fails with code stale_airline_initiated_change_accept. Call only after the traveler agreed.
+        """
+        return self._request("POST", f"/air/airline_initiated_changes/{change_id}/actions/accept")
 
     # --- order changes -------------------------------------------------------------------
 

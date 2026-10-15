@@ -94,6 +94,24 @@ def test_list_airline_changes_filters_by_order_only_when_given():
     assert seen[1].url.params["order_id"] == "ord_1"
 
 
+def test_accept_airline_change_posts_without_a_body():
+    client, seen = make_client(lambda r: ok({"id": "aic_1", "action_taken": "accepted"}))
+    result = client.accept_airline_initiated_change("aic_1")
+    assert seen[0].method == "POST"
+    assert seen[0].url.path == "/air/airline_initiated_changes/aic_1/actions/accept"
+    assert seen[0].content == b""
+    assert result["data"]["action_taken"] == "accepted"
+
+
+def test_accepting_a_stale_airline_change_is_an_api_error_with_its_code():
+    error = {"type": "invalid_state_error", "code": "stale_airline_initiated_change_accept",
+             "title": "Not the latest", "message": "The airline-initiated change is not the latest for this order."}
+    client, _ = make_client(lambda r: httpx.Response(422, json={"errors": [error]}))
+    with pytest.raises(DuffelApiError) as exc:
+        client.accept_airline_initiated_change("aic_old")
+    assert exc.value.codes == ["stale_airline_initiated_change_accept"]
+
+
 def test_create_order_change_request_body():
     client, seen = make_client(lambda r: ok({"order_change_offers": []}))
     client.create_order_change_request("ord_1", "sli_1", "JFK", "LAX", "2026-11-14")

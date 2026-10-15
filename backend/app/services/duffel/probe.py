@@ -16,7 +16,7 @@ Endpoints marked "candidate" in the output are not confirmed by Duffel's docs.
 import argparse
 import json
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -108,8 +108,9 @@ class Probe:
 
     # --- search and order creation -------------------------------------------------
 
-    def search(self, passengers: int, origin: str, destination: str, depart: date) -> None:
-        step = f"offer_request_{passengers}pax"
+    def search(self, passengers: int, origin: str, destination: str, depart: date, key: str | None = None) -> None:
+        key = key or f"{passengers}pax"
+        step = f"offer_request_{key}"
         body = {
             "slices": [{"origin": origin, "destination": destination, "departure_date": depart.isoformat()}],
             "passengers": [{"type": "adult"} for _ in range(passengers)],
@@ -123,6 +124,7 @@ class Probe:
                 "offer_count": len(offers),
                 "owner_iata_codes": owners,
                 "test_airline_offers": sum(1 for o in offers if o.get("owner", {}).get("iata_code") == TEST_AIRLINE_IATA),
+                "segments_per_offer": sorted({len((o.get("slices") or [{}])[0].get("segments", [])) for o in offers}),
                 "live_mode": data.get("live_mode"),
             }
 
@@ -140,13 +142,14 @@ class Probe:
         offers = [o for o in data.get("offers", []) if o.get("owner", {}).get("iata_code") == TEST_AIRLINE_IATA]
         if offers:
             offer = min(offers, key=lambda o: float(o["total_amount"]))
-            self.ctx[f"search{passengers}"] = {"offer": offer, "passenger_ids": [p["id"] for p in data["passengers"]]}
+            self.ctx[f"search:{key}"] = {"offer": offer, "passenger_ids": [p["id"] for p in data["passengers"]]}
 
-    def create_order(self, passengers: int) -> None:
-        step = f"create_order_{passengers}pax"
-        found = self.ctx.get(f"search{passengers}")
+    def create_order(self, passengers: int, key: str | None = None) -> None:
+        key = key or f"{passengers}pax"
+        step = f"create_order_{key}"
+        found = self.ctx.get(f"search:{key}")
         if not found:
-            return self.skip(step, f"no {TEST_AIRLINE_IATA} offer from the {passengers}-passenger search")
+            return self.skip(step, f"no {TEST_AIRLINE_IATA} offer from the {key} search")
         offer = found["offer"]
         body = {
             "selected_offers": [offer["id"]],
@@ -167,16 +170,16 @@ class Probe:
         }
         data = self.call(step, "POST", "/air/orders", body=body, facts=order_facts)
         if data:
-            self.ctx[f"order{passengers}"] = data
+            self.ctx[f"order:{key}"] = data
 
-    def get_order(self, passengers: int, label: str) -> None:
-        step = f"get_order_{passengers}pax_{label}"
-        order = self.ctx.get(f"order{passengers}")
+    def get_order(self, key: str, label: str) -> None:
+        step = f"get_order_{key}_{label}"
+        order = self.ctx.get(f"order:{key}")
         if not order:
             return self.skip(step, "no test order was created")
         data = self.call(step, "GET", f"/air/orders/{order['id']}", template="/air/orders/{id}", facts=order_facts)
         if data:
-            self.ctx[f"order{passengers}"] = data
+            self.ctx[f"order:{key}"] = data
 
     # --- airline-initiated changes ---------------------------------------------------
 
@@ -189,7 +192,7 @@ class Probe:
             }
 
         listed = self.call("list_airline_initiated_changes", "GET", "/air/airline_initiated_changes", facts=facts)
-        order = self.ctx.get("order1")
+        order = self.ctx.get("order:1pax")
         if order:
             filtered = self.call(
                 "list_airline_initiated_changes_for_order",
@@ -225,11 +228,102 @@ class Probe:
         else:
             self.skip("accept_airline_initiated_change", "needs --confirm-change")
 
+    # --- scenarios from Duffel's "Test your integration" page ------------------------
+
+    def airline_change_scenario(self, depart: date, confirm: bool) -> None:
+        """LHR to LTN: Duffel says listing the changes of an order on this route creates a fake one."""
+        key = "ltn"
+        steps = ("list_airline_initiated_changes_ltn_call1", "list_airline_initiated_changes_ltn_call2",
+                 "get_airline_initiated_change_ltn", "accept_airline_initiated_change_ltn")
+        self.search(1, "LHR", "LTN", depart, key=key)
+        self.create_order(1, key=key)
+        order = self.ctx.get(f"order:{key}")
+        if not order:
+            for step in steps:
+                self.skip(step, "no test order was created")
+            return
+        listed: list = []
+        for call in (1, 2):  # Duffel says a new change is created on each call
+            listed = self.call(
+                f"list_airline_initiated_changes_{key}_call{call}",
+                "GET",
+                "/air/airline_initiated_changes",
+                template="/air/airline_initiated_changes?order_id={id}",
+                params={"order_id": order["id"]},
+                facts=changes_facts,
+            ) or listed
+        self.get_order(key, "after_listing")
+        if not listed:
+            self.skip(f"get_airline_initiated_change_{key}", "listing returned no changes")
+            self.skip(f"accept_airline_initiated_change_{key}", "listing returned no changes")
+            return
+        # Duffel rejects accepting anything but the latest change, and the list is oldest first.
+        change_id = listed[-1]["id"]
+        self.call(
+            f"get_airline_initiated_change_{key}",
+            "GET",
+            f"/air/airline_initiated_changes/{change_id}",
+            template="/air/airline_initiated_changes/{id}",
+            candidate=True,
+            facts=change_summary,
+        )
+        if not confirm:
+            return self.skip(f"accept_airline_initiated_change_{key}", "needs --confirm-change")
+        self.call(
+            f"accept_airline_initiated_change_{key}",
+            "POST",
+            f"/air/airline_initiated_changes/{change_id}/actions/accept",
+            template="/air/airline_initiated_changes/{id}/actions/accept",
+            candidate=True,
+            facts=change_summary,
+        )
+        self.call(
+            f"list_airline_initiated_changes_{key}_after_accept",
+            "GET",
+            "/air/airline_initiated_changes",
+            template="/air/airline_initiated_changes?order_id={id}",
+            params={"order_id": order["id"]},
+            facts=changes_facts,
+        )
+        self.get_order(key, "after_accept")
+
+    def connections_scenario(self, depart: date) -> None:
+        """LHR to DXB: Duffel says every offer has more than one segment."""
+        key = "dxb"
+        self.search(1, "LHR", "DXB", depart, key=key)
+        self.create_order(1, key=key)
+        self.order_change(key, confirm=False)
+
+    def offer_scenario(self, key: str, origin: str, destination: str, depart: date) -> None:
+        """Routes where Duffel says the offer's price changes (LHR to STN) or the offer has expired (LGW to LHR)."""
+        self.search(1, origin, destination, depart, key=key)
+        found = self.ctx.get(f"search:{key}")
+        if not found:
+            self.skip(f"get_offer_{key}", f"no {TEST_AIRLINE_IATA} offer from the {key} search")
+            self.skip(f"create_order_{key}", f"no {TEST_AIRLINE_IATA} offer from the {key} search")
+            return
+        searched = found["offer"]
+
+        def facts(latest: dict) -> dict:
+            expires_at = latest.get("expires_at")
+            return {
+                "search_total_amount": searched.get("total_amount"),
+                "latest_total_amount": latest.get("total_amount"),
+                "total_currency": latest.get("total_currency"),
+                "price_changed": latest.get("total_amount") != searched.get("total_amount"),
+                "expires_at_in_past": bool(expires_at) and
+                datetime.fromisoformat(expires_at.replace("Z", "+00:00")) < datetime.now(timezone.utc),
+            }
+
+        latest = self.call(f"get_offer_{key}", "GET", f"/air/offers/{searched['id']}", template="/air/offers/{id}", facts=facts)
+        if latest:
+            found["offer"] = latest  # book at the latest price, not the stale searched one
+        self.create_order(1, key=key)
+
     # --- order changes ------------------------------------------------------------------
 
-    def order_change(self, passengers: int, confirm: bool) -> None:
-        tag = f"{passengers}pax"
-        order = self.ctx.get(f"order{passengers}")
+    def order_change(self, tag: str, confirm: bool, payment_first: bool = True) -> None:
+        order = self.ctx.get(f"order:{tag}")
         if not order:
             for step in ("create_order_change_request", "list_order_change_offers", "get_order_change_offer",
                          "create_pending_order_change", "confirm_order_change", "confirm_order_change_again"):
@@ -309,7 +403,7 @@ class Probe:
         payment = {"payment": {"type": "balance", "currency": pending["change_total_currency"], "amount": amount}}
         confirm_path = f"/air/order_changes/{pending['id']}/actions/confirm"
         confirm_template = "/air/order_changes/{id}/actions/confirm"
-        if passengers == 1:
+        if payment_first:
             confirmed = self.call(f"confirm_order_change_{tag}_with_payment", "POST", confirm_path,
                                   template=confirm_template, body=payment, facts=order_change_facts)
         else:
@@ -320,12 +414,12 @@ class Probe:
                                       template=confirm_template, body=payment, facts=order_change_facts)
         self.call(f"confirm_order_change_again_{tag}", "POST", confirm_path, template=confirm_template,
                   body=payment, facts=order_change_facts)
-        self.get_order(passengers, "after_change")
-        self.second_change(passengers, tag)
+        self.get_order(tag, "after_change")
+        self.second_change(tag)
 
-    def second_change(self, passengers: int, tag: str) -> None:
+    def second_change(self, tag: str) -> None:
         """Try to change the same order again, to learn whether Duffel Airways allows repeat changes."""
-        order = self.ctx[f"order{passengers}"]
+        order = self.ctx[f"order:{tag}"]
         slice_ = order["slices"][0]
         departs = datetime.fromisoformat(slice_["segments"][0]["departing_at"]).date()
         self.call(
@@ -358,6 +452,8 @@ def order_facts(data: dict) -> dict:
         "slice_ids": [s.get("id") for s in data.get("slices", [])],
         "total_currency": data.get("total_currency"),
         "owner_iata_code": data.get("owner", {}).get("iata_code"),
+        "airline_initiated_changes": len(data.get("airline_initiated_changes") or []),
+        "changes": len(data.get("changes") or []),
     }
 
 
@@ -373,6 +469,29 @@ def offer_facts(offer: dict) -> dict:
         "has_expires_at": bool(offer.get("expires_at")),
         "condition_keys": sorted((offer.get("conditions") or {}).keys()),
     }
+
+
+def change_summary(change: dict) -> dict:
+    """Describe an airline-initiated change by actions and segment timing, without passenger data."""
+    def side(name: str) -> dict:
+        segments = [seg for sl in change.get(name) or [] for seg in sl.get("segments", [])]
+        return {
+            "segments": len(segments),
+            "first_departing_at": segments[0].get("departing_at") if segments else None,
+            "last_arriving_at": segments[-1].get("arriving_at") if segments else None,
+        }
+
+    return {
+        "available_actions": change.get("available_actions"),
+        "action_taken": change.get("action_taken"),
+        "removed": side("removed"),
+        "added": side("added"),
+        "has_travel_agent_ticket": change.get("travel_agent_ticket") is not None,
+    }
+
+
+def changes_facts(changes: list) -> dict:
+    return {"count": len(changes), "changes": [change_summary(c) for c in changes[:5]]}
 
 
 def list_offers_facts(offers: list) -> dict:
@@ -416,6 +535,14 @@ def order_change_facts(data: dict) -> dict:
     }
 
 
+SCENARIOS = {
+    "airline-change": lambda probe, depart, confirm: probe.airline_change_scenario(depart, confirm),
+    "connections": lambda probe, depart, confirm: probe.connections_scenario(depart),
+    "price-change": lambda probe, depart, confirm: probe.offer_scenario("stn", "LHR", "STN", depart),
+    "expired-offer": lambda probe, depart, confirm: probe.offer_scenario("lhr", "LGW", "LHR", depart),
+}
+
+
 def run(args: argparse.Namespace) -> int:
     token = config.DUFFEL_ACCESS_TOKEN
     if not token:
@@ -432,33 +559,44 @@ def run(args: argparse.Namespace) -> int:
         "Content-Type": "application/json",
     }
     depart = date.today() + timedelta(days=args.days_ahead)
+    if args.scenario and not args.create_orders:
+        print("--scenario creates test orders, so it also needs --create-orders.", file=sys.stderr)
+        return 1
     with httpx.Client(base_url=BASE_URL, headers=headers, timeout=TIMEOUT_SECONDS) as client:
         probe = Probe(client)
+        if args.scenario:
+            names = list(SCENARIOS) if args.scenario == "all" else [args.scenario]
+            for name in names:
+                SCENARIOS[name](probe, depart, args.confirm_change)
+            return finish(probe, "scenarios: " + ", ".join(names), depart, args.out)
         for passengers in (1, 3):
             probe.search(passengers, args.origin, args.destination, depart)
         if args.create_orders:
             for passengers in (1, 3):
                 probe.create_order(passengers)
-                probe.get_order(passengers, "fresh")
+                probe.get_order(f"{passengers}pax", "fresh")
         else:
             for passengers in (1, 3):
                 probe.skip(f"create_order_{passengers}pax", "needs --create-orders")
         probe.airline_changes(args.confirm_change)
         if args.create_orders:
             for passengers in (1, 3):
-                probe.order_change(passengers, args.confirm_change)
+                probe.order_change(f"{passengers}pax", args.confirm_change, payment_first=passengers == 1)
         else:
             probe.skip("order_change_flow", "needs --create-orders")
 
+    return finish(probe, f"{args.origin}-{args.destination}", depart, args.out)
+
+
+def finish(probe: Probe, route: str, depart: date, out: str | None) -> int:
     for result in probe.results:
         status = result.get("status", "-")
         print(f"{result['verdict']:<10} {status!s:<5} {result['step']}")
-    report = json.dumps({"route": f"{args.origin}-{args.destination}", "departure_date": depart.isoformat(),
-                         "results": probe.results}, indent=2)
-    if args.out:
-        with open(args.out, "w") as handle:
+    report = json.dumps({"route": route, "departure_date": depart.isoformat(), "results": probe.results}, indent=2)
+    if out:
+        with open(out, "w") as handle:
             handle.write(report)
-        print(f"Full report written to {args.out}")
+        print(f"Full report written to {out}")
     else:
         print(report)
     return 0
@@ -471,6 +609,8 @@ def main() -> int:
     parser.add_argument("--days-ahead", type=int, default=30)
     parser.add_argument("--create-orders", action="store_true", help="create test orders and pending order changes")
     parser.add_argument("--confirm-change", action="store_true", help="confirm order changes and accept airline changes")
+    parser.add_argument("--scenario", choices=[*SCENARIOS, "all"],
+                        help="run a test scenario from Duffel's docs instead of the standard flow (needs --create-orders)")
     parser.add_argument("--out", help="write the JSON report to this path instead of stdout")
     return run(parser.parse_args())
 
