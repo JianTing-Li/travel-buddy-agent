@@ -15,11 +15,13 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from .. import config
+from ..services.airline_change import AirlineChange
 from ..agent.loop import load_system_prompt, run_turn
 from .request_log import RedactedRequestLog, configure_logging
 from .schemas import (
     BookingDetail,
     BookingSummary,
+    ChangeCheckOut,
     ChatIn,
     ChatOut,
     ConfirmCard,
@@ -47,6 +49,12 @@ def _chat_system_prompt(booking_id: str) -> str:
     """The agent's prompt plus app-controlled context; the booking id never comes from the traveler's text."""
     return (f"{_system_prompt()}\n\nApp context (written by the application, not the traveler): the traveler has "
             f"opened booking {booking_id}. Use this booking_id when you call tools. All data is simulated.")
+
+
+def _change_notice(change: AirlineChange) -> str:
+    """Tells the agent about a detected change on its next turn; the text is written by the app, not the airline."""
+    return (f"[App notice] The airline changed this booking (simulated): {change.summary} Explain what happened "
+            "using get_trip_context, then ask what the traveler needs. Do not assume what a replacement costs.")
 
 
 def _notice(outcome: dict[str, Any], option_id: str) -> str:
@@ -165,6 +173,23 @@ def create_app(
             validation_result=prepared["validation_result"],
             changes_to_review=prepared["changes_to_review"],
         )
+
+    @app.post("/bookings/{booking_id}/changes/check", response_model=ChangeCheckOut, responses=errors)
+    def check_changes(booking_id: BookingDep, session: SessionDep) -> ChangeCheckOut:
+        """Application code, not the agent, looks for airline changes while the app is open. The page polls this.
+
+        Each change is returned once; its id is remembered so it is never shown twice, and the agent is told
+        about it on the traveler's next chat turn.
+        """
+        with session.lock:
+            shown = session.shown_changes.setdefault(booking_id, set())
+            new = [c for c in session.service.list_airline_changes(booking_id) if c.change_id not in shown]
+            notices = session.notices.setdefault(booking_id, [])
+            for change in new:
+                shown.add(change.change_id)
+                notices.append(_change_notice(change))
+            del notices[:-MAX_NOTICES]
+            return ChangeCheckOut(new_changes=new, booking=_summary(session, booking_id))
 
     unavailable = {**errors, 503: {"model": ErrorOut}}
 

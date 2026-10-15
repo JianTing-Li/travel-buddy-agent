@@ -6,8 +6,10 @@
  */
 import type { BookingsApi } from './dataSource.ts'
 import type {
+  AirlineChange,
   BookingDetail,
   BookingSummary,
+  ChangeCheckOut,
   ChatOut,
   ConfirmCard,
   ConfirmOut,
@@ -127,7 +129,7 @@ export function createFixtureApi(): BookingsApi {
   const state = new Map(
     SAMPLES.map((s) => [
       s.summary.booking_id,
-      { sample: s, summary: { ...s.summary }, turns: 0, confirmation: null as Confirmation | null },
+      { sample: s, summary: { ...s.summary }, turns: 0, checks: 0, confirmation: null as Confirmation | null },
     ]),
   )
   const find = (id: string) => {
@@ -157,6 +159,23 @@ export function createFixtureApi(): BookingsApi {
         },
         confirmation: entry.confirmation,
       })
+    },
+
+    /** Sample behavior: the group booking (case 3) gets a one-hour delay on its second check. */
+    checkChanges(id): Promise<ChangeCheckOut> {
+      const entry = find(id)
+      entry.checks += 1
+      const fresh: AirlineChange[] = []
+      if (id === 'MOCK-CASE-3' && entry.checks === 2 && !entry.confirmation) {
+        const departs = dateAt(1, '09:00', '-04:00')
+        entry.summary = { ...entry.summary, status: 'delayed', departs, disruption_type: 'airline delay' }
+        fresh.push({
+          change_id: 'SIM-CHG-MOCK-CASE-3-1', booking_id: id, kind: 'delay',
+          summary: 'The airline delayed the departure by 60 minutes, to 9:00 AM (UTC-04:00).',
+          detected_at: new Date().toISOString(), data_source: 'mock', simulated: true,
+        })
+      }
+      return wait({ new_changes: fresh, booking: { ...entry.summary } })
     },
 
     chat(id): Promise<ChatOut> {

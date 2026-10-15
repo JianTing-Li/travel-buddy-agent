@@ -115,6 +115,23 @@ export interface Confirmation {
   updated_itinerary: FlightDetails;
 }
 
+/** An airline-initiated change found by the app while a booking is open. Each is returned once. */
+export interface AirlineChange {
+  change_id: string;
+  booking_id: string;
+  kind: "cancellation" | "delay";
+  summary: string;
+  /** ISO timestamp in UTC. */
+  detected_at: string;
+  data_source: DataSource;
+  simulated: boolean;
+}
+
+export interface ChangeCheckOut {
+  new_changes: AirlineChange[];
+  booking: BookingSummary;
+}
+
 export interface ErrorOut {
   detail: string;
 }

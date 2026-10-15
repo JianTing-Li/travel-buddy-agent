@@ -3,12 +3,19 @@ import { useCallback, useEffect, useState } from 'react'
 import { ChatSlot } from '../../app/ChatSlot.tsx'
 import type { BookingsApi } from '../../app/dataSource.ts'
 import { listHref } from '../../app/route.ts'
-import type { BookingDetail as BookingDetailData, ChatMessage, ConfirmCard as ConfirmCardData } from '../../app/types.ts'
+import type {
+  AirlineChange,
+  BookingDetail as BookingDetailData,
+  ChatMessage,
+  ConfirmCard as ConfirmCardData,
+} from '../../app/types.ts'
 import { ConfirmCard } from './ConfirmCard.tsx'
 import { formatLocalTime, formatMoney } from './format.ts'
 import { SourcePill, StatusPill } from './Pills.tsx'
 
 const CHAT_ERROR = "Something went wrong on my side. Try sending that again."
+/** How often the open page asks the app for airline changes. */
+const CHANGE_POLL_MS = 8000
 
 export function BookingDetail({ api, bookingId }: { api: BookingsApi; bookingId: string }) {
   const [detail, setDetail] = useState<BookingDetailData | null>(null)
@@ -16,6 +23,7 @@ export function BookingDetail({ api, bookingId }: { api: BookingsApi; bookingId:
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [sending, setSending] = useState(false)
   const [card, setCard] = useState<ConfirmCardData | null>(null)
+  const [changes, setChanges] = useState<AirlineChange[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -25,6 +33,29 @@ export function BookingDetail({ api, bookingId }: { api: BookingsApi; bookingId:
       .catch(() => !cancelled && setLoadError("We couldn't find that booking."))
     return () => {
       cancelled = true
+    }
+  }, [api, bookingId])
+
+  useEffect(() => {
+    let cancelled = false
+    async function poll() {
+      if (document.hidden) return
+      try {
+        const out = await api.checkChanges(bookingId)
+        if (cancelled || out.new_changes.length === 0) return
+        const fresh = await api.getBooking(bookingId)
+        if (cancelled) return
+        setChanges((known) => [...known, ...out.new_changes])
+        setDetail(fresh)
+      } catch {
+        // a failed check is simply tried again on the next tick
+      }
+    }
+    void poll()
+    const timer = setInterval(poll, CHANGE_POLL_MS)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
     }
   }, [api, bookingId])
 
@@ -85,6 +116,16 @@ export function BookingDetail({ api, bookingId }: { api: BookingsApi; bookingId:
     <section aria-labelledby="booking-title">
       <a className="back" href={listHref}>← All bookings</a>
 
+      {disrupted &&
+        changes.map((change) => (
+          <div className="banner banner-warn" role="status" key={change.change_id}>
+            <div>
+              <h2>Airline change detected</h2>
+              <p>{change.summary} This change is simulated.</p>
+            </div>
+          </div>
+        ))}
+
       {summary.rebooked && confirmation ? (
         <div className="banner banner-success" role="status">
           <div>
@@ -100,7 +141,11 @@ export function BookingDetail({ api, bookingId }: { api: BookingsApi; bookingId:
         <div className={`banner ${summary.status === 'canceled' ? '' : 'banner-warn'}`} role="status">
           <div>
             <h2>
-              {summary.status === 'canceled' ? 'Your flight was canceled' : 'You missed this flight'}
+              {summary.status === 'canceled'
+                ? 'Your flight was canceled'
+                : summary.status === 'delayed'
+                  ? 'Your flight was delayed'
+                  : 'You missed this flight'}
             </h2>
             <p>Disruption: {summary.disruption_type}. This disruption is simulated.</p>
           </div>

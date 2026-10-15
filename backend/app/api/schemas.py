@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..contract.models import Option, TripContext
+from ..services.airline_change import AirlineChange
 
 
 class SessionCreate(BaseModel):
@@ -82,3 +83,9 @@ class ConfirmOut(BaseModel):
     reason: str | None = None
     confirmation: dict[str, Any] | None = None
     repeat: bool = False
+
+
+class ChangeCheckOut(BaseModel):
+    """Changes found since the last check (each is returned once), plus the booking as it is now."""
+    new_changes: list[AirlineChange]
+    booking: BookingSummary

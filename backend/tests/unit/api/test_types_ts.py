@@ -7,6 +7,7 @@ import pytest
 
 from backend.app.api import schemas
 from backend.app.contract import models
+from backend.app.services import airline_change
 from backend.app.services.mock.mock_service import MockService
 
 TYPES_TS = Path(__file__).resolve().parents[4] / "frontend" / "src" / "app" / "types.ts"
@@ -21,7 +22,7 @@ def ts_interface_fields(name: str) -> set[str]:
 
 CONTRACT = ["Limits", "Option", "TripContext", "ValidationResult", "Handoff"]
 API = ["SessionCreate", "SessionOut", "BookingSummary", "BookingDetail", "ErrorOut", "ChatIn", "ConfirmCard",
-       "ChatOut", "ConfirmIn", "ConfirmOut"]
+       "ChatOut", "ConfirmIn", "ConfirmOut", "ChangeCheckOut"]
 
 
 @pytest.mark.parametrize("name", CONTRACT)
@@ -32,6 +33,10 @@ def test_contract_interfaces_match_the_pydantic_models(name):
 @pytest.mark.parametrize("name", API)
 def test_api_interfaces_match_the_pydantic_schemas(name):
     assert ts_interface_fields(name) == set(getattr(schemas, name).model_fields)
+
+
+def test_airline_change_interface_matches_the_service_model():
+    assert ts_interface_fields("AirlineChange") == set(airline_change.AirlineChange.model_fields)
 
 
 def test_confirmation_interface_matches_what_the_mock_service_returns():

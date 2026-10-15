@@ -34,6 +34,7 @@ class Session:
     histories: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # booking_id -> chat history
     prepared: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> latest prepare_rebooking result
     notices: dict[str, list[str]] = field(default_factory=dict)  # booking_id -> app notices for the next chat turn
+    shown_changes: dict[str, set[str]] = field(default_factory=dict)  # booking_id -> change ids already shown
     last_used: float = field(default_factory=time.monotonic)
     lock: threading.Lock = field(default_factory=threading.Lock)  # one request at a time per session
 

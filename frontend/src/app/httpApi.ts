@@ -10,6 +10,7 @@ import {
   SESSION_HEADER,
   type BookingDetail,
   type BookingSummary,
+  type ChangeCheckOut,
   type ChatOut,
   type ConfirmOut,
   type SessionOut,
@@ -100,6 +101,8 @@ export function createHttpApi(
     label: `Connected to the Travel Buddy API at ${base}.`,
     listBookings: async () => json<BookingSummary[]>(await call('/bookings')),
     getBooking: async (bookingId) => json<BookingDetail>(await call(`/bookings/${encodeURIComponent(bookingId)}`)),
+    checkChanges: async (bookingId) =>
+      json<ChangeCheckOut>(await call(`/bookings/${encodeURIComponent(bookingId)}/changes/check`, { method: 'POST' })),
     chat: async (bookingId, message) =>
       json<ChatOut>(await call('/chat', post({ booking_id: bookingId, message }))),
     // 200 confirmed, 202 pending and 409 rejected all carry the outcome in the body.

@@ -15,10 +15,11 @@ Safety rules enforced here, as the mock "validation and confirmation service":
   and runs at most once per booking.
 """
 import threading
-from datetime import date
-from typing import Any
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Literal
 
 from ...contract.models import Handoff, Limits, Option, TripContext, ValidationResult
+from ..airline_change import AirlineChange
 from . import provisional
 from .scenarios import Scenario, load_scenario, scenario_names
 
@@ -50,6 +51,8 @@ class AlreadyRebookedError(MockServiceError):
 class _Booking:
     def __init__(self, scenario: Scenario) -> None:
         self.scenario = scenario
+        self.trip: TripContext = scenario.trip.model_copy(deep=True)  # changes below modify this copy only
+        self.changes: list[AirlineChange] = []
         self.options: dict[str, Option] = {o.option_id: o.model_copy(deep=True) for o in scenario.options}
         self.seen: dict[str, Option] = {}  # option as last shown to the traveler (search or prepare)
         self.prepared: tuple[str, Option] | None = None  # (option_id, option as prepared)
@@ -76,6 +79,14 @@ _DETAIL_LABELS = {
     "departs": "Departure time", "arrives": "Arrival time", "duration": "Duration",
     "connections": "Connections", "flight": "Flight", "origin": "Origin", "destination": "Destination",
 }
+
+
+def _clock(moment: datetime) -> str:
+    """e.g. 'Oct 16, 9:00 AM (UTC-04:00)': the wall-clock time in the timestamp's own zone."""
+    hour = moment.hour % 12 or 12
+    zone = moment.strftime("%z")
+    offset = f"{zone[:3]}:{zone[3:]}" if zone else "+00:00"
+    return f"{moment:%b} {moment.day}, {hour}:{moment:%M} {'AM' if moment.hour < 12 else 'PM'} (UTC{offset})"
 
 
 def _diff(old: Option, new: Option) -> list[str]:
@@ -126,7 +137,45 @@ class MockService:
 
     def get_trip_context(self, booking_id: str) -> TripContext:
         with self._lock:
-            return self._booking(booking_id).scenario.trip.model_copy(deep=True)
+            return self._booking(booking_id).trip.model_copy(deep=True)
+
+    def add_airline_change(
+        self, booking_id: str, kind: Literal["cancellation", "delay"], delay_minutes: int = 0
+    ) -> AirlineChange:
+        """Simulate an airline-initiated change: it updates the booking and is logged for the change check."""
+        with self._lock:
+            booking = self._booking(booking_id)
+            if booking.confirmation is not None:
+                raise AlreadyRebookedError(f"Booking '{booking_id}' was already rebooked (simulated)")
+            itinerary = booking.trip.original_itinerary
+            if kind == "delay":
+                if delay_minutes <= 0:
+                    raise ValueError("delay_minutes must be positive for a delay")
+                moved = datetime.fromisoformat(itinerary["departs"]) + timedelta(minutes=delay_minutes)
+                itinerary["departs"] = moved.isoformat(timespec="minutes")
+                itinerary["status"] = "delayed"
+                total = booking.trip.disruption_details.get("delay_minutes", 0) + delay_minutes
+                booking.trip.disruption_details = {"type": "airline delay", "simulated": True, "delay_minutes": total}
+                summary = f"The airline delayed the departure by {delay_minutes} minutes, to {_clock(moved)}."
+            else:
+                itinerary["status"] = "canceled"
+                booking.trip.disruption_details = {"type": "airline cancellation", "simulated": True}
+                summary = "The airline canceled this flight."
+            change = AirlineChange(
+                change_id=f"SIM-CHG-{booking_id}-{len(booking.changes) + 1}",
+                booking_id=booking_id,
+                kind=kind,
+                summary=summary,
+                detected_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                data_source="mock",
+            )
+            booking.changes.append(change)
+            return change.model_copy(deep=True)
+
+    def list_airline_changes(self, booking_id: str) -> list[AirlineChange]:
+        """Every simulated change so far, oldest first. The caller tracks which ones it already showed."""
+        with self._lock:
+            return [c.model_copy(deep=True) for c in self._booking(booking_id).changes]
 
     def get_option(self, booking_id: str, option_id: str) -> Option:
         """Read one option as it is now, without counting as shown to the traveler."""
