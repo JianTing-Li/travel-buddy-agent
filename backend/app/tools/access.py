@@ -23,7 +23,8 @@ class ToolError(Exception):
 class BookingRouter:
     def __init__(self, mock: MockService, allowed_booking_ids: set[str] | None = None) -> None:
         self.mock = mock
-        self._allowed = None if allowed_booking_ids is None else set(allowed_booking_ids)
+        # Kept by reference on purpose: the session adds generated bookings to this set as they are created.
+        self._allowed = allowed_booking_ids
 
     def service_for(self, booking_id: Any) -> MockService:
         """Return the service for a booking this session may access, or raise ToolError."""

@@ -2,6 +2,7 @@
 
 Run locally (no access log, since it would print paths and client addresses):
     uvicorn backend.app.api.main:app --reload --no-access-log
+    uvicorn backend.app.api.main:dev_app --reload --no-access-log   # adds the /dev test endpoints
 
 Every call except POST /sessions and GET /health needs the X-Session-Id header from POST /sessions.
 A session can only reach its own bookings; any other booking id gets the same 404 as an unknown one.
@@ -10,12 +11,16 @@ Everything served today is simulated mock data.
 from functools import lru_cache
 from typing import Annotated, Any
 
+import secrets
+
 import anthropic
 from fastapi import Depends, FastAPI, Header, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from .. import config
 from ..services.airline_change import AirlineChange
+from ..services.mock.generator import MAX_SEED, GeneratorError, generate_scenario
+from ..services.mock.mock_service import MockServiceError
 from ..agent.loop import load_system_prompt, run_turn
 from .request_log import RedactedRequestLog, configure_logging
 from .schemas import (
@@ -27,11 +32,16 @@ from .schemas import (
     ConfirmCard,
     ConfirmIn,
     ConfirmOut,
+    DevBookingCreate,
+    DevBookingOut,
+    DevDisruptIn,
+    DevFaultsIn,
+    DevFaultsOut,
     ErrorOut,
     SessionCreate,
     SessionOut,
 )
-from .sessions import Session, SessionStore, UnknownScenarioError
+from .sessions import Session, SessionStore, TooManyBookingsError, UnknownScenarioError
 
 DEV_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")  # Vite dev server
 SESSION_HEADER = "X-Session-Id"
@@ -92,8 +102,13 @@ def create_app(
     allowed_origins: tuple[str, ...] = DEV_ORIGINS,
     model_client: Any = None,
     model: str | None = None,
+    dev: bool = False,
 ) -> FastAPI:
-    """model_client and model are injectable for tests; by default they come from config (server-side only)."""
+    """model_client and model are injectable for tests; by default they come from config (server-side only).
+
+    dev=True also serves /dev endpoints that create simulated bookings, disruptions and faults for testing. They are
+    mock-only, are not part of the traveler's app, and do not exist unless the app is created this way.
+    """
     app = FastAPI(title="Travel Buddy API", description="Simulated rebooking. No real tickets are created.")
     app.state.sessions = store or SessionStore()
     app.state.model_client = model_client
@@ -235,7 +250,51 @@ def create_app(
             return ConfirmOut(status=outcome["status"], reason=outcome.get("reason"),
                               confirmation=outcome.get("result"), repeat=repeat)
 
+    if dev:
+        add_dev_routes(app, SessionDep, BookingDep)
     return app
 
 
+def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any) -> None:
+    errors = {401: {"model": ErrorOut}, 404: {"model": ErrorOut}, 409: {"model": ErrorOut}, 422: {"model": ErrorOut}}
+
+    @app.post("/dev/bookings", status_code=status.HTTP_201_CREATED, response_model=DevBookingOut, responses=errors)
+    def dev_create_booking(session: SessionDep, body: DevBookingCreate | None = None) -> DevBookingOut:
+        """Add a simulated booking to this session: an eval case, or a random one. The seed reproduces it."""
+        body = body or DevBookingCreate()
+        seed = body.seed if body.seed is not None else secrets.randbelow(MAX_SEED + 1)
+        try:
+            scenario = generate_scenario(seed, scenario=body.scenario)
+            with session.lock:
+                booking_id = session.add_booking(scenario)
+                summary = _summary(session, booking_id)
+        except GeneratorError as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
+        except (MockServiceError, TooManyBookingsError) as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
+        return DevBookingOut(booking=summary, seed=seed, scenario=body.scenario)
+
+    @app.post("/dev/bookings/{booking_id}/disrupt", status_code=status.HTTP_201_CREATED,
+              response_model=AirlineChange, responses=errors)
+    def dev_disrupt(booking_id: BookingDep, body: DevDisruptIn, session: SessionDep) -> AirlineChange:
+        """Simulate an airline change. The open page finds it through the normal change check."""
+        try:
+            with session.lock:
+                return session.service.add_airline_change(booking_id, body.kind, body.delay_minutes)
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
+        except MockServiceError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
+
+    @app.post("/dev/bookings/{booking_id}/faults", response_model=DevFaultsOut, responses=errors)
+    def dev_set_faults(booking_id: BookingDep, body: DevFaultsIn, session: SessionDep) -> DevFaultsOut:
+        """Make the mock misbehave on purpose for this booking; an empty list clears it."""
+        try:
+            with session.lock:
+                return DevFaultsOut(faults=session.service.set_faults(booking_id, body.faults))
+        except MockServiceError as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
+
+
 app = create_app()
+dev_app = create_app(dev=True)

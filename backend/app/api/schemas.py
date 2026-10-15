@@ -89,3 +89,32 @@ class ChangeCheckOut(BaseModel):
     """Changes found since the last check (each is returned once), plus the booking as it is now."""
     new_changes: list[AirlineChange]
     booking: BookingSummary
+
+
+# --- dev panel (only served when the app is created with dev=True) ---
+
+class DevBookingCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    scenario: str | None = None  # an eval case name (case_1 to case_4); None for a random booking
+    seed: int | None = Field(default=None, ge=0, le=999_999)  # None picks one; the same seed gives the same booking
+
+
+class DevBookingOut(BaseModel):
+    booking: BookingSummary
+    seed: int
+    scenario: str | None
+
+
+class DevDisruptIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["cancellation", "delay"]
+    delay_minutes: int = Field(default=0, ge=0, le=1440)  # required (positive) for a delay
+
+
+class DevFaultsIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    faults: list[str]  # replaces the active faults; [] clears them
+
+
+class DevFaultsOut(BaseModel):
+    faults: list[str]

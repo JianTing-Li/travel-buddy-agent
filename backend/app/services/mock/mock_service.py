@@ -48,6 +48,23 @@ class AlreadyRebookedError(MockServiceError):
     """This booking already has a simulated rebooking."""
 
 
+class SimulatedFailureError(MockServiceError):
+    """A fault switch made this call fail on purpose (see FAULTS)."""
+
+
+# Switches that make the mock misbehave on purpose, for the harness's automated checks (PRD 3d). They change what
+# the service reports, never the stored scenario data, so clearing them restores normal behavior.
+FAULTS = (
+    "unknown_eligibility",   # every option reports eligibility unknown
+    "wrong_currency",        # every option reports EUR instead of USD
+    "unavailable_option",    # the booking's first option reports unavailable
+    "changed_details",       # after a search, options cost 15 more than the traveler was shown
+    "tool_failure",          # search_replacements fails
+    "uncertain_completion",  # the first complete_rebooking drops without a result and books nothing
+)
+CHANGED_DETAILS_EXTRA_COST = 15.0
+
+
 class _Booking:
     def __init__(self, scenario: Scenario) -> None:
         self.scenario = scenario
@@ -58,6 +75,9 @@ class _Booking:
         self.prepared: tuple[str, Option] | None = None  # (option_id, option as prepared)
         self.confirmation: dict[str, Any] | None = None
         self.handoffs: list[Handoff] = []
+        self.faults: set[str] = set()
+        self.faults_used: set[str] = set()  # once-only faults that already fired
+        self.searched = False
 
 
 def _validate(option: Option) -> tuple[str, list[str]]:
@@ -120,6 +140,48 @@ class MockService:
     def booking_ids(self) -> list[str]:
         return list(self._bookings)
 
+    def add_booking(self, scenario: Scenario) -> str:
+        """Add a booking at runtime (for generated test bookings). reset() drops it again."""
+        with self._lock:
+            if scenario.booking_id in self._bookings:
+                raise MockServiceError(f"Mock booking '{scenario.booking_id}' already exists")
+            self._bookings[scenario.booking_id] = _Booking(scenario)
+            return scenario.booking_id
+
+    def set_faults(self, booking_id: str, faults: list[str]) -> list[str]:
+        """Replace the active fault switches for a booking; an empty list clears them. Returns the active ones."""
+        unknown = [f for f in faults if f not in FAULTS]
+        if unknown:
+            raise MockServiceError(f"Unknown faults {unknown}. Choose from: {', '.join(FAULTS)}")
+        with self._lock:
+            booking = self._booking(booking_id)
+            booking.faults = set(faults)
+            booking.faults_used.clear()
+            booking.searched = False
+            return sorted(booking.faults)
+
+    def get_faults(self, booking_id: str) -> list[str]:
+        with self._lock:
+            return sorted(self._booking(booking_id).faults)
+
+    @staticmethod
+    def _current(booking: _Booking, option_id: str) -> Option:
+        """The option as the service reports it right now, with any active faults applied (a copy)."""
+        try:
+            option = booking.options[option_id]
+        except KeyError:
+            raise UnknownOptionError(f"Option '{option_id}' not found for this booking") from None
+        view = option.model_copy(deep=True)
+        if "unknown_eligibility" in booking.faults:
+            view.eligibility = provisional.UNKNOWN
+        if "wrong_currency" in booking.faults:
+            view.currency = "EUR"
+        if "unavailable_option" in booking.faults and option_id == next(iter(booking.options)):
+            view.validity = provisional.VALIDITY_UNAVAILABLE
+        if "changed_details" in booking.faults and booking.searched:
+            view.additional_cost = round(option.additional_cost + CHANGED_DETAILS_EXTRA_COST, 2)
+        return view
+
     def _booking(self, booking_id: str) -> _Booking:
         if booking_id.startswith(DUFFEL_ID_PREFIXES):
             raise UnknownBookingError(f"'{booking_id}' looks like a Duffel id. The mock service never handles Duffel bookings.")
@@ -127,13 +189,6 @@ class MockService:
             return self._bookings[booking_id]
         except KeyError:
             raise UnknownBookingError(f"Mock booking '{booking_id}' not found") from None
-
-    @staticmethod
-    def _option(booking: _Booking, option_id: str) -> Option:
-        try:
-            return booking.options[option_id]
-        except KeyError:
-            raise UnknownOptionError(f"Option '{option_id}' not found for this booking") from None
 
     def get_trip_context(self, booking_id: str) -> TripContext:
         with self._lock:
@@ -180,21 +235,25 @@ class MockService:
     def get_option(self, booking_id: str, option_id: str) -> Option:
         """Read one option as it is now, without counting as shown to the traveler."""
         with self._lock:
-            return self._option(self._booking(booking_id), option_id).model_copy(deep=True)
+            return self._current(self._booking(booking_id), option_id)
 
     def search_replacements(self, booking_id: str) -> list[Option]:
         """Every replacement option for the whole booking. Limits are applied by the harness, not here."""
         with self._lock:
             booking = self._booking(booking_id)
-            for option_id, option in booking.options.items():
-                booking.seen[option_id] = option.model_copy(deep=True)
-            return [o.model_copy(deep=True) for o in booking.options.values()]
+            if "tool_failure" in booking.faults:
+                raise SimulatedFailureError("Simulated tool failure: the replacement service is unavailable.")
+            views = [self._current(booking, option_id) for option_id in booking.options]
+            for view in views:
+                booking.seen[view.option_id] = view.model_copy(deep=True)
+            booking.searched = True  # faults like changed_details only act after the traveler has seen options
+            return views
 
     def prepare_rebooking(self, booking_id: str, option_id: str) -> ValidationResult:
         """Recheck the option now. `changed` means it differs from what the traveler last saw."""
         with self._lock:
             booking = self._booking(booking_id)
-            option = self._option(booking, option_id)
+            option = self._current(booking, option_id)
             latest = option.model_copy(deep=True)
             if booking.confirmation is not None:
                 return ValidationResult(latest_option_details=latest, validation_result=provisional.RESULT_INVALID,
@@ -218,7 +277,7 @@ class MockService:
         """Complete the SIMULATED rebooking. Call only after the traveler explicitly confirmed this option."""
         with self._lock:
             booking = self._booking(booking_id)
-            option = self._option(booking, option_id)
+            option = self._current(booking, option_id)
             if booking.confirmation is not None:
                 raise AlreadyRebookedError(f"Booking '{booking_id}' was already rebooked (simulated)")
             result, reasons = _validate(option)
@@ -228,6 +287,9 @@ class MockService:
                 raise RebookingNotAllowedError("This option was not prepared and reviewed first.")
             if _diff(booking.prepared[1], option):
                 raise RebookingNotAllowedError("This option changed after it was prepared and needs a new review.")
+            if "uncertain_completion" in booking.faults and "uncertain_completion" not in booking.faults_used:
+                booking.faults_used.add("uncertain_completion")
+                raise RuntimeError("Simulated connection drop: the result of the rebooking is unknown.")
             booking.confirmation = {
                 "confirmation_id": f"SIM-CONF-{booking_id}-{option_id}",
                 "simulated": True,

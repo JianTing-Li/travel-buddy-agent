@@ -13,14 +13,19 @@ from typing import Any, Callable
 
 from ..harness.confirmation import ConfirmationGate
 from ..services.mock.mock_service import MockService
-from ..services.mock.scenarios import scenario_names
+from ..services.mock.scenarios import Scenario, scenario_names
 from ..tools.registry import ToolSet, build_tools
 
 SESSION_IDLE_SECONDS = 12 * 60 * 60
 MAX_SESSIONS = 200
+MAX_BOOKINGS_PER_SESSION = 50
 
 
 class UnknownScenarioError(ValueError):
+    pass
+
+
+class TooManyBookingsError(ValueError):
     pass
 
 
@@ -31,6 +36,7 @@ class Session:
     toolset: ToolSet
     gate: ConfirmationGate
     tools: dict[str, Callable[..., Any]]  # the agent's tools: gate-wrapped, recording each prepare result
+    allowed_ids: set[str]  # the bookings this session's tools may reach; shared with the tools, grows with new bookings
     histories: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # booking_id -> chat history
     prepared: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> latest prepare_rebooking result
     notices: dict[str, list[str]] = field(default_factory=dict)  # booking_id -> app notices for the next chat turn
@@ -44,6 +50,14 @@ class Session:
 
     def owns(self, booking_id: str) -> bool:
         return booking_id in self.service.booking_ids()
+
+    def add_booking(self, scenario: Scenario) -> str:
+        """Add a generated mock booking to this session and let its tools reach it."""
+        if len(self.service.booking_ids()) >= MAX_BOOKINGS_PER_SESSION:
+            raise TooManyBookingsError(f"A session can hold at most {MAX_BOOKINGS_PER_SESSION} bookings.")
+        booking_id = self.service.add_booking(scenario)
+        self.allowed_ids.add(booking_id)
+        return booking_id
 
 
 class SessionStore:
@@ -60,7 +74,8 @@ class SessionStore:
         if unknown or not names:
             raise UnknownScenarioError(f"Unknown or empty scenarios. Choose from: {', '.join(known)}")
         service = MockService(scenarios=list(dict.fromkeys(names)))
-        toolset = build_tools(service, allowed_booking_ids=set(service.booking_ids()))
+        allowed = set(service.booking_ids())
+        toolset = build_tools(service, allowed_booking_ids=allowed)
         gate = ConfirmationGate(toolset.tools, toolset.complete_rebooking, source="real")
         prepared: dict[str, dict[str, Any]] = {}
         gate_tools = gate.tools()
@@ -71,7 +86,7 @@ class SessionStore:
             return result
 
         tools = {**gate_tools, "prepare_rebooking": prepare_rebooking}
-        session = Session(secrets.token_urlsafe(32), service, toolset, gate, tools, prepared=prepared)
+        session = Session(secrets.token_urlsafe(32), service, toolset, gate, tools, allowed, prepared=prepared)
         with self._lock:
             self._expire()
             while len(self._sessions) >= self._max_sessions:
