@@ -23,14 +23,14 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Find what Duffel's test API supports; record in docs/duffel-notes.md
 - [x] Duffel client (services/duffel/client.py)
 - [x] Duffel follow-up: LHR to LTN airline-initiated change scenario (Duffel docs "Test your integration"), fetch/accept calls, LHR to DXB connections and LHR to STN price-change routes; correct docs/duffel-notes.md and extend the client if they work (proposed)
-- [ ] Mock service + scenarios for the 4 eval cases (services/mock/, data/mock/scenarios/)
+- [x] Mock service + scenarios for the 4 eval cases (services/mock/, data/mock/scenarios/); fault modes for the automated checks still to do
 - [ ] Mock booking store and disruption simulator, labeled simulated (services/mock/) (proposed)
-- [ ] Tools: get_trip_context, search_replacements, prepare_rebooking, escalate_to_support, plus registry
+- [x] Tools: get_trip_context, search_replacements, prepare_rebooking, escalate_to_support, plus registry (mock bookings only; Duffel path open)
 - [ ] Source tagging so each option uses its matching validation and confirmation service
 - [ ] FastAPI app: chat and confirm endpoints, booking access check, log redaction (api/main.py)
 - [ ] Dev/booking endpoints: list, get, generate test booking (seeded scenarios), simulate disruption; dev flag and test-token only, scoped to the current traveler (api/) (proposed)
 - [ ] Airline-change check while the app is open (PRD "Application responsibilities")
-- [ ] Unit tests for tools
+- [x] Unit tests for tools
 - [ ] frontend/src/app/types.ts mirroring the contract models
 
 ## UI shell (extra, proposed: needs agreement before starting; Jian shell, Cheich features/chat)

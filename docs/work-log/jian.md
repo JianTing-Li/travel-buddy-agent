@@ -1,5 +1,26 @@
 # Jian work log
 
+## 2026-10-15: mock service and tool registry (branch feature/duffel-client)
+Done
+- `services/mock/`: scenario files for the 4 eval cases in `data/mock/scenarios/` (times are local with a day offset from today, so they never go stale), a validating loader (`scenarios.py`), and `MockService` (`mock_service.py`): trip context, replacements (all options, no limits filtering), prepare with changed-detail reporting, simulated completion once per booking, and simulated escalation. Duffel-looking ids are rejected. Provisional status values live only in `provisional.py` until the contract defines them.
+- `tools/`: the four tools, `access.py` (per-session booking access and source routing) and `registry.py`. `build_tools(service, allowed_booking_ids, limits_filter)` builds a tool set per session. Module-level `TOOLS`, `TOOL_SCHEMAS` and `complete_rebooking` use all mock bookings, so `get_tool_source("real")` works and Cheich's real-tools test now passes.
+- Tests: `tests/unit/services/mock/` (scenarios and service), `tests/unit/tools/test_registry.py` (tools) and `tests/unit/tools/test_registry_with_gate.py` (registry driven through the real `ConfirmationGate`, no live model). 138 unit tests pass.
+
+Handoff for Cheich
+- `get_tool_source("real")` now works: `TOOLS`, `TOOL_SCHEMAS`, `complete_rebooking` as in the `tool_source.py` docstring. The API should call `build_tools(...)` per session with only that session's booking ids; a booking outside the set gives the same error as an unknown one.
+- Limits: `search_replacements` returns every option with `limits_checked_by_code: false`. Plug your filter in with `build_tools(limits_filter=fn)` where `fn(options: list[Option], limits: dict) -> list[Option]`; the flag turns true when it runs.
+- `escalate_to_support` needs `confirmed_needs` with all four `Limits` fields, supplied by the model for now. The model cannot escalate before limits are confirmed. Better: the harness injects the confirmed needs per session.
+- GAP IN `harness/confirmation.py`: when an option changes between prepare and confirm, the gate's re-check sees `changes_to_review`, then discards it and only says "The option is no longer valid. Review another option." The next `prepare_rebooking` returns `valid` with an empty `changes_to_review` (the change was already reported once) and the new price. The old confirmation is voided and a new one is required, so it is safe, but the traveler is never told what changed. Suggested fix: put the re-check's `changes_to_review` into the rejection reason.
+- The gate treats any exception from `complete_rebooking` as pending. In the tests a failure inside completion shows as pending and is not retried, and already-rebooked is caught by the re-check as rejected.
+- Tool errors reach the model as `Tool '...' failed: ToolError: <message>` through your loop. The case 4 injected text is returned only inside `flight_details.note`; it is not marked untrusted by the tools, so that guard stays with `harness/guards.py`.
+- `stub_tools.py` can go once you switch. The scenario ids and numbers match your stubs.
+
+Not done
+- Source tagging stays open: only mock bookings are wired, and Duffel ids return "not supported yet". The Duffel path needs the Duffel-to-contract mapping, which waits on the contract models.
+- Mock fault modes (unknown eligibility, wrong currency, option changes by itself, tool failure), booking store, disruption simulator and seeded generator.
+- FastAPI chat and confirm endpoints, dev endpoints, `types.ts`, and the UI shell.
+- Contract models are still a DRAFT; the provisional values are in `services/mock/provisional.py`.
+
 ## 2026-10-15: Duffel follow-up, correcting the 2026-10-14 notes (branch feature/duffel-client)
 Done
 - The 2026-10-14 notes said Duffel test mode cannot simulate an airline-initiated change. That was wrong: Duffel's "Test your integration" page lists a trigger. Create an order on the one-way route LHR to LTN, then list changes for it.
