@@ -1,0 +1,27 @@
+{
+  "_note": "MOCK data for PRD eval case 2 (traveler misses the flight; $80 and $140 replacements, nothing free). Owner: Jian. Times are local; day_offset counts days from today.",
+  "scenario_id": "case_2",
+  "booking_id": "MOCK-CASE-2",
+  "passenger_count": 1,
+  "disruption": {"type": "missed flight", "status": "missed by traveler"},
+  "original_itinerary": {
+    "flight": "Mock Air 100",
+    "origin": "JFK",
+    "destination": "LAX",
+    "departs": {"day_offset": 0, "time": "08:00", "tz": "America/New_York"}
+  },
+  "options": [
+    {
+      "option_id": "opt-2a", "flight": "Mock Air 250", "origin": "JFK", "destination": "LAX",
+      "departs": {"day_offset": 0, "time": "14:00", "tz": "America/New_York"},
+      "arrives": {"day_offset": 0, "time": "17:00", "tz": "America/Los_Angeles"},
+      "duration": "6h 0m", "connections": 0, "additional_cost": 80, "currency": "USD"
+    },
+    {
+      "option_id": "opt-2b", "flight": "Mock Air 270", "origin": "JFK", "destination": "LAX",
+      "departs": {"day_offset": 0, "time": "11:00", "tz": "America/New_York"},
+      "arrives": {"day_offset": 0, "time": "15:00", "tz": "America/Los_Angeles"},
+      "duration": "7h 0m", "connections": 0, "additional_cost": 140, "currency": "USD"
+    }
+  ]
+}
