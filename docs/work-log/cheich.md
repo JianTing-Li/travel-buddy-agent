@@ -28,3 +28,16 @@ Not done / handoff
 ### Eval cases
 - The 4 PRD eval cases are in `backend/tests/evals/cases/` as JSON (setup, expected behavior, must-not lists). Expected behavior was written before any run.
 - Not done: no automated runner yet; they were checked by hand in the live chat only.
+
+## 2026-10-15: guards (branch cheich/guards)
+Done
+- `harness/guards.py`: `check_option_known` blocks an option whose eligibility, additional cost or currency is unknown or invalid (zero cost is known, not unknown). `wrap_untrusted` labels every tool result as data and flags text that looks like instructions (eval case 4).
+- `agent/loop.py`: every successful tool result now goes through `wrap_untrusted`.
+- `harness/confirmation.py`: an option with unknown eligibility or cost can no longer be prepared or confirmed.
+- `tests/unit/harness/test_guards.py`: 19 tests. Whole suite: 42 pass, 1 skipped (Jian's real tools).
+- Ticked the confirmation gate in TASKS.md. README: kept Jian's version (his branch rewrites it); my friendlier draft is not committed.
+
+Not done / notes
+- The injection detector is a phrase list, a seatbelt only. Real protection is that code enforces limits and confirmation.
+- Allowed eligibility values are still undefined in the contract; guards treat missing, empty and "unknown" as unknown. Update when settled.
+- Not yet checked live: whether the model really ignores the flagged field in case 4 (try `live_chat.py case_4`).

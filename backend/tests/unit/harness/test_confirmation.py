@@ -48,12 +48,12 @@ def test_changed_details_require_new_confirmation():
     gate, tools, calls = make()
     tools["prepare_rebooking"](B, OPT)
     gate._tools["prepare_rebooking"] = lambda booking_id, option_id: {
-        "latest_option_details": {"option_id": OPT, "additional_cost": 50, "data_source": "mock"},
+        "latest_option_details": {"option_id": OPT, "eligibility": "eligible", "additional_cost": 50, "currency": "USD", "data_source": "mock"},
         "validation_result": "valid", "changes_to_review": ["price changed"]}
     gate._prepare = gate._tools["prepare_rebooking"]
     assert gate.confirm(B, OPT)["status"] == "rejected" and calls == []
     gate._prepare = lambda booking_id, option_id: {
-        "latest_option_details": {"option_id": OPT, "additional_cost": 50, "data_source": "mock"},
+        "latest_option_details": {"option_id": OPT, "eligibility": "eligible", "additional_cost": 50, "currency": "USD", "data_source": "mock"},
         "validation_result": "valid", "changes_to_review": []}
     assert gate.confirm(B, OPT)["status"] == "confirmed"  # traveler saw the new details and confirmed again
 

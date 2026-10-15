@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from backend.app.agent.decide import ToolCall, decide
+from backend.app.harness.guards import wrap_untrusted
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "system_prompt_v0.txt"
 DEFAULT_MAX_STEPS = 8
@@ -41,7 +42,7 @@ def _run_tool(call: ToolCall, tools: dict[str, Callable[..., Any]]) -> dict[str,
     if not isinstance(call.input, dict):
         return result("Tool input must be a JSON object.", True)
     try:
-        return result(json.dumps(fn(**call.input), default=str))
+        return result(json.dumps(wrap_untrusted(fn(**call.input)), default=str))
     except TypeError as exc:
         return result(f"Invalid arguments for '{call.name}': {exc}", True)
     except Exception as exc:

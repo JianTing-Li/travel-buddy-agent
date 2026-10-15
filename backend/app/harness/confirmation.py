@@ -14,6 +14,8 @@ Rules enforced here:
 import json
 from typing import Any, Callable
 
+from backend.app.harness.guards import check_option_known
+
 
 class ConfirmationGate:
     def __init__(self, tools: dict[str, Callable[..., Any]], complete: Callable[[str, str], dict[str, Any]],
@@ -43,6 +45,9 @@ class ConfirmationGate:
             self._prepared.pop(booking_id, None)
             return
         option = result["latest_option_details"]
+        if not check_option_known(option).allowed:  # unknown eligibility or cost blocks rebooking
+            self._prepared.pop(booking_id, None)
+            return
         self._prepared[booking_id] = (option_id, self._fingerprint(option), option.get("data_source", ""))
         self.last_prepared = (booking_id, option_id)
 
