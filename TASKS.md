@@ -29,6 +29,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Source tagging so each option uses its matching validation and confirmation service (booking id routes to the mock or Duffel service; option data_source must match)
 - [x] FastAPI app: chat and confirm endpoints, booking access check, log redaction (api/main.py); sessions are in memory
 - [x] Dev/booking endpoints: generate test booking (seeded scenarios, Duffel test order), simulate disruption, set faults; only with dev_app, scoped to the session (api/) (proposed)
+- [ ] Optional, nice to have: richer generated booking options (3 to 5 options with a spread of costs, arrival times and connections, including a $0 option and a one-connection option) so the comparison screen has more to show; Duffel's test airline only returns one flat cost, a few departure times and nonstop flights, so this is mock-only (services/mock/generator.py)
 - [x] Airline-change check while the app is open (PRD "Application responsibilities"); polls every 8 seconds, mock and Duffel
 - [x] Unit tests for tools
 - [x] frontend/src/app/types.ts mirroring the contract models (and the API schemas)
