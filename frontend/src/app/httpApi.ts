@@ -117,6 +117,7 @@ export function createHttpApi(
   const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) })
 
   return {
+    kind: 'live',
     label: `Connected to the Travel Buddy API at ${base}.`,
     listBookings: async () => json<BookingSummary[]>(await call('/bookings')),
     getBooking: async (bookingId) => json<BookingDetail>(await call(`/bookings/${encodeURIComponent(bookingId)}`)),

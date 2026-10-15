@@ -23,9 +23,9 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Find what Duffel's test API supports; record in docs/duffel-notes.md
 - [x] Duffel client (services/duffel/client.py)
 - [x] Duffel follow-up: LHR to LTN airline-initiated change scenario (Duffel docs "Test your integration"), fetch/accept calls, LHR to DXB connections and LHR to STN price-change routes; correct docs/duffel-notes.md and extend the client if they work (proposed)
-- [x] Mock service + scenarios for the 4 eval cases (services/mock/, data/mock/scenarios/); fault modes for the automated checks still to do
+- [x] Mock service + scenarios for the 4 eval cases (services/mock/, data/mock/scenarios/); fault modes for the automated checks are in `MockService.set_faults`
 - [x] Mock booking store, disruption simulator, seeded generator and fault modes, labeled simulated (services/mock/) (proposed)
-- [x] Tools: get_trip_context, search_replacements, prepare_rebooking, escalate_to_support, plus registry (mock bookings only; Duffel path open)
+- [x] Tools: get_trip_context, search_replacements, prepare_rebooking, escalate_to_support, plus registry (mock and Duffel test bookings)
 - [x] Source tagging so each option uses its matching validation and confirmation service (booking id routes to the mock or Duffel service; option data_source must match)
 - [x] FastAPI app: chat and confirm endpoints, booking access check, log redaction (api/main.py); sessions are in memory
 - [x] Dev/booking endpoints: generate test booking (seeded scenarios, Duffel test order), simulate disruption, set faults; only with dev_app, scoped to the session (api/) (proposed)
@@ -39,6 +39,8 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Shell built on fixtures typed by types.ts: bookings list, booking detail with disruption banner, confirm card with simulated label, placeholder where the chat goes
 - [x] Dev panel: generate test booking (seeded scenario picker, Duffel test order) and simulate disruption, labeled simulated; shown only with VITE_DEV_PANEL=true
 - [x] Wire the shell to the real API once the chat/confirm and dev/booking endpoints exist
+- [x] UI polish from a design review: booking cards with city names, time, airline and action; recovery workspace layout; conversation and airline-change banners kept across navigation; "Checking your rebooking" state for uncertain confirmations; plain-language footer
+- [ ] Structured comparison: up to three flight cards from validated tool results with a reason derived from code facts (needs an API addition and Cheich's limits filter), editable requirement chips fed by the agent's confirmed limits, progress stepper, no-options screen. Not a requirements form: the PRD has the agent capture needs from everyday language
 - [ ] Cheich's chat plugs into the chat slot
 
 ## Deployment (later, after the demo; proposed)

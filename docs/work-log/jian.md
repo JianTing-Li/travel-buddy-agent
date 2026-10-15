@@ -1,5 +1,17 @@
 # Jian work log
 
+## 2026-10-15: UI polish from a design review (branch feature/duffel-client)
+Done
+- Booking cards: route with city names, departure time, airline, traveler count, the booking reference as secondary text, and a visible action ("Find a replacement", "View booking" or "View confirmation"). `BookingSummary` gained `airline` (backend, `types.ts`, tests).
+- Booking page: the recovery workspace is the main column (guidance on what to tell Travel Buddy, the confirm card, the chat slot) and the original booking is a compact side panel. "Choose another" now leaves a "No flight chosen yet" note explaining what to do next.
+- The conversation (messages, confirm card, airline-change banners, declined option) is kept per booking above the pages, so leaving a booking and coming back loses nothing. This also fixes airline-change banners vanishing on navigation, since the server shows each change only once.
+- An uncertain confirmation (including a lost connection while confirming) is a persistent "Checking your rebooking" state with a "Check status" button and no second Confirm, as the PRD requires.
+- Footer is plain language; the API address shows only with sample data or the dev panel. The confirmation banner repeats "No real ticket was issued." Stale "Not done" lists in older entries are marked superseded.
+
+Not done, on purpose
+- A requirements form: the PRD has the agent understand needs from everyday language and ask clarifying questions, and its first success metric measures that.
+- Waits for Cheich's limits filter and an API addition: up to three structured flight cards from validated tool results with a reason derived from code facts, editable requirement chips fed by the agent's confirmed limits, a progress stepper, and a real no-options screen.
+
 ## 2026-10-15: airline-change check, mock extras, dev panel and the Duffel path (branch feature/duffel-client)
 Done
 - Airline-change check: `POST /bookings/{id}/changes/check` is application code (not the agent). It returns each change once per session (ids are remembered) and queues an `[App notice]` for the agent's next turn. The open booking page polls it every 8 seconds and shows a banner. Shared `AirlineChange` model in `services/airline_change.py`.
@@ -32,8 +44,8 @@ Handoff for Cheich
 - Chat slot proposal (needs your OK): your chat component receives `ChatSlotProps` from `types.ts`. I own the shell and the API calls; you own `features/chat`.
 - Still open from the earlier handoff: the gate drops `changes_to_review` on a changed option, and limits filter / `confirmed_needs` injection need your harness.
 
-Not done
-- UI shell, dev endpoints and panel, airline-change check, Duffel path, mock fault modes (see TASKS.md).
+Not done at the time (all done since: see the airline-change and Duffel entry above)
+- UI shell, dev endpoints and panel, airline-change check, Duffel path, mock fault modes.
 
 ## 2026-10-15: mock service and tool registry (branch feature/duffel-client)
 Done
@@ -50,11 +62,8 @@ Handoff for Cheich
 - Tool errors reach the model as `Tool '...' failed: ToolError: <message>` through your loop. The case 4 injected text is returned only inside `flight_details.note`; it is not marked untrusted by the tools, so that guard stays with `harness/guards.py`.
 - `stub_tools.py` can go once you switch. The scenario ids and numbers match your stubs.
 
-Not done
-- Source tagging stays open: only mock bookings are wired, and Duffel ids return "not supported yet". The Duffel path needs the Duffel-to-contract mapping, which waits on the contract models.
-- Mock fault modes (unknown eligibility, wrong currency, option changes by itself, tool failure), booking store, disruption simulator and seeded generator.
-- FastAPI chat and confirm endpoints, dev endpoints, `types.ts`, and the UI shell.
-- Contract models are still a DRAFT; the provisional values are in `services/mock/provisional.py`.
+Not done at the time (superseded: source tagging, the Duffel path, mock faults, booking store, generator, the endpoints, `types.ts` and the UI shell are all done; see the entries above)
+- Still open: the contract models are a DRAFT; the provisional values are in `services/mock/provisional.py`.
 
 ## 2026-10-15: Duffel follow-up, correcting the 2026-10-14 notes (branch feature/duffel-client)
 Done
@@ -67,8 +76,6 @@ Done
 Impact on the plan
 - The "simulate disruption" dev button can use Duffel for LHR to LTN bookings (a one-hour delay only). Cancellations, missed flights and the eval-case arrival times and costs still need the mock service.
 - A poller for airline changes must track change ids it already showed, because each list call on the LHR to LTN route creates a new one.
-
-## 2026-10-14: Duffel test API probe and client (branch feature/duffel-client)
 
 ## 2026-10-14: Duffel test API probe and client (branch feature/duffel-client)
 Done
@@ -84,9 +91,5 @@ What the notes found that affects the rest of the build
 - Duffel has no eligibility field. The harness must decide how `available_actions`, `conditions.change_before_departure.allowed` and the presence of offers map to eligibility; unknown must block rebooking.
 - The mock service must cover: cancellations, missed flights (Duffel can only simulate a one-hour delay on LHR to LTN), controlled arrival times and cost spreads (eval cases 1-4), embedded instructions. Duffel test offers were three departure times, all nonstop.
 
-Not done / handoff
-- Tools (`get_trip_context`, `search_replacements`, `prepare_rebooking`, `escalate_to_support`) and `tools/registry.py` are still open. Cheich needs `TOOLS`, `TOOL_SCHEMAS` and `complete_rebooking(booking_id, option_id)`; tools are sync, matching the client.
-- The client does no mapping to `Option` / `TripContext`. That belongs in the tools, with the mapping rules for eligibility and validity still to be agreed (the contract models leave them as TODO).
-- Airline-change polling while the app is open: list and accept exist (see 2026-10-15); polling must track change ids already shown.
-- Mock service and its scenarios: not started.
-- `tests/unit/services/` is not in the CLAUDE.md or CODEOWNERS ownership lists; add it.
+Not done at the time (superseded: the tools and registry, the mock service, the Duffel-to-contract mapping and airline-change polling were all built later; see the entries above)
+- Still open: `tests/unit/services/` and `tests/unit/api/` are not in the CLAUDE.md or CODEOWNERS ownership lists; add them.

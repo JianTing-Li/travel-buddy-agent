@@ -4,6 +4,7 @@ import './App.css'
 import { BookingDetail } from '../features/booking/BookingDetail.tsx'
 import { BookingsList } from '../features/booking/BookingsList.tsx'
 import type { BookingsApi } from './dataSource.ts'
+import { useConversations } from './conversations.ts'
 import { createFixtureApi } from './fixtures.ts'
 import { createHttpApi } from './httpApi.ts'
 import { listHref, parseHash, useHash } from './route.ts'
@@ -30,6 +31,7 @@ function App() {
   const [api] = useState<BookingsApi>(createApi)
   const [theme, setTheme] = useState<Theme>(initialTheme)
   const route = parseHash(useHash())
+  const conversations = useConversations()
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -62,9 +64,18 @@ function App() {
         </div>
       </header>
       <main className="container">
-        {route.name === 'booking' ? <BookingDetail key={route.id} api={api} bookingId={route.id} /> : <BookingsList api={api} />}
+        {route.name === 'booking' ? <BookingDetail
+            key={route.id}
+            api={api}
+            bookingId={route.id}
+            conversation={conversations.get(route.id)}
+            update={conversations.update}
+          /> : <BookingsList api={api} />}
       </main>
-      <footer className="footer">{api.label} Rebookings here are simulated; no real tickets are issued.</footer>
+      <footer className="footer">
+        Everything in Travel Buddy is simulated. No real ticket will be issued.
+        {(api.kind === 'sample' || api.dev) && <span> {api.label}</span>}
+      </footer>
     </>
   )
 }

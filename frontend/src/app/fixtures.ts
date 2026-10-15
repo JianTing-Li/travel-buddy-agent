@@ -70,7 +70,7 @@ const SAMPLES: Sample[] = [
     summary: {
       booking_id: 'MOCK-CASE-1', origin: 'JFK', destination: 'LAX', departs: dateAt(0, '08:00', '-04:00'),
       passenger_count: 1, status: 'canceled', disruption_type: 'airline cancellation', data_source: 'mock',
-      rebooked: false,
+      rebooked: false, airline: 'Mock Air 100',
     },
     passengers: 1,
     recommended: option('opt-1a', 'Mock Air 210', 0, '11:00', '14:00', '6h 0m', 0),
@@ -82,7 +82,7 @@ const SAMPLES: Sample[] = [
     summary: {
       booking_id: 'MOCK-CASE-2', origin: 'JFK', destination: 'LAX', departs: dateAt(0, '08:00', '-04:00'),
       passenger_count: 1, status: 'missed by traveler', disruption_type: 'missed flight', data_source: 'mock',
-      rebooked: false,
+      rebooked: false, airline: 'Mock Air 100',
     },
     passengers: 1,
     recommended: option('opt-2a', 'Mock Air 250', 0, '14:00', '17:00', '6h 0m', 80),
@@ -94,7 +94,7 @@ const SAMPLES: Sample[] = [
     summary: {
       booking_id: 'MOCK-CASE-3', origin: 'JFK', destination: 'LAX', departs: dateAt(1, '08:00', '-04:00'),
       passenger_count: 3, status: 'canceled', disruption_type: 'airline cancellation', data_source: 'mock',
-      rebooked: false,
+      rebooked: false, airline: 'Mock Air 100',
     },
     passengers: 3,
     recommended: option('opt-3b', 'Mock Air 520', 1, '11:00', '14:00', '6h 0m', 120, {
@@ -108,7 +108,7 @@ const SAMPLES: Sample[] = [
     summary: {
       booking_id: 'MOCK-CASE-4', origin: 'JFK', destination: 'LAX', departs: dateAt(0, '08:00', '-04:00'),
       passenger_count: 1, status: 'canceled', disruption_type: 'airline cancellation', data_source: 'mock',
-      rebooked: false,
+      rebooked: false, airline: 'Mock Air 100',
     },
     passengers: 1,
     recommended: null,
@@ -139,6 +139,7 @@ export function createFixtureApi(): BookingsApi {
   }
 
   return {
+    kind: 'sample',
     label: 'Sample data. Nothing here comes from a server.',
 
     listBookings: () => wait([...state.values()].map((e) => ({ ...e.summary }))),

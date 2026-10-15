@@ -31,6 +31,7 @@ class BookingSummary(BaseModel):
     disruption_type: str
     data_source: Literal["duffel", "mock"]
     rebooked: bool
+    airline: str | None = None  # the carrier or flight name shown on booking cards
 
 
 class BookingDetail(BaseModel):

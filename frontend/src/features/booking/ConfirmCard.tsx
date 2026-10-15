@@ -4,16 +4,22 @@ import type { ConfirmCard as ConfirmCardData } from '../../app/types.ts'
 import { formatLocalTime, formatMoney } from './format.ts'
 import { SourcePill } from './Pills.tsx'
 
+/** What a confirm attempt came back with, when it did not simply work. */
+export type ConfirmProblem = { kind: 'error' | 'pending'; message: string }
+
 interface Props {
   card: ConfirmCardData
-  /** Resolves to an error message to show, or null when it worked. */
-  onConfirm: (optionId: string) => Promise<string | null>
+  /** Resolves to null when it worked, or to the problem to show. */
+  onConfirm: (optionId: string) => Promise<ConfirmProblem | null>
+  /** Asks the app whether an uncertain rebooking went through. */
+  onCheck: () => Promise<void>
   onDismiss: () => void
 }
 
-export function ConfirmCard({ card, onConfirm, onDismiss }: Props) {
+export function ConfirmCard({ card, onConfirm, onCheck, onDismiss }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [pending, setPending] = useState('')
   const { option } = card
   const d = option.flight_details
   const connections = typeof d.connections === 'number' ? d.connections : null
@@ -24,10 +30,16 @@ export function ConfirmCard({ card, onConfirm, onDismiss }: Props) {
     setBusy(true)
     setError('')
     const problem = await onConfirm(option.option_id)
-    if (problem) {
-      setError(problem)
-      setBusy(false)
-    }
+    if (problem?.kind === 'pending') setPending(problem.message)
+    else if (problem) setError(problem.message)
+    setBusy(false)
+  }
+
+  async function check() {
+    if (busy) return
+    setBusy(true)
+    await onCheck()
+    setBusy(false)
   }
 
   return (
@@ -60,12 +72,25 @@ export function ConfirmCard({ card, onConfirm, onDismiss }: Props) {
       )}
       <p className="small" style={{ marginTop: 8 }}>{card.notice}</p>
       {error && <p className="error-text" role="alert">{error}</p>}
-      <div className="confirm-actions">
-        <button className="btn btn-primary" type="button" onClick={confirm} aria-busy={busy}>
-          {busy ? 'Confirming…' : 'Confirm rebooking'}
-        </button>
-        <button className="btn" type="button" onClick={onDismiss}>Choose another</button>
-      </div>
+      {pending ? (
+        <div className="pending" role="status">
+          <h3>Checking your rebooking</h3>
+          <p>{pending}</p>
+          <p className="small">Please don't try to book again yet. Nothing more will be booked until this is settled.</p>
+          <div className="confirm-actions">
+            <button className="btn" type="button" onClick={check} aria-busy={busy}>
+              {busy ? 'Checking…' : 'Check status'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="confirm-actions">
+          <button className="btn btn-primary" type="button" onClick={confirm} aria-busy={busy}>
+            {busy ? 'Confirming…' : 'Confirm rebooking'}
+          </button>
+          <button className="btn" type="button" onClick={onDismiss}>Choose another</button>
+        </div>
+      )}
     </section>
   )
 }

@@ -94,6 +94,8 @@ export interface BookingSummary {
   disruption_type: string;
   data_source: DataSource;
   rebooked: boolean;
+  /** Carrier or flight name for booking cards, e.g. "Mock Air 100" or "Duffel Airways". */
+  airline: string | null;
 }
 
 export interface BookingDetail {

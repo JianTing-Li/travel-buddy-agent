@@ -23,7 +23,8 @@ export interface DevApi {
 }
 
 export interface BookingsApi {
-  /** Shown in the footer so nobody mistakes sample data for the live API. */
+  /** Sample data is always flagged in the footer; the live API's address is shown only with the dev panel. */
+  kind: 'sample' | 'live'
   label: string
   listBookings(): Promise<BookingSummary[]>
   getBooking(bookingId: string): Promise<BookingDetail>

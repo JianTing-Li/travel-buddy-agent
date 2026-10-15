@@ -19,6 +19,13 @@ export function formatDay(iso: string): string {
   return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}` : iso
 }
 
+/** e.g. "Oct 15 · 8:00 AM" in the timestamp's own zone, for compact cards. */
+export function formatShort(iso: unknown): string {
+  const full = formatLocalTime(iso)
+  const match = /^([A-Z][a-z]{2} \d+), (\d+:\d{2} [AP]M)/.exec(full)
+  return match ? `${match[1]} · ${match[2]}` : full
+}
+
 export function formatClock(iso: unknown): string {
   return formatLocalTime(iso).replace(/^[A-Z][a-z]{2} \d+, /, '')
 }

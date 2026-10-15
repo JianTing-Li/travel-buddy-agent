@@ -101,6 +101,7 @@ def _summary(session: Session, booking_id: str) -> BookingSummary:
         disruption_type=trip.disruption_details["type"],
         data_source=trip.data_source,
         rebooked=rebooked,
+        airline=itinerary.get("airline") or itinerary.get("flight"),
     )
 
 

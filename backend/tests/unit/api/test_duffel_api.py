@@ -80,6 +80,7 @@ def test_creating_a_duffel_booking_books_the_cheapest_test_airline_offer():
     body = response.json()
     assert body["booking_id"] == ORDER and body["data_source"] == "duffel" and body["status"] == "on time"
     assert body["origin"] == "LHR" and body["destination"] == "LTN" and body["rebooked"] is False
+    assert body["airline"] == "Duffel Airways"
     search = [c for c in fake.calls if c[0] == "search_offers"][0]
     assert search[1:3] == ("LHR", "LTN") and search[4] == 2
     created = [c for c in fake.calls if c[0] == "create_order"][0]
