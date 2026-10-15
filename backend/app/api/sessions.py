@@ -9,7 +9,7 @@ import secrets
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from ..harness.confirmation import ConfirmationGate
 from ..services.mock.mock_service import MockService
@@ -30,7 +30,10 @@ class Session:
     service: MockService
     toolset: ToolSet
     gate: ConfirmationGate
-    history: list[dict[str, Any]] = field(default_factory=list)
+    tools: dict[str, Callable[..., Any]]  # the agent's tools: gate-wrapped, recording each prepare result
+    histories: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # booking_id -> chat history
+    prepared: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> latest prepare_rebooking result
+    notices: dict[str, list[str]] = field(default_factory=dict)  # booking_id -> app notices for the next chat turn
     last_used: float = field(default_factory=time.monotonic)
     lock: threading.Lock = field(default_factory=threading.Lock)  # one request at a time per session
 
@@ -58,7 +61,16 @@ class SessionStore:
         service = MockService(scenarios=list(dict.fromkeys(names)))
         toolset = build_tools(service, allowed_booking_ids=set(service.booking_ids()))
         gate = ConfirmationGate(toolset.tools, toolset.complete_rebooking, source="real")
-        session = Session(secrets.token_urlsafe(32), service, toolset, gate)
+        prepared: dict[str, dict[str, Any]] = {}
+        gate_tools = gate.tools()
+
+        def prepare_rebooking(booking_id: str, option_id: str) -> dict[str, Any]:
+            result = gate_tools["prepare_rebooking"](booking_id=booking_id, option_id=option_id)
+            prepared[booking_id] = result  # what the confirm card shows comes from this, not from the model
+            return result
+
+        tools = {**gate_tools, "prepare_rebooking": prepare_rebooking}
+        session = Session(secrets.token_urlsafe(32), service, toolset, gate, tools, prepared=prepared)
         with self._lock:
             self._expire()
             while len(self._sessions) >= self._max_sessions:

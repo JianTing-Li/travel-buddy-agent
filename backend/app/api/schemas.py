@@ -4,9 +4,9 @@ frontend/src/app/types.ts mirrors these. Everything served today is simulated mo
 """
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..contract.models import TripContext
+from ..contract.models import Option, TripContext
 
 
 class SessionCreate(BaseModel):
@@ -40,3 +40,45 @@ class BookingDetail(BaseModel):
 
 class ErrorOut(BaseModel):
     detail: str
+
+
+class ChatIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    booking_id: str = Field(min_length=1, max_length=64)
+    message: str = Field(max_length=2000)
+
+    @field_validator("message")
+    @classmethod
+    def not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("message must not be blank")
+        return value
+
+
+class ConfirmCard(BaseModel):
+    """The option the traveler is about to confirm, taken from the latest prepare_rebooking result."""
+    booking_id: str
+    option: Option
+    validation_result: str
+    changes_to_review: list[str]
+    simulated: Literal[True] = True
+    notice: str = "Simulated rebooking. No real ticket is issued."
+
+
+class ChatOut(BaseModel):
+    reply: str
+    stopped_reason: Literal["reply", "step_limit", "error"]
+    confirm_card: ConfirmCard | None
+
+
+class ConfirmIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    booking_id: str = Field(min_length=1, max_length=64)
+    option_id: str = Field(min_length=1, max_length=64)
+
+
+class ConfirmOut(BaseModel):
+    status: Literal["confirmed", "rejected", "pending"]
+    reason: str | None = None
+    confirmation: dict[str, Any] | None = None
+    repeat: bool = False
