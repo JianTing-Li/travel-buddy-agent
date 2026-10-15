@@ -17,7 +17,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
 - [ ] Unit tests for harness
 - [x] Eval cases 1-4 from PRD 3d, expected behavior written first (tests/evals/cases/), written as JSON; no runner yet
-- [ ] Automated checks: unknown eligibility, wrong cost/currency, unavailable option, changed details, tool failure, duplicates, other traveler's booking, mock/Duffel mixing
+- [~] Automated checks: unknown eligibility, wrong cost/currency, unavailable option, changed details, tool failure, duplicates, other traveler's booking, mock/Duffel mixing. Done except wrong currency (known gap, needs a contract decision); changed details, duplicates, other booking and mock/Duffel mixing are covered by Jian's gate tests
 
 ## Jian: tools, services and API
 - [x] Find what Duffel's test API supports; record in docs/duffel-notes.md
