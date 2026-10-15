@@ -9,6 +9,7 @@ import type {
   ChatMessage,
   ConfirmCard as ConfirmCardData,
 } from '../../app/types.ts'
+import { DevBookingPanel } from '../dev/DevPanel.tsx'
 import { ConfirmCard } from './ConfirmCard.tsx'
 import { formatLocalTime, formatMoney } from './format.ts'
 import { SourcePill, StatusPill } from './Pills.tsx'
@@ -175,6 +176,11 @@ export function BookingDetail({ api, bookingId }: { api: BookingsApi; bookingId:
         </div>
         <ChatSlot bookingId={bookingId} messages={messages} sending={sending} onSend={send} />
       </div>
+      {api.dev && (
+        <div className="section">
+          <DevBookingPanel dev={api.dev} bookingId={bookingId} />
+        </div>
+      )}
     </section>
   )
 }

@@ -12,7 +12,12 @@ import {
   type BookingSummary,
   type ChangeCheckOut,
   type ChatOut,
+  type AirlineChange,
   type ConfirmOut,
+  type DevBookingCreate,
+  type DevBookingOut,
+  type DevDisruptIn,
+  type DevFaultsOut,
   type SessionOut,
 } from './types.ts'
 
@@ -108,5 +113,17 @@ export function createHttpApi(
     // 200 confirmed, 202 pending and 409 rejected all carry the outcome in the body.
     confirm: async (bookingId, optionId) =>
       json<ConfirmOut>(await call('/confirm', post({ booking_id: bookingId, option_id: optionId })), [200, 202, 409]),
+    // Test-data tools: off unless the build sets VITE_DEV_PANEL=true, and they only work against dev_app.
+    dev:
+      import.meta.env.VITE_DEV_PANEL === 'true'
+        ? {
+            createBooking: async (body: DevBookingCreate) =>
+              json<DevBookingOut>(await call('/dev/bookings', post(body)), [201]),
+            disrupt: async (bookingId: string, body: DevDisruptIn) =>
+              json<AirlineChange>(await call(`/dev/bookings/${encodeURIComponent(bookingId)}/disrupt`, post(body)), [201]),
+            setFaults: async (bookingId: string, faults: string[]) =>
+              json<DevFaultsOut>(await call(`/dev/bookings/${encodeURIComponent(bookingId)}/faults`, post({ faults }))),
+          }
+        : undefined,
   }
 }

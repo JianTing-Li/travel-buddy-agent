@@ -22,7 +22,8 @@ def ts_interface_fields(name: str) -> set[str]:
 
 CONTRACT = ["Limits", "Option", "TripContext", "ValidationResult", "Handoff"]
 API = ["SessionCreate", "SessionOut", "BookingSummary", "BookingDetail", "ErrorOut", "ChatIn", "ConfirmCard",
-       "ChatOut", "ConfirmIn", "ConfirmOut", "ChangeCheckOut"]
+       "ChatOut", "ConfirmIn", "ConfirmOut", "ChangeCheckOut", "DevBookingCreate", "DevBookingOut",
+       "DevDisruptIn", "DevFaultsIn", "DevFaultsOut"]
 
 
 @pytest.mark.parametrize("name", CONTRACT)
@@ -50,6 +51,12 @@ def test_flight_details_documents_the_keys_the_mock_service_uses():
     service = MockService(today=date(2026, 10, 15))
     used = set(service.search_replacements("MOCK-CASE-1")[0].flight_details)
     assert used <= ts_interface_fields("FlightDetails")
+
+
+def test_dev_fault_list_matches_the_mock_service():
+    from backend.app.services.mock.mock_service import FAULTS
+    block = re.search(r"DEV_FAULTS = \[(.*?)\] as const", TYPES_TS.read_text(), re.DOTALL).group(1)
+    assert tuple(re.findall(r'"(\w+)"', block)) == FAULTS
 
 
 def test_session_header_name_matches_the_backend():

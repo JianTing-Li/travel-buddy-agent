@@ -220,3 +220,21 @@
   .booking-meta { justify-content: flex-start; }
   .page-title { font-size: 21px; }
 }
+
+/* dev panel (test tools, only when VITE_DEV_PANEL=true) */
+.dev-panel { border-style: dashed; }
+.dev-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.dev-head .card-title { margin: 0; }
+.dev-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.dev-field { display: grid; gap: 4px; }
+.dev-field select,
+.dev-field input {
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  max-width: 100%;
+}
+.dev-faults { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--border); }
+.dev-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }

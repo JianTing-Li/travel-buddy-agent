@@ -172,6 +172,46 @@ export interface ConfirmOut {
   repeat: boolean;
 }
 
+// --- dev panel (the backend serves these only when started as dev_app) ---------------------
+
+/** Fault switches the mock service understands; the backend test checks this list. */
+export const DEV_FAULTS = [
+  "unknown_eligibility",
+  "wrong_currency",
+  "unavailable_option",
+  "changed_details",
+  "tool_failure",
+  "uncertain_completion",
+] as const;
+
+export interface DevBookingCreate {
+  /** An eval case (case_1 to case_4); omit for a random booking. */
+  scenario?: string | null;
+  /** 0 to 999999. The same seed gives the same booking; omit to pick one. */
+  seed?: number | null;
+}
+
+export interface DevBookingOut {
+  booking: BookingSummary;
+  seed: number;
+  scenario: string | null;
+}
+
+export interface DevDisruptIn {
+  kind: "cancellation" | "delay";
+  /** Required and positive for a delay, at most 1440. */
+  delay_minutes?: number;
+}
+
+export interface DevFaultsIn {
+  /** Replaces the active faults; an empty list clears them. */
+  faults: string[];
+}
+
+export interface DevFaultsOut {
+  faults: string[];
+}
+
 // --- UI only (not sent to the backend) ---------------------------------------------------
 
 export interface ChatMessage {

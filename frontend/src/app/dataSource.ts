@@ -1,5 +1,23 @@
 /** What the screens need from the backend. Owner: Jian. Fixtures and the real HTTP API both implement it. */
-import type { BookingDetail, BookingSummary, ChangeCheckOut, ChatOut, ConfirmOut } from './types.ts'
+import type {
+  AirlineChange,
+  BookingDetail,
+  BookingSummary,
+  ChangeCheckOut,
+  ChatOut,
+  ConfirmOut,
+  DevBookingCreate,
+  DevBookingOut,
+  DevDisruptIn,
+  DevFaultsOut,
+} from './types.ts'
+
+/** Test-data tools. Only present when the dev panel is switched on; the backend must be started as dev_app. */
+export interface DevApi {
+  createBooking(body: DevBookingCreate): Promise<DevBookingOut>
+  disrupt(bookingId: string, body: DevDisruptIn): Promise<AirlineChange>
+  setFaults(bookingId: string, faults: string[]): Promise<DevFaultsOut>
+}
 
 export interface BookingsApi {
   /** Shown in the footer so nobody mistakes sample data for the live API. */
@@ -10,4 +28,5 @@ export interface BookingsApi {
   checkChanges(bookingId: string): Promise<ChangeCheckOut>
   chat(bookingId: string, message: string): Promise<ChatOut>
   confirm(bookingId: string, optionId: string): Promise<ConfirmOut>
+  dev?: DevApi
 }

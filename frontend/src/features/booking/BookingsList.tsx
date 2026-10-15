@@ -3,12 +3,14 @@ import { useEffect, useState } from 'react'
 import type { BookingsApi } from '../../app/dataSource.ts'
 import { bookingHref } from '../../app/route.ts'
 import type { BookingSummary } from '../../app/types.ts'
+import { DevCreatePanel } from '../dev/DevPanel.tsx'
 import { formatDay } from './format.ts'
 import { SourcePill, StatusPill } from './Pills.tsx'
 
 export function BookingsList({ api }: { api: BookingsApi }) {
   const [bookings, setBookings] = useState<BookingSummary[] | null>(null)
   const [error, setError] = useState('')
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -19,7 +21,7 @@ export function BookingsList({ api }: { api: BookingsApi }) {
     return () => {
       cancelled = true
     }
-  }, [api])
+  }, [api, reload])
 
   return (
     <section aria-labelledby="bookings-title">
@@ -51,6 +53,11 @@ export function BookingsList({ api }: { api: BookingsApi }) {
           </a>
         ))}
       </div>
+      {api.dev && (
+        <div className="section">
+          <DevCreatePanel dev={api.dev} onCreated={() => setReload((n) => n + 1)} />
+        </div>
+      )}
     </section>
   )
 }
