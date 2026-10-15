@@ -41,3 +41,37 @@ Not done / notes
 - The injection detector is a phrase list, a seatbelt only. Real protection is that code enforces limits and confirmation.
 - Allowed eligibility values are still undefined in the contract; guards treat missing, empty and "unknown" as unknown. Update when settled.
 - Not yet checked live: whether the model really ignores the flagged field in case 4 (try `live_chat.py case_4`).
+
+## 2026-10-15: decide.py cut-off fix (branch cheich/decide-cutoff, based on cheich/guards)
+Done
+- `decide.py`: default `max_tokens` raised from 1024 to 4096 (`DEFAULT_MAX_TOKENS`). A text reply that stops with `max_tokens` is now flagged `truncated`.
+- `loop.py`: a cut-off reply is continued automatically with an app-written "continue" message, up to `MAX_CONTINUATIONS` (2) times. The traveler sees the parts joined. If it is still cut off after that, the turn is an error and history is unchanged. Each continuation counts toward the step limit.
+- Tests in `tests/unit/agent/test_loop.py` (3 new). Suite: 45 pass, 1 skipped.
+
+Notes
+- Raised from Jian's handoff: a live reply was cut off mid-sentence ("If the…") because only tool calls were checked for `max_tokens`.
+- Not checked live: whether the model continues cleanly mid-word. Check with `live_chat.py` on a long answer.
+- This branch sits on top of `cheich/guards`, so merge that one first.
+
+## 2026-10-15: gate says what changed (branch cheich/decide-cutoff)
+- `harness/confirmation.py`: when the re-check finds a changed or unavailable option, the rejection reason now ends with `What changed: ...` built from the re-check's `changes_to_review`. Before, that list was dropped and the traveler was only told the option was no longer valid (Jian's handoff gap).
+- Chosen approach: reason text only. The change list is not stored for the confirm card; if the UI needs it, that touches Jian's API code.
+- 3 new tests in `test_confirmation.py`.
+
+## Handoff for Jian (2026-10-15)
+Where things stand
+- Merged earlier (PR #4): system prompt v0, agent loop, mock tools and swap switch (`agent/tool_source.py`), confirmation gate, 4 eval cases.
+- Branch `cheich/guards` (pushed, no PR yet): guards block options with unknown eligibility, cost or currency, and label tool data as untrusted (eval case 4).
+- Branch `cheich/decide-cutoff` (pushed, no PR yet, sits on top of `cheich/guards`, merge that first): `decide.py` raises max_tokens to 4096 and continues a cut-off reply up to twice; the gate's rejection now says what changed (your `changes_to_review` gap).
+- I tested your branch locally: 364 tests pass, 1 fails. I posted this and my answers on PR #5.
+
+What I need from you
+1. PR #5: why does `test_a_duffel_rebooking_confirms_once_through_the_gate_and_the_api` fail for me (`prepare_rebooking` returns `unavailable`)? Date or offer expiry? I'll approve and merge once it is sorted (GitHub requires my approval).
+2. Agree to my answers on PR #5: you own the shell, I own `frontend/src/features/chat`; `react-router` only; dev panel behind a flag, test token only, never in a public demo.
+3. Add the frontend split and `tests/unit/services/`, `tests/unit/api/` to CLAUDE.md and CODEOWNERS.
+4. Review my two PRs once opened (approvals needed on both; `TASKS.md` may need a small manual merge since we both edited it).
+5. Eval runner: OK with free mode (scripted replies, tests your six fault switches, no cost) plus live mode (claude-haiku-5-5, only when asked, runs chosen each time)? Pass/fail by code checks, not a second model. I will not build it until you answer.
+6. A session to settle the contract TODOs (arrival window, eligibility and validity values, flight_details, money type, confirmation result). They block the limits filter.
+7. After the README merges: I will add out of scope, role and industry, and how to run it. README is shared, so I need your approval.
+
+My next steps after PR #5 merges: pull main, limits filter hook, `confirmed_needs` injection, harness tests, eval runner, automated checks, chat UI.

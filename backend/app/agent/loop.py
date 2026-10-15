@@ -11,6 +11,9 @@ PROMPT_PATH = Path(__file__).parent / "prompts" / "system_prompt_v0.txt"
 DEFAULT_MAX_STEPS = 8
 STEP_LIMIT_REPLY = "I wasn't able to finish that. Please try again or rephrase your request."
 ERROR_REPLY = "Something went wrong on my side. Please try again."
+MAX_CONTINUATIONS = 2
+CONTINUE_MESSAGE = ("Your last reply was cut off. Continue from exactly where it stopped, "
+                    "with no recap and nothing repeated.")
 
 
 @dataclass
@@ -63,8 +66,11 @@ def run_turn(
 
     The turn ends when the model replies with text (including a question to the traveler),
     on an error, or when max_steps model calls are used. On error, history is left unchanged.
+    A reply cut off by the token limit is continued automatically (up to MAX_CONTINUATIONS times),
+    and the traveler sees the joined text. If it is still cut off after that, the turn is an error.
     """
     messages = [*history, {"role": "user", "content": user_message}]
+    parts: list[str] = []
 
     for step in range(1, max_steps + 1):
         decision = decide(client, model, system_prompt, messages, tool_schemas)
@@ -75,7 +81,13 @@ def run_turn(
         messages.append({"role": "assistant", "content": decision.assistant_content})
 
         if decision.kind == "text":
-            return TurnResult(decision.text, messages, "reply", step)
+            parts.append(decision.text)
+            if not decision.truncated:
+                return TurnResult("".join(parts), messages, "reply", step)
+            if len(parts) > MAX_CONTINUATIONS:
+                return TurnResult(ERROR_REPLY, history, "error", step, "Reply still cut off after continuing")
+            messages.append({"role": "user", "content": CONTINUE_MESSAGE})
+            continue
 
         results = [_run_tool(call, tools) for call in decision.tool_calls]
         messages.append({"role": "user", "content": results})

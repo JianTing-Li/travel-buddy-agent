@@ -74,10 +74,12 @@ class ConfirmationGate:
         except Exception as exc:
             return self._reject(f"Could not re-check the option: {type(exc).__name__}")
         self._record(booking_id, option_id, latest)
+        what_changed = self._changes_text(latest)
         if booking_id not in self._prepared:
-            return self._reject("The option is no longer valid. Review another option.")
+            return self._reject("The option is no longer valid. Review another option." + what_changed)
         if self._prepared[booking_id][1] != prepared[1]:
-            return self._reject("The option's details changed. Review the updated details and confirm again.")
+            return self._reject(
+                "The option's details changed. Review the updated details and confirm again." + what_changed)
 
         try:
             outcome = {"status": "confirmed", "result": self._complete(booking_id, option_id)}
@@ -85,6 +87,14 @@ class ConfirmationGate:
             outcome = {"status": "pending", "reason": f"Result uncertain ({type(exc).__name__}). Do not retry."}
         self._attempts[key] = outcome
         return outcome
+
+    @staticmethod
+    def _changes_text(latest: Any) -> str:
+        """The re-check's changes_to_review as text, so the traveler is told what changed."""
+        changes = latest.get("changes_to_review") if isinstance(latest, dict) else None
+        if not isinstance(changes, list) or not changes:
+            return ""
+        return " What changed: " + "; ".join(str(c) for c in changes) + "."
 
     @staticmethod
     def _reject(reason: str) -> dict[str, Any]:
