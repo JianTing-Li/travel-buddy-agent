@@ -42,11 +42,12 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [ ] Cheich's chat plugs into the chat slot
 
 ## Deployment (later, after the demo; proposed)
-- [ ] Decide hosting: backend on a long-running host (Render, Railway or Fly) with ONE worker (`--workers 1`), frontend on Vercel or Netlify. Sessions, chat history, the confirmation gate and mock state live in memory, so serverless functions or several workers would lose them between requests. The alternative is moving that state to Redis or a database (a feature of its own, not in the PRD)
+- [ ] Decide hosting (Vercel alone is not enough for this project; it needs two services): backend on a long-running host (Render, Railway or Fly) with ONE worker (`--workers 1`), frontend on Vercel or Netlify. Sessions, chat history, the confirmation gate and mock state live in memory, so serverless functions or several workers would lose them between requests. The alternative is moving that state to Redis or a database (a feature of its own, not in the PRD)
 - [ ] Set the same variable names in the host's dashboard as secrets (ANTHROPIC_API_KEY, DUFFEL_ACCESS_TOKEN, MODEL; Duffel must stay a `duffel_test_` token). `.env` is not deployed and `load_dotenv` does not override real environment variables
 - [ ] Make the allowed CORS origin configurable for the deployed frontend URL (needs one new env var such as ALLOWED_ORIGINS, or a deploy entry point passing `allowed_origins` to `create_app`; CLAUDE.md allows only three env var names, so agree first and update .env.example, which Jian owns)
 - [ ] Frontend: read the API address from a build-time `VITE_API_URL` (public, never put keys in it); add a rewrite-all-to-index.html rule (`vercel.json` or Netlify `_redirects`) if react-router is used
-- [ ] Start backend with `--no-access-log`; check the host offers Python 3.14 (CLAUDE.md) or agree an older version
+- [ ] Check the host offers Python 3.14 (CLAUDE.md) BEFORE choosing it, or agree an older version with Cheich. Start the backend with `--no-access-log` and with `backend.app.api.main:app`, never `dev_app` (its /dev endpoints create test orders and must not be public)
+- [ ] Public demo protection: anyone with the link can use the Anthropic key through POST /chat and create Duffel test orders. Before sharing a live URL add a simple guard (a shared access code the page sends, plus a per-session and per-IP rate limit and a cap on chat turns), and set a spending limit on the Anthropic key. Nothing like this is built yet
 
 ## Integration (Shared)
 - [ ] Happy path end to end (eval case 1)
