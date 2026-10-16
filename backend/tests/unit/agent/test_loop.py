@@ -104,3 +104,25 @@ def test_multiple_tool_calls_all_get_results():
     )
     ids = [x["tool_use_id"] for x in run(c).history[2]["content"]]
     assert ids == ["a", "b"]
+
+
+def test_cut_off_reply_is_continued_and_joined():
+    c = FakeClient(resp(text("Option 1 leaves at 11 AM and ar"), stop_reason="max_tokens"),
+                   resp(text("rives at 2 PM.")))
+    r = run(c)
+    assert r.stopped_reason == "reply" and r.reply == "Option 1 leaves at 11 AM and arrives at 2 PM."
+    assert r.steps == 2 and c.calls == 2
+    assert r.history[-2]["role"] == "user" and "cut off" in r.history[-2]["content"]
+
+
+def test_reply_cut_off_too_many_times_is_an_error_and_history_unchanged():
+    c = FakeClient(*[resp(text(f"part{i} "), stop_reason="max_tokens") for i in range(3)])
+    prior = [{"role": "user", "content": "a"}, {"role": "assistant", "content": [{"type": "text", "text": "b"}]}]
+    r = run(c, history=prior)
+    assert r.stopped_reason == "error" and r.history == prior and c.calls == 3
+
+
+def test_normal_reply_is_not_marked_truncated_and_default_limit_is_4096():
+    from backend.app.agent.decide import DEFAULT_MAX_TOKENS, decide
+    d = decide(FakeClient(resp(text("hi"))), "m", "s", [], [])
+    assert d.kind == "text" and d.truncated is False and DEFAULT_MAX_TOKENS == 4096
