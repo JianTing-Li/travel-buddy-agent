@@ -49,12 +49,13 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
       if (document.hidden) return
       try {
         const out = await api.checkChanges(bookingId)
-        if (cancelled || out.new_changes.length === 0) return
-        const fresh = await api.getBooking(bookingId)
-        if (cancelled) return
-        // Kept in the shared store: the server shows each change only once, so it must survive leaving this page.
+        if (out.new_changes.length === 0) return
+        // Saved to the shared store even if this page was left meanwhile: the server shows each change only once,
+        // so a change dropped here would never come back.
         update(bookingId, (c) => ({ ...c, changes: [...c.changes, ...out.new_changes] }))
-        setDetail(fresh)
+        if (cancelled) return
+        const fresh = await api.getBooking(bookingId)
+        if (!cancelled) setDetail(fresh)
       } catch {
         // a failed check is simply tried again on the next tick
       }
