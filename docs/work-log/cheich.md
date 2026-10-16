@@ -75,3 +75,13 @@ What I need from you
 7. After the README merges: I will add out of scope, role and industry, and how to run it. README is shared, so I need your approval.
 
 My next steps after PR #5 merges: pull main, limits filter hook, `confirmed_needs` injection, harness tests, eval runner, automated checks, chat UI.
+
+## 2026-10-15: automated safety checks (branch cheich/safety-checks)
+Done
+- `tests/unit/harness/test_safety_checks.py` (15 tests, no live model) runs my guards, gate and loop against Jian's real `MockService` and its fault switches: guard allows every normal mock option (no false positives); `unknown_eligibility` blocked by guard and gate; `unavailable_option` never confirmed; `tool_failure` reaches the model as an error and the turn continues; case 4's injected `note` is flagged in the real mock data, and normal data is not flagged.
+- The status strings Jian's mock uses (`unknown`, `ineligible`, `unavailable`) match what the guard checks.
+
+Known gap (needs a decision)
+- Wrong currency is NOT caught. The guard only checks that a currency exists. Nothing compares it to the traveler's budget currency, and contract `Limits` and `TripContext` have no currency. Recorded as a strict `xfail` test, so it fails loudly once someone fixes it. Fix needs a contract change (expected currency) agreed with Jian. PRD target: 100% of displayed costs match the service.
+
+Covered elsewhere (Jian's `test_registry_with_gate.py`): confirm without prepare, wrong option, repeat confirm, changed cost, failure inside completion, another session's booking.
