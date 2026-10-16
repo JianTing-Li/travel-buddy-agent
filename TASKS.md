@@ -42,7 +42,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Wire the shell to the real API once the chat/confirm and dev/booking endpoints exist
 - [x] UI polish from a design review: booking cards with city names, time, airline and action; recovery workspace layout; conversation and airline-change banners kept across navigation; "Checking your rebooking" state for uncertain confirmations; plain-language footer
 - [ ] Structured comparison: up to three flight cards from validated tool results with a reason derived from code facts (needs an API addition and Cheich's limits filter), editable requirement chips fed by the agent's confirmed limits, progress stepper, no-options screen. Not a requirements form: the PRD has the agent capture needs from everyday language
-- [ ] Cheich's chat plugs into the chat slot
+- [x] Cheich's chat plugs into the chat slot (features/chat: messages, thinking indicator, example prompts, safe formatting; checked in the browser, light and dark, phone width)
 
 ## Deployment (later, after the demo; proposed)
 - [ ] Decide hosting (Vercel alone is not enough for this project; it needs two services): backend on a long-running host (Render, Railway or Fly) with ONE worker (`--workers 1`), frontend on Vercel or Netlify. Sessions, chat history, the confirmation gate and mock state live in memory, so serverless functions or several workers would lose them between requests. The alternative is moving that state to Redis or a database (a feature of its own, not in the PRD)

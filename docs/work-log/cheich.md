@@ -28,3 +28,18 @@ Not done / handoff
 ### Eval cases
 - The 4 PRD eval cases are in `backend/tests/evals/cases/` as JSON (setup, expected behavior, must-not lists). Expected behavior was written before any run.
 - Not done: no automated runner yet; they were checked by hand in the live chat only.
+
+## 2026-10-16: chat UI (branch cheich/chat-ui)
+Done
+- `frontend/src/features/chat/`: `ChatPanel.tsx` (message list, "working on it" indicator, input that sends on Enter and adds a line on Shift+Enter, Send disabled while empty or sending, welcome text with three tap-to-edit example prompts), `RichText.tsx` and `markdown.ts` (a small safe formatter for bold, italic, code, bullet and numbered lists; builds React elements only, never raw HTML; links and tables stay plain text), `chat.css` (uses the shell's colour variables, so light and dark both work).
+- `app/ChatSlot.tsx` (Jian's file): body replaced with `<ChatPanel {...props} />`, the one-line hand-over its own comment describes. The shell, `ChatSlotProps` and `types.ts` are unchanged. No new packages.
+- Checked: `npm run build` and `npm run lint` pass; formatter logic checked with 13 cases in Node; run against the live backend and real model (Case 1): send, thinking state, formatted reply, Shift+Enter, light mode, phone width (375px, no sideways scroll).
+
+Not done / notes
+- No automated frontend tests: the project has no test framework (adding Vitest would need Jian's agreement).
+- Assistant replies are only as structured as the model writes them. The structured comparison cards in TASKS.md need the limits filter.
+- The first real reply asked three or four questions at once; that is the prompt's behavior, not the UI.
+- Full flow checked live (Case 1, real backend and model, mock data): the agent loaded the booking, asked for the deadline, found two options inside the limits and left out the 4 PM flight, prepared the 2 PM nonstop, and the shell showed the confirm card. Pressing Confirm rebooking set the booking to Rebooked with SIM-CONF-MOCK-CASE-1-opt-1a; a follow-up question was answered from the app's result and stayed labeled simulated.
+- Finding: before the card was pressed the agent said 'reply yes to confirm', but confirmation is the button, not a chat message. A prompt or app-notice wording fix, to agree with Jian.
+- Finding: the agent filtered the 4 PM option itself and said the service had not checked the limits. The limits filter (harness/limits.py) is still not built, so this relies on the model's own judgment.
+- Not tried live: the `wrong_currency` fault in the dev panel.
