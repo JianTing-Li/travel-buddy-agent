@@ -28,18 +28,36 @@ def test_generated_bookings_are_valid_mock_data(seed):
     trip = scenario.trip
     assert isinstance(trip, TripContext) and trip.data_source == "mock"
     itinerary = trip.original_itinerary
-    assert itinerary["origin"] != itinerary["destination"] and itinerary["booking_id"] == scenario.booking_id
-    assert itinerary["status"] in {"canceled", "missed by traveler"} and trip.disruption_details["simulated"] is True
-    assert 2 <= len(scenario.options) <= 4
+    assert itinerary.origin != itinerary.destination and itinerary.booking_id == scenario.booking_id
+    assert itinerary.status in {"canceled", "missed by traveler"} and trip.disruption_details.simulated is True
+    assert 3 <= len(scenario.options) <= 5
     assert len({o.option_id for o in scenario.options}) == len(scenario.options)
     for option in scenario.options:
         assert isinstance(option, Option) and option.data_source == "mock" and option.currency == "USD"
-        assert option.additional_cost >= 0 and option.flight_details["simulated"] is True
+        assert option.additional_cost >= 0 and option.flight_details.simulated is True
         details = option.flight_details
-        elapsed = datetime.fromisoformat(details["arrives"]) - datetime.fromisoformat(details["departs"])
-        assert elapsed.total_seconds() / 60 == minutes(details["duration"])
+        elapsed = datetime.fromisoformat(details.arrives) - datetime.fromisoformat(details.departs)
+        assert elapsed.total_seconds() / 60 == minutes(details.duration)
         if scenario.passenger_count > 1:
-            assert details["cost_applies_to"] == f"all {scenario.passenger_count} travelers"
+            assert details.extras["cost_applies_to"] == f"all {scenario.passenger_count} travelers"
+
+
+@pytest.mark.parametrize("seed", range(60))
+def test_generated_options_make_real_trade_offs(seed):
+    options = generate_scenario(seed, TODAY).options
+    by_departure = sorted(options, key=lambda o: datetime.fromisoformat(o.flight_details.departs))
+    free = [o for o in options if o.additional_cost == 0]
+    assert len(free) == 1  # exactly one option at no extra cost
+    assert any(o.additional_cost > 0 for o in options)
+    assert any(o.flight_details.connections == 1 for o in options)
+    earliest = by_departure[0]
+    assert earliest.flight_details.connections == 0 and earliest.additional_cost > 0  # the earliest is a paid nonstop
+    arrives = lambda o: datetime.fromisoformat(o.flight_details.arrives)
+    assert arrives(earliest) < arrives(free[0])  # paying extra really does get you there sooner
+    departures = [o.flight_details.departs for o in options]
+    assert len(set(departures)) == len(departures)
+    paid = [o.additional_cost for o in by_departure if o.additional_cost > 0]
+    assert paid == sorted(paid, reverse=True)  # among paid options, earlier flights cost more
 
 
 def test_passenger_list_matches_the_count():
@@ -50,7 +68,7 @@ def test_passenger_list_matches_the_count():
 
 def test_a_named_case_is_reissued_under_a_new_booking_id():
     scenario = generate_scenario(3, TODAY, scenario="case_2")
-    assert scenario.booking_id == "MOCK-CASE-2-G3" and scenario.trip.original_itinerary["booking_id"] == "MOCK-CASE-2-G3"
+    assert scenario.booking_id == "MOCK-CASE-2-G3" and scenario.trip.original_itinerary.booking_id == "MOCK-CASE-2-G3"
     assert [o.additional_cost for o in scenario.options] == [80, 140]  # the eval case's numbers are unchanged
 
 

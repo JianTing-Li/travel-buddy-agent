@@ -22,6 +22,8 @@ export const EMPTY_CONVERSATION: Conversation = { messages: [], card: null, chan
 export interface ConversationStore {
   get(bookingId: string): Conversation
   update(bookingId: string, change: (current: Conversation) => Conversation): void
+  /** Forget every booking's conversation, e.g. after the test data is reset. */
+  clear(): void
 }
 
 export function useConversations(): ConversationStore {
@@ -31,5 +33,6 @@ export function useConversations(): ConversationStore {
       setAll((previous) => ({ ...previous, [bookingId]: change(previous[bookingId] ?? EMPTY_CONVERSATION) })),
     [],
   )
-  return useMemo(() => ({ get: (id: string) => all[id] ?? EMPTY_CONVERSATION, update }), [all, update])
+  const clear = useCallback(() => setAll({}), [])
+  return useMemo(() => ({ get: (id: string) => all[id] ?? EMPTY_CONVERSATION, update, clear }), [all, update, clear])
 }

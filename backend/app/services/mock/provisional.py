@@ -1,18 +1,19 @@
-"""PROVISIONAL status values for the mock service, until the contract defines them. Owner: Jian.
+"""Status values the services use, named once. Owner: Jian.
 
-contract/models.py leaves Option.eligibility, Option.validity and ValidationResult.validation_result as free
-strings (TODO). These are the values the mock uses. When the contract is agreed, rename them here only.
-Cheich's stub tools and harness currently check for "valid" and "eligible".
+The allowed values are defined by contract v1 in backend/app/contract/models.py (Eligibility, Validity,
+ValidationOutcome); these constants only give them names so the services do not repeat raw strings.
 """
-ELIGIBLE = "eligible"
-INELIGIBLE = "ineligible"
-UNKNOWN = "unknown"
+from ...contract.models import Eligibility, ValidationOutcome, Validity
 
-VALIDITY_VALID = "valid"
-VALIDITY_EXPIRED = "expired"
-VALIDITY_UNAVAILABLE = "unavailable"
+ELIGIBLE: Eligibility = "eligible"
+INELIGIBLE: Eligibility = "ineligible"
+UNKNOWN: Eligibility = "unknown"
 
-RESULT_VALID = "valid"
-RESULT_CHANGED = "changed"
-RESULT_UNAVAILABLE = "unavailable"
-RESULT_INVALID = "invalid"
+VALIDITY_VALID: Validity = "valid"
+VALIDITY_EXPIRED: Validity = "expired"
+VALIDITY_UNAVAILABLE: Validity = "unavailable"
+
+RESULT_VALID: ValidationOutcome = "valid"
+RESULT_CHANGED: ValidationOutcome = "changed"
+RESULT_UNAVAILABLE: ValidationOutcome = "unavailable"
+RESULT_INVALID: ValidationOutcome = "invalid"

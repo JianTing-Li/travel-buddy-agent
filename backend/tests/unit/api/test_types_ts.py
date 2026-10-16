@@ -20,10 +20,11 @@ def ts_interface_fields(name: str) -> set[str]:
     return {m.group(1) for m in re.finditer(r"^\s{2}(\w+)\??:", match.group(1), re.MULTILINE)}
 
 
-CONTRACT = ["Limits", "Option", "TripContext", "ValidationResult", "Handoff"]
+CONTRACT = ["Limits", "FlightDetails", "Option", "Itinerary", "Passenger", "Disruption", "TripContext",
+            "ValidationResult", "Handoff"]
 API = ["SessionCreate", "SessionOut", "BookingSummary", "BookingDetail", "ErrorOut", "ChatIn", "ConfirmCard",
        "ChatOut", "ConfirmIn", "ConfirmOut", "ChangeCheckOut", "DevBookingCreate", "DevBookingOut",
-       "DevDisruptIn", "DevFaultsIn", "DevFaultsOut", "DevDuffelBookingIn"]
+       "DevDisruptIn", "DevFaultsIn", "DevFaultsOut", "DevDuffelBookingIn", "DevResetOut"]
 
 
 @pytest.mark.parametrize("name", CONTRACT)
@@ -49,8 +50,8 @@ def test_confirmation_interface_matches_what_the_mock_service_returns():
 
 def test_flight_details_documents_the_keys_the_mock_service_uses():
     service = MockService(today=date(2026, 10, 15))
-    used = set(service.search_replacements("MOCK-CASE-1")[0].flight_details)
-    assert used <= ts_interface_fields("FlightDetails")
+    used = set(service.search_replacements("MOCK-CASE-1")[0].flight_details.model_dump())
+    assert used == ts_interface_fields("FlightDetails")
 
 
 def test_dev_fault_list_matches_the_mock_service():

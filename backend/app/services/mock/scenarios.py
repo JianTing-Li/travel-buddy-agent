@@ -59,7 +59,7 @@ class _OptionFile(BaseModel):
     currency: str
     eligibility: str = provisional.ELIGIBLE
     validity: str = provisional.VALIDITY_VALID
-    extra: dict[str, Any] = {}
+    extra: dict[str, str] = {}  # free text from the source; becomes FlightDetails.extras (untrusted)
 
 
 class _ScenarioFile(BaseModel):
@@ -124,7 +124,7 @@ def load_scenario(name: str, today: date | None = None, directory: Path = SCENAR
             "departs": _resolve(itinerary.departs, today),
             "status": data.disruption.status,
         },
-        passengers=[{"name": f"Passenger {i + 1}"} for i in range(data.passenger_count)],
+        passengers=[{"passenger_id": f"{data.booking_id}-P{i + 1}", "type": "adult"} for i in range(data.passenger_count)],
         disruption_details={"type": data.disruption.type, "simulated": True},
         data_source="mock",
     )
@@ -141,7 +141,7 @@ def load_scenario(name: str, today: date | None = None, directory: Path = SCENAR
                 "duration": o.duration,
                 "connections": o.connections,
                 "simulated": True,
-                **o.extra,
+                "extras": o.extra,
             },
             eligibility=o.eligibility,
             additional_cost=o.additional_cost,

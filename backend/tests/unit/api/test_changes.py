@@ -1,4 +1,5 @@
 """Unit tests for the airline-change check endpoint: shown-once tracking, notices and access. Owner: Jian."""
+from datetime import date, timedelta
 from types import SimpleNamespace as NS
 
 import pytest
@@ -49,7 +50,8 @@ def test_a_new_change_is_returned_once_and_updates_the_booking():
     assert [c["change_id"] for c in first["new_changes"]] == ["SIM-CHG-MOCK-CASE-3-1"]
     change = first["new_changes"][0]
     assert change["kind"] == "delay" and change["data_source"] == "mock" and change["simulated"] is True
-    assert first["booking"]["status"] == "delayed" and first["booking"]["departs"].startswith("2026-10-16T09:00")
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()  # case 3 departs tomorrow at 08:00
+    assert first["booking"]["status"] == "delayed" and first["booking"]["departs"].startswith(f"{tomorrow}T09:00")
     again = check(client, session_id, "MOCK-CASE-3").json()
     assert again["new_changes"] == [] and again["booking"]["status"] == "delayed"
 

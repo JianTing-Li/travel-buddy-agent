@@ -14,20 +14,22 @@ def _option(option_id: str, airline_no: str, depart: str, arrive: str, duration:
     details: dict[str, Any] = {
         "airline": "Mock Air (SIMULATED)",
         "flight": airline_no,
+        "origin": "JFK",
+        "destination": "LAX",
         "departs": depart,
         "arrives": arrive,
         "duration": duration,
         "connections": connections,
         "simulated": True,
+        "extras": extra or {},  # contract v1: free text goes in extras (untrusted)
     }
-    details.update(extra or {})
     return Option(
         option_id=option_id,
         flight_details=details,
-        eligibility="eligible",  # TODO: contract does not define allowed values yet
+        eligibility="eligible",  # contract v1 values: eligible / ineligible / unknown
         additional_cost=cost,
         currency="USD",
-        validity="valid",  # TODO: contract does not define this yet
+        validity="valid",  # contract v1 values: valid / expired / unavailable
         data_source="mock",
     )
 
@@ -36,11 +38,13 @@ def _trip(booking_id: str, disruption: str, passengers: int) -> TripContext:
     return TripContext(
         original_itinerary={
             "booking_id": booking_id,
-            "flight": "Mock Air 100, JFK to LAX",
+            "flight": "Mock Air 100",
+            "origin": "JFK",
+            "destination": "LAX",
             "departs": "2026-10-15T08:00-04:00",
             "status": "canceled" if disruption == "airline cancellation" else "missed by traveler",
         },
-        passengers=[{"name": f"Passenger {i + 1}"} for i in range(passengers)],
+        passengers=[{"passenger_id": f"{booking_id}-P{i + 1}"} for i in range(passengers)],  # contract v1: no names
         disruption_details={"type": disruption, "simulated": True},
         data_source="mock",
     )
@@ -122,9 +126,10 @@ def build_stub_tools(scenario: str = "case_1") -> dict[str, Callable[..., dict[s
         check(booking_id)
         return Handoff(
             case_id=f"SIM-{data['booking_id']}",
-            booking_details=data["trip"].original_itinerary,
+            booking_details=data["trip"].original_itinerary.model_dump(),
             confirmed_needs=Limits(
-                budget_additional_cost=0, arrival_window="stub", max_connections=1, passenger_count=1
+                budget_additional_cost=0, currency="USD", arrive_by=f"{_D}T15:00-07:00", max_connections=1,
+                passenger_count=1,
             ),  # TODO: real confirmed needs come from the harness
             unresolved_issue=unresolved_issue,
         ).model_dump()
@@ -152,7 +157,7 @@ def build_stub_completer(scenario: str = "case_1") -> Callable[[str, str], dict[
             "confirmation_id": f"SIM-CONF-{booking_id}-{option_id}",
             "simulated": True,
             "note": "SIMULATED rebooking. No real airline ticket was created.",
-            "updated_itinerary": options[option_id].flight_details,
+            "updated_itinerary": options[option_id].flight_details.model_dump(),
         }
 
     return complete_rebooking

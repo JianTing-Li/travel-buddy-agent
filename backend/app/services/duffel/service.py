@@ -2,14 +2,14 @@
 
 Only Duffel test-mode orders (ids "ord_...") are handled, through DuffelClient, which refuses live tokens.
 Mapping rules are PROVISIONAL until the contract is agreed (see docs/duffel-notes.md for what Duffel returns):
-- additional_cost is change_total_amount in change_total_currency, never new_total_amount. A negative value is
-  a refund and is passed through unchanged.
+- additional_cost is change_total_amount in change_total_currency, never new_total_amount. Contract v1 does not
+  allow negative costs (refunds are out of scope for MVP 1), so an offer that would refund is left out.
 - eligibility is "eligible" only when the order's available_actions includes "change" and the offer's
   conditions.change_before_departure.allowed is true; otherwise "unknown", which blocks rebooking.
 - validity is "valid" while the offer's expires_at is in the future, otherwise "expired".
 - Replacement searches use the original departure date, then the next day if nothing came back. Each search
-  creates an order change request in Duffel. Offers missing a cost or currency are dropped, and offers that
-  repeat the same flight times and cost are shown once.
+  creates an order change request in Duffel. Offers missing a cost, currency or flight times (or that do not
+  fit the contract) are dropped, and offers that repeat the same flight times and cost are shown once.
 - Passenger names are not passed on: the agent only needs how many travel and their ids.
 Escalation is the simulated support handoff, as for mock bookings. Completing a change uses Duffel's test
 balance; a dropped connection while confirming is re-raised so callers treat the result as uncertain.
@@ -19,6 +19,8 @@ import threading
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from pydantic import ValidationError
 
 from ...contract.models import Handoff, Limits, Option, TripContext, ValidationResult
 from ..airline_change import AirlineChange
@@ -156,6 +158,8 @@ class DuffelService:
             status, disruption = "delayed", {"type": "airline schedule change", "open_changes": len(open_changes)}
         else:
             status, disruption = "on time", {"type": "none reported"}
+        if not (details["origin"] and details["destination"] and details["departs"]):
+            raise DuffelServiceError("The Duffel order is missing its flight details.")
         return TripContext(
             original_itinerary={
                 "booking_id": booking_id,
@@ -168,8 +172,9 @@ class DuffelService:
                 "status": status,
                 "booking_reference": order.get("booking_reference"),
             },
-            passengers=[{"passenger_id": p.get("id"), "type": p.get("type")} for p in order.get("passengers") or []],
-            disruption_details={**disruption, "simulated": True, "test_mode": True},
+            passengers=[{"passenger_id": p["id"], "type": p.get("type") or "adult"}
+                        for p in order.get("passengers") or [] if p.get("id")],
+            disruption_details={**disruption, "simulated": True},
             data_source="duffel",
         )
 
@@ -212,6 +217,8 @@ class DuffelService:
             cost = float(amount)
         except (TypeError, ValueError):
             return None
+        if cost < 0:
+            return None  # a refund; out of scope for MVP 1 and not allowed by the contract
         conditions = (offer.get("conditions") or {}).get("change_before_departure") or {}
         eligible = changeable and conditions.get("allowed") is True
         expires = offer.get("expires_at")
@@ -220,15 +227,18 @@ class DuffelService:
         except ValueError:
             valid = False
         details = _segment_details(((offer.get("slices") or {}).get("add") or [{}])[0])
-        return Option(
-            option_id=offer.get("id") or "",
-            flight_details={**details, "simulated": True, "test_mode": True},
-            eligibility=provisional.ELIGIBLE if eligible else provisional.UNKNOWN,
-            additional_cost=cost,
-            currency=currency,
-            validity=provisional.VALIDITY_VALID if valid else provisional.VALIDITY_EXPIRED,
-            data_source="duffel",
-        )
+        try:
+            return Option(
+                option_id=offer.get("id") or "",
+                flight_details={**details, "simulated": True},
+                eligibility=provisional.ELIGIBLE if eligible else provisional.UNKNOWN,
+                additional_cost=cost,
+                currency=currency,
+                validity=provisional.VALIDITY_VALID if valid else provisional.VALIDITY_EXPIRED,
+                data_source="duffel",
+            )
+        except ValidationError:
+            return None  # missing flight times, a time without a UTC offset, or a malformed currency
 
     def search_replacements(self, booking_id: str) -> list[Option]:
         order = self._order(booking_id)
@@ -252,7 +262,7 @@ class DuffelService:
         unique: dict[tuple[Any, ...], Option] = {}
         for option in options:
             d = option.flight_details
-            unique.setdefault((d["departs"], d["arrives"], d["connections"], option.additional_cost, option.currency), option)
+            unique.setdefault((d.departs, d.arrives, d.connections, option.additional_cost, option.currency), option)
         result = list(unique.values())
         with self._lock:
             booking = self._booking(booking_id)
@@ -335,7 +345,7 @@ class DuffelService:
                 "option_id": option_id,
                 "additional_cost": reviewed.additional_cost,
                 "currency": reviewed.currency,
-                "updated_itinerary": dict(reviewed.flight_details),
+                "updated_itinerary": reviewed.flight_details.model_dump(),
             }
             booking.prepared = None
             return dict(booking.confirmation)
@@ -349,7 +359,7 @@ class DuffelService:
         """SIMULATED handoff, as for mock bookings. Booking details are read from the order if Duffel answers."""
         try:
             trip = self.get_trip_context(booking_id)
-            booking_details = {**trip.original_itinerary, "passenger_count": len(trip.passengers)}
+            booking_details = {**trip.original_itinerary.model_dump(), "passenger_count": len(trip.passengers)}
         except DuffelServiceError:
             booking_details = {"booking_id": booking_id, "note": "Duffel could not be reached for the details."}
         handoff = Handoff(

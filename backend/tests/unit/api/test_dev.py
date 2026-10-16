@@ -181,3 +181,67 @@ def test_dev_endpoint_logs_hold_no_booking_ids_or_seeds(caplog):
     create(client, session_id, seed=424242)
     text = "\n".join(r.getMessage() for r in caplog.records)
     assert "route=/dev/bookings" in text and "424242" not in text and session_id not in text
+
+
+# --- reset ---------------------------------------------------------------------------------
+
+def reset(client, session_id):
+    return client.post("/dev/reset", headers=auth(session_id))
+
+
+def test_reset_is_dev_only_and_needs_a_session():
+    client, session_id = start(dev=False)
+    assert reset(client, session_id).status_code == 404
+    client, _ = start()
+    assert client.post("/dev/reset").status_code == 401
+
+
+def test_reset_puts_the_session_back_to_its_first_bookings():
+    client, session_id = start()
+    session = client.app.state.sessions.get(session_id)
+    create(client, session_id, seed=8)
+    client.post("/dev/bookings/MOCK-CASE-3/disrupt", json={"kind": "delay", "delay_minutes": 30}, headers=auth(session_id))
+    client.post("/dev/bookings/MOCK-CASE-2/faults", json={"faults": ["tool_failure"]}, headers=auth(session_id))
+    session.tools["prepare_rebooking"](booking_id="MOCK-CASE-1", option_id="opt-1a")
+    client.post("/confirm", json={"booking_id": "MOCK-CASE-1", "option_id": "opt-1a"}, headers=auth(session_id))
+    session.histories["MOCK-CASE-1"] = [{"role": "user", "content": "hi"}]
+
+    response = reset(client, session_id)
+    assert response.status_code == 200
+    assert response.json() == {"booking_ids": ["MOCK-CASE-1", "MOCK-CASE-2", "MOCK-CASE-3", "MOCK-CASE-4"]}
+    bookings = {b["booking_id"]: b for b in client.get("/bookings", headers=auth(session_id)).json()}
+    assert "MOCK-GEN-8" not in bookings  # generated booking gone
+    assert bookings["MOCK-CASE-1"]["rebooked"] is False and bookings["MOCK-CASE-1"]["status"] == "canceled"
+    assert bookings["MOCK-CASE-3"]["status"] == "canceled"  # the simulated delay is gone
+    assert client.post("/bookings/MOCK-CASE-3/changes/check", headers=auth(session_id)).json()["new_changes"] == []
+    session = client.app.state.sessions.get(session_id)
+    assert session.histories == {} and session.prepared == {} and not any(session.notices.values())
+    assert session.service.get_faults("MOCK-CASE-2") == []
+    assert session.tools["search_replacements"](booking_id="MOCK-CASE-2")["options"]  # no tool_failure any more
+
+
+def test_after_a_reset_the_same_seed_can_be_generated_again_and_rebooking_works():
+    client, session_id = start()
+    assert create(client, session_id, seed=9).status_code == 201
+    reset(client, session_id)
+    assert create(client, session_id, seed=9).status_code == 201  # no "already exists"
+    session = client.app.state.sessions.get(session_id)
+    session.tools["prepare_rebooking"](booking_id="MOCK-CASE-1", option_id="opt-1a")
+    assert client.post("/confirm", json={"booking_id": "MOCK-CASE-1", "option_id": "opt-1a"},
+                       headers=auth(session_id)).json()["status"] == "confirmed"
+
+
+def test_reset_keeps_the_session_id_and_leaves_other_sessions_alone():
+    client, mine = start()
+    other = client.post("/sessions").json()["session_id"]
+    create(client, other, seed=12)
+    reset(client, mine)
+    assert client.get("/bookings", headers=auth(mine)).status_code == 200  # same id still works
+    assert "MOCK-GEN-12" in [b["booking_id"] for b in client.get("/bookings", headers=auth(other)).json()]
+
+
+def test_a_session_limited_to_some_scenarios_keeps_them_after_reset():
+    client = TestClient(create_app(dev=True))
+    session_id = client.post("/sessions", json={"scenarios": ["case_2"]}).json()["session_id"]
+    create(client, session_id, seed=3)
+    assert reset(client, session_id).json() == {"booking_ids": ["MOCK-CASE-2"]}

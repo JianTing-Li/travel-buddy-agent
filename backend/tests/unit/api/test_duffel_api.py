@@ -221,3 +221,13 @@ def test_the_session_booking_limit_counts_duffel_bookings_too():
         assert client.post("/dev/bookings", json={"seed": seed}, headers=auth(session_id)).status_code == 201
     over = create_duffel(client, session_id)
     assert over.status_code == 409 and "at most" in over.json()["detail"]
+
+
+def test_reset_removes_duffel_bookings_from_the_session():
+    client, session_id, _ = start()
+    create_duffel(client, session_id)
+    assert ORDER in [b["booking_id"] for b in client.get("/bookings", headers=auth(session_id)).json()]
+    out = client.post("/dev/reset", headers=auth(session_id)).json()
+    assert ORDER not in out["booking_ids"]
+    assert client.get(f"/bookings/{ORDER}", headers=auth(session_id)).status_code == 404
+    assert create_duffel(client, session_id).status_code == 201  # Duffel still works after the reset

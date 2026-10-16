@@ -18,7 +18,7 @@ import threading
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal
 
-from ...contract.models import Handoff, Limits, Option, TripContext, ValidationResult
+from ...contract.models import Disruption, Handoff, Limits, Option, TripContext, ValidationResult
 from ..airline_change import AirlineChange
 from ..errors import (
     AlreadyRebookedError,
@@ -160,15 +160,15 @@ class MockService:
             if kind == "delay":
                 if delay_minutes <= 0:
                     raise ValueError("delay_minutes must be positive for a delay")
-                moved = datetime.fromisoformat(itinerary["departs"]) + timedelta(minutes=delay_minutes)
-                itinerary["departs"] = moved.isoformat(timespec="minutes")
-                itinerary["status"] = "delayed"
-                total = booking.trip.disruption_details.get("delay_minutes", 0) + delay_minutes
-                booking.trip.disruption_details = {"type": "airline delay", "simulated": True, "delay_minutes": total}
+                moved = datetime.fromisoformat(itinerary.departs) + timedelta(minutes=delay_minutes)
+                itinerary.departs = moved.isoformat(timespec="minutes")
+                itinerary.status = "delayed"
+                total = (booking.trip.disruption_details.delay_minutes or 0) + delay_minutes
+                booking.trip.disruption_details = Disruption(type="airline delay", delay_minutes=total)
                 summary = f"The airline delayed the departure by {delay_minutes} minutes, to {_clock(moved)}."
             else:
-                itinerary["status"] = "canceled"
-                booking.trip.disruption_details = {"type": "airline cancellation", "simulated": True}
+                itinerary.status = "canceled"
+                booking.trip.disruption_details = Disruption(type="airline cancellation")
                 summary = "The airline canceled this flight."
             change = AirlineChange(
                 change_id=f"SIM-CHG-{booking_id}-{len(booking.changes) + 1}",
@@ -253,7 +253,7 @@ class MockService:
                 "option_id": option_id,
                 "additional_cost": option.additional_cost,
                 "currency": option.currency,
-                "updated_itinerary": dict(option.flight_details),
+                "updated_itinerary": option.flight_details.model_dump(),
             }
             booking.prepared = None
             return dict(booking.confirmation)
@@ -271,7 +271,7 @@ class MockService:
             trip = booking.scenario.trip
             handoff = Handoff(
                 case_id=f"SIM-{booking_id}",
-                booking_details={**trip.original_itinerary, "passenger_count": len(trip.passengers),
+                booking_details={**trip.original_itinerary.model_dump(), "passenger_count": len(trip.passengers),
                                  "simulated": True, "label": HANDOFF_NOTE},
                 confirmed_needs=confirmed_needs,
                 unresolved_issue=unresolved_issue,
