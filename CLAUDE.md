@@ -21,7 +21,7 @@ An AI agent that helps a disrupted traveler compare up to three replacement flig
 ## Git workflow
 - Never work on main. One branch per task: <type>/<short-name> (e.g. setup/scaffold, feat/limits-filter).
 - Every change goes through a pull request; the other person reviews anything touching their folders.
-- No commit or push until the owner says yes. No force-push. No self-merging without review.
+- No commit or push until the owner says yes. No force-push, except `git push --force-with-lease` to your own feature branch after rebasing it onto main (never to main or someone else's branch). No self-merging without review.
 
 ## Shared docs
 - TASKS.md is the live task board. Update it in the same PR as the work it describes so either of us can take over.
