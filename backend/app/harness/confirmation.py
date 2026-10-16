@@ -41,7 +41,7 @@ class ConfirmationGate:
         return wrapped
 
     def _record(self, booking_id: str, option_id: str, result: dict[str, Any]) -> None:
-        if result.get("validation_result") != "valid":  # TODO: contract does not define allowed values yet
+        if result.get("validation_result") != "valid":
             self._prepared.pop(booking_id, None)
             return
         option = result["latest_option_details"]

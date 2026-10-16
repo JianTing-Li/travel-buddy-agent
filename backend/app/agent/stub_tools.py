@@ -118,7 +118,7 @@ def build_stub_tools(scenario: str = "case_1") -> dict[str, Callable[..., dict[s
             raise ValueError(f"Option '{option_id}' not found")
         return ValidationResult(
             latest_option_details=options[option_id],
-            validation_result="valid",  # TODO: contract does not define allowed values yet
+            validation_result="valid",
             changes_to_review=[],
         ).model_dump()
 

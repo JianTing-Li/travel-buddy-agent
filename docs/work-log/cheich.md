@@ -105,3 +105,12 @@ What I need from you
 
 New thing to decide together
 - Wrong currency is not caught. If an option is priced in EUR and the budget is in USD, nothing notices. The contract has no currency on `Limits` or `TripContext`, so this needs a contract decision. It is recorded as an expected failure in `tests/unit/harness/test_safety_checks.py`.
+
+## 2026-10-16: merged main (contract v1) and updated the guards (branch feat/guards-and-cutoff)
+Done
+- Merged `main` (Jian's PR #6, contract v1) into this branch with a normal merge, no rebase, so no force-push is needed. No conflicts; the suite is 476 passed plus 1 expected failure.
+- `harness/guards.py`: eligibility is now the contract's three values. `unknown` and `ineligible` block, `eligible` passes, and anything missing or outside the contract is treated like unknown (blocked). Removed the old value lists and the TODO about allowed values. Costs are never negative (matches the contract).
+- Removed two answered TODOs on `validation_result` values (`confirmation.py`, `stub_tools.py`). Kept two that are still true: the contract has no confirmation model, and confirmed needs for escalation still come from the model, not the harness.
+
+Still open
+- Wrong currency is still not caught by the guard. The contract now has `Limits.currency`, so the limits filter can compare it with each option's currency (an option in another currency cannot be checked and must not be recommended). That filter is the next task.

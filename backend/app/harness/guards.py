@@ -5,15 +5,18 @@ Two jobs, both pure code (no model involved):
 2. wrap_untrusted: every tool result is labeled as data. Text that looks like instructions is flagged.
    This is a seatbelt, not a wall: the real protection is that code, not the model, enforces limits and confirmation.
 
-TODO: the contract does not define the allowed eligibility values yet. "Unknown" here means missing, empty or
-"unknown"; "ineligible" values are matched by a short list. Update when the contract is settled.
+Contract v1 rules used here: eligibility is "eligible", "ineligible" or "unknown", and "unknown" always blocks
+rebooking. Money is never negative. A value outside the contract (or a missing one) is treated like unknown.
+Currency is only checked for presence here; comparing it with the traveler's budget currency (Limits.currency) is the
+limits filter's job.
 """
 import math
 from dataclasses import dataclass, field
 from typing import Any
 
-UNKNOWN_VALUES = {"", "unknown", "unverified", "n/a", "none", "null"}
-INELIGIBLE_VALUES = {"ineligible", "not eligible", "not_eligible", "unavailable"}
+ELIGIBLE = "eligible"
+INELIGIBLE = "ineligible"
+UNKNOWN = "unknown"
 
 # Phrases that look like instructions aimed at the model, not flight data.
 SUSPICIOUS_PHRASES = (
@@ -37,17 +40,18 @@ def check_option_known(option: Any) -> GuardResult:
     reasons = []
 
     eligibility = option.get("eligibility")
-    text = str(eligibility).strip().lower() if eligibility is not None else ""
-    if text in UNKNOWN_VALUES:
+    if eligibility == UNKNOWN:
         reasons.append("eligibility is unknown")
-    elif text in INELIGIBLE_VALUES:
+    elif eligibility == INELIGIBLE:
         reasons.append("option is not eligible")
+    elif eligibility != ELIGIBLE:
+        reasons.append("eligibility is missing or not a contract value")
 
     cost = option.get("additional_cost")
     if isinstance(cost, bool) or not isinstance(cost, (int, float)) or not math.isfinite(cost):
         reasons.append("additional cost is unknown")
     elif cost < 0:
-        reasons.append("additional cost is invalid (negative)")
+        reasons.append("additional cost is invalid (the contract never allows a negative cost)")
 
     currency = option.get("currency")
     if not isinstance(currency, str) or not currency.strip():
