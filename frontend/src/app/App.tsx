@@ -70,7 +70,7 @@ function App() {
             bookingId={route.id}
             conversation={conversations.get(route.id)}
             update={conversations.update}
-          /> : <BookingsList api={api} />}
+          /> : <BookingsList api={api} onReset={conversations.clear} />}
       </main>
       <footer className="footer">
         Everything in Travel Buddy is simulated. No real ticket will be issued.

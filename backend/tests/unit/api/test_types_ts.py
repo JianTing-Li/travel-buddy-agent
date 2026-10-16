@@ -24,7 +24,7 @@ CONTRACT = ["Limits", "FlightDetails", "Option", "Itinerary", "Passenger", "Disr
             "ValidationResult", "Handoff"]
 API = ["SessionCreate", "SessionOut", "BookingSummary", "BookingDetail", "ErrorOut", "ChatIn", "ConfirmCard",
        "ChatOut", "ConfirmIn", "ConfirmOut", "ChangeCheckOut", "DevBookingCreate", "DevBookingOut",
-       "DevDisruptIn", "DevFaultsIn", "DevFaultsOut", "DevDuffelBookingIn"]
+       "DevDisruptIn", "DevFaultsIn", "DevFaultsOut", "DevDuffelBookingIn", "DevResetOut"]
 
 
 @pytest.mark.parametrize("name", CONTRACT)

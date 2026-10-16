@@ -15,7 +15,7 @@ function actionLabel(booking: BookingSummary): string {
   return 'Find a replacement'
 }
 
-export function BookingsList({ api }: { api: BookingsApi }) {
+export function BookingsList({ api, onReset }: { api: BookingsApi; onReset: () => void }) {
   const [bookings, setBookings] = useState<BookingSummary[] | null>(null)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
@@ -76,7 +76,14 @@ export function BookingsList({ api }: { api: BookingsApi }) {
       </div>
       {api.dev && (
         <div className="section">
-          <DevCreatePanel dev={api.dev} onCreated={() => setReload((n) => n + 1)} />
+          <DevCreatePanel
+            dev={api.dev}
+            onCreated={() => setReload((n) => n + 1)}
+            onReset={() => {
+              onReset()
+              setReload((n) => n + 1)
+            }}
+          />
         </div>
       )}
     </section>

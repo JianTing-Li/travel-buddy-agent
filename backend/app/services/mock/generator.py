@@ -3,6 +3,9 @@
 The same seed always gives the same booking, so any run can be reproduced. Pass a scenario name (case_1 to case_4)
 to get that eval case under a new booking id, or none for a random booking. Everything is simulated: flights are
 invented, costs are for the whole booking, and no data is sent anywhere.
+
+Random bookings get 3 to 5 options chosen to make real trade-offs: one costs nothing extra but leaves later,
+earlier flights cost more (the earliest is always a paid nonstop), and one option has a connection.
 """
 import random
 from datetime import date, datetime, time, timedelta
@@ -18,7 +21,7 @@ AIRPORT_ZONES = {
     "LAX": "America/Los_Angeles", "SFO": "America/Los_Angeles", "SEA": "America/Los_Angeles",
 }
 DISRUPTIONS = (("airline cancellation", "canceled"), ("missed flight", "missed by traveler"))
-COSTS = (0, 0, 45, 80, 120, 150, 200)  # whole-booking additional costs, in USD
+PAID_COSTS = (45, 60, 80, 95, 120, 140, 150, 175, 200)  # whole-booking additional costs, in USD
 CONNECTION_EXTRA_MINUTES = 90
 MAX_SEED = 999_999
 
@@ -63,12 +66,20 @@ def generate_scenario(seed: int, today: date | None = None, scenario: str | None
     booking_id = f"MOCK-GEN-{seed}"
     departs = datetime.combine(day, time(rng.randint(6, 9), 0), tzinfo=origin_zone)
 
+    count = rng.randint(3, 5)
+    hours = sorted(rng.sample(range(7, 21), count))  # distinct departure hours, earliest first
+    free = rng.randrange(count // 2, count)  # the $0 option leaves in the later half, so paying more buys earlier
+    connecting = rng.choice([i for i in range(1, count) if i != free])  # never the earliest flight
+    paid = iter(sorted(rng.sample(PAID_COSTS, count - 1), reverse=True))  # earlier flights cost more
+    block = rng.randrange(180, 360, 15)  # flying time for this route
     options = []
-    for index in range(1, rng.randint(2, 4) + 1):
-        leaves = datetime.combine(day, time(rng.randint(9, 20), rng.choice((0, 30))), tzinfo=origin_zone)
-        connections = rng.choice((0, 0, 1))
-        minutes = rng.randrange(150, 420, 15) + (CONNECTION_EXTRA_MINUTES if connections else 0)
+    for index, hour in enumerate(hours, start=1):
+        position = index - 1
+        leaves = datetime.combine(day, time(hour, rng.choice((0, 15))), tzinfo=origin_zone)
+        connections = 1 if position == connecting else 0
+        minutes = block + (CONNECTION_EXTRA_MINUTES if connections else 0)
         arrives = (leaves + timedelta(minutes=minutes)).astimezone(destination_zone)
+        cost = 0.0 if position == free else float(next(paid))
         details = {
             "airline": MOCK_AIRLINE, "flight": f"Mock Air {rng.randint(200, 899)}", "origin": origin,
             "destination": destination, "departs": _iso(leaves), "arrives": _iso(arrives),
@@ -78,7 +89,7 @@ def generate_scenario(seed: int, today: date | None = None, scenario: str | None
             details["extras"] = {"cost_applies_to": f"all {passengers} travelers"}
         options.append(Option(
             option_id=f"opt-g{index}", flight_details=details, eligibility=provisional.ELIGIBLE,
-            additional_cost=float(rng.choice(COSTS)), currency="USD", validity=provisional.VALIDITY_VALID,
+            additional_cost=cost, currency="USD", validity=provisional.VALIDITY_VALID,
             data_source="mock",
         ))
 

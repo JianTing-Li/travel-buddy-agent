@@ -1,5 +1,9 @@
 # Jian work log
 
+## 2026-10-16: richer mock options and test-data reset (branch feat/contract-v1)
+- Generated mock bookings now get 3 to 5 options with real trade-offs: exactly one at no extra cost that leaves later, earlier flights that cost more (the earliest is always a paid nonstop), and one with a connection. A test checks this for 60 seeds.
+- "Reset test data" in the dev panel (`POST /dev/reset`, dev_app only) starts the caller's session over with its first mock bookings: generated bookings, simulated changes, faults, rebookings, chat histories and the page's conversations are cleared; Duffel test bookings leave the session (the orders stay on the Duffel test account). Other sessions are untouched; restarting the backend resets everything. 437 backend tests pass.
+
 ## 2026-10-16: contract v1 (branch feat/contract-v1)
 Decided with Jian (either owner may change the contract; this entry is the record):
 - `Limits`: `arrival_window` (free text) is replaced by `arrive_by`, the latest arrival at the destination as local time with its UTC offset (e.g. `2026-10-15T15:00-07:00`). The budget gets its own `currency`. All four eval cases are deadlines.

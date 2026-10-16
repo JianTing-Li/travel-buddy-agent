@@ -249,6 +249,11 @@ export interface DevFaultsIn {
   faults: string[];
 }
 
+export interface DevResetOut {
+  /** The session's bookings after the reset. */
+  booking_ids: string[];
+}
+
 export interface DevFaultsOut {
   faults: string[];
 }

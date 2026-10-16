@@ -41,14 +41,32 @@ function Frame({ title, children }: { title: string; children: React.ReactNode }
   )
 }
 
-/** On the bookings list: add a simulated booking to this session. */
-export function DevCreatePanel({ dev, onCreated }: { dev: DevApi; onCreated: () => void }) {
+/** On the bookings list: add a simulated booking to this session, or start the session over. */
+export function DevCreatePanel({ dev, onCreated, onReset }: { dev: DevApi; onCreated: () => void; onReset: () => void }) {
   const [scenario, setScenario] = useState('')
   const [seed, setSeed] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [duffelRoute, setDuffelRoute] = useState<'jfk_lax' | 'lhr_ltn'>('lhr_ltn')
+  const [confirmingReset, setConfirmingReset] = useState(false)
+
+  async function reset() {
+    if (busy) return
+    setError('')
+    setMessage('')
+    setBusy(true)
+    try {
+      const out = await dev.reset()
+      setConfirmingReset(false)
+      setMessage(`Test data reset. This session is back to ${out.booking_ids.length} bookings.`)
+      onReset()
+    } catch (e) {
+      setError(problem(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function createDuffel() {
     if (busy) return
@@ -115,6 +133,21 @@ export function DevCreatePanel({ dev, onCreated }: { dev: DevApi; onCreated: () 
         <button className="btn" type="button" onClick={createDuffel} aria-busy={busy}>
           {busy ? 'Creating…' : 'Create Duffel test booking'}
         </button>
+      </div>
+      <div className="dev-row dev-duffel">
+        {confirmingReset ? (
+          <>
+            <span className="small">
+              Clears this session's generated bookings, simulated changes, faults, rebookings and chats.
+            </span>
+            <button className="btn btn-small" type="button" onClick={reset} aria-busy={busy}>
+              {busy ? 'Resetting…' : 'Confirm reset'}
+            </button>
+            <button className="btn btn-small" type="button" onClick={() => setConfirmingReset(false)}>Cancel</button>
+          </>
+        ) : (
+          <button className="btn btn-small" type="button" onClick={() => setConfirmingReset(true)}>Reset test data</button>
+        )}
       </div>
       {message && <p className="muted" role="status" style={{ marginTop: 8 }}>{message}</p>}
       {error && <p className="error-text" role="alert">{error}</p>}

@@ -11,6 +11,7 @@ import type {
   DevDisruptIn,
   DevDuffelBookingIn,
   DevFaultsOut,
+  DevResetOut,
 } from './types.ts'
 
 /** Test-data tools. Only present when the dev panel is switched on; the backend must be started as dev_app. */
@@ -20,6 +21,8 @@ export interface DevApi {
   createDuffelBooking(body: DevDuffelBookingIn): Promise<BookingSummary>
   disrupt(bookingId: string, body: DevDisruptIn): Promise<AirlineChange>
   setFaults(bookingId: string, faults: string[]): Promise<DevFaultsOut>
+  /** Starts this session over with its first mock bookings. Other sessions are untouched. */
+  reset(): Promise<DevResetOut>
 }
 
 export interface BookingsApi {
