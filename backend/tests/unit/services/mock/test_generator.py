@@ -28,18 +28,18 @@ def test_generated_bookings_are_valid_mock_data(seed):
     trip = scenario.trip
     assert isinstance(trip, TripContext) and trip.data_source == "mock"
     itinerary = trip.original_itinerary
-    assert itinerary["origin"] != itinerary["destination"] and itinerary["booking_id"] == scenario.booking_id
-    assert itinerary["status"] in {"canceled", "missed by traveler"} and trip.disruption_details["simulated"] is True
+    assert itinerary.origin != itinerary.destination and itinerary.booking_id == scenario.booking_id
+    assert itinerary.status in {"canceled", "missed by traveler"} and trip.disruption_details.simulated is True
     assert 2 <= len(scenario.options) <= 4
     assert len({o.option_id for o in scenario.options}) == len(scenario.options)
     for option in scenario.options:
         assert isinstance(option, Option) and option.data_source == "mock" and option.currency == "USD"
-        assert option.additional_cost >= 0 and option.flight_details["simulated"] is True
+        assert option.additional_cost >= 0 and option.flight_details.simulated is True
         details = option.flight_details
-        elapsed = datetime.fromisoformat(details["arrives"]) - datetime.fromisoformat(details["departs"])
-        assert elapsed.total_seconds() / 60 == minutes(details["duration"])
+        elapsed = datetime.fromisoformat(details.arrives) - datetime.fromisoformat(details.departs)
+        assert elapsed.total_seconds() / 60 == minutes(details.duration)
         if scenario.passenger_count > 1:
-            assert details["cost_applies_to"] == f"all {scenario.passenger_count} travelers"
+            assert details.extras["cost_applies_to"] == f"all {scenario.passenger_count} travelers"
 
 
 def test_passenger_list_matches_the_count():
@@ -50,7 +50,7 @@ def test_passenger_list_matches_the_count():
 
 def test_a_named_case_is_reissued_under_a_new_booking_id():
     scenario = generate_scenario(3, TODAY, scenario="case_2")
-    assert scenario.booking_id == "MOCK-CASE-2-G3" and scenario.trip.original_itinerary["booking_id"] == "MOCK-CASE-2-G3"
+    assert scenario.booking_id == "MOCK-CASE-2-G3" and scenario.trip.original_itinerary.booking_id == "MOCK-CASE-2-G3"
     assert [o.additional_cost for o in scenario.options] == [80, 140]  # the eval case's numbers are unchanged
 
 

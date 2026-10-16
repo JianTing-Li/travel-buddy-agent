@@ -46,7 +46,7 @@ def order(actions=("cancel", "change", "update"), changes=(), live=False, **extr
 
 
 def offer(id_, amount="125.00", currency="USD", dep="2026-11-14T12:00:00", arr="2026-11-14T12:38:00",
-          allowed=True, expires="2026-10-15T13:00:00Z", segments=1, new_total="264.08"):
+          allowed=True, expires="2099-01-01T00:00:00Z", segments=1, new_total="264.08"):
     segs = [segment(dep, arr)] * segments
     return {
         "id": id_, "change_total_amount": amount, "change_total_currency": currency, "new_total_amount": new_total,
@@ -140,16 +140,16 @@ def test_trip_context_maps_the_order_without_passenger_names(service):
     trip = service.get_trip_context(ORDER)
     assert isinstance(trip, TripContext) and trip.data_source == "duffel"
     itinerary = trip.original_itinerary
-    assert itinerary["origin"] == "LHR" and itinerary["destination"] == "LTN"
-    assert itinerary["departs"] == "2026-11-14T10:03+00:00" and itinerary["flight"] == "ZZ123"
-    assert itinerary["status"] == "on time" and trip.disruption_details["type"] == "none reported"
-    assert trip.passengers == [{"passenger_id": "pas_1", "type": "adult"}]
+    assert itinerary.origin == "LHR" and itinerary.destination == "LTN"
+    assert itinerary.departs == "2026-11-14T10:03+00:00" and itinerary.flight == "ZZ123"
+    assert itinerary.status == "on time" and trip.disruption_details.type == "none reported"
+    assert [p.model_dump() for p in trip.passengers] == [{"passenger_id": "pas_1", "type": "adult"}]
     assert "TravelerA" not in str(trip.model_dump())
 
 
 def test_an_open_airline_change_marks_the_trip_delayed(client, service):
     client.order = order(changes=[{"id": "aic_1", "action_taken": None}])
-    assert service.get_trip_context(ORDER).original_itinerary["status"] == "delayed"
+    assert service.get_trip_context(ORDER).original_itinerary.status == "delayed"
 
 
 def test_times_get_the_airports_utc_offset():
@@ -159,7 +159,7 @@ def test_times_get_the_airports_utc_offset():
                                             "America/New_York", "America/Los_Angeles")], "JFK", "LAX", "PT6H15M")]
     svc.add_booking(ORDER)
     itinerary = svc.get_trip_context(ORDER).original_itinerary
-    assert itinerary["departs"] == "2026-11-14T08:00-05:00" and itinerary["arrives"] == "2026-11-14T11:15-08:00"
+    assert itinerary.departs == "2026-11-14T08:00-05:00" and itinerary.arrives == "2026-11-14T11:15-08:00"
 
 
 # --- search ----------------------------------------------------------------------------------
@@ -172,8 +172,8 @@ def test_search_maps_offers_using_change_total_not_new_total(service):
     assert first.additional_cost == 125.0 and first.currency == "USD"  # never the 264.08 new_total_amount
     assert first.eligibility == "eligible" and first.validity == "valid"
     d = first.flight_details
-    assert d["departs"] == "2026-11-14T12:00+00:00" and d["duration"] == "0h 38m" and d["connections"] == 0
-    assert d["airline"] == "Duffel Airways" and d["test_mode"] is True
+    assert d.departs == "2026-11-14T12:00+00:00" and d.duration == "0h 38m" and d.connections == 0
+    assert d.airline == "Duffel Airways" and d.simulated is True
 
 
 def test_identical_offers_are_shown_once(client, service):
@@ -197,9 +197,19 @@ def test_offers_without_a_cost_or_currency_are_dropped(client, service):
     assert [o.option_id for o in service.search_replacements(ORDER)] == ["oco_3"]
 
 
-def test_a_negative_change_total_is_passed_through_as_a_refund(client, service):
-    client.requests_by_date["2026-11-14"] = [offer("oco_1", amount="-30.00")]
-    assert service.search_replacements(ORDER)[0].additional_cost == -30.0
+def test_an_offer_that_would_refund_is_left_out(client, service):
+    # Contract v1: additional_cost is never negative; refunds are out of scope for MVP 1.
+    client.requests_by_date["2026-11-14"] = [offer("oco_refund", amount="-30.00"), offer("oco_ok")]
+    assert [o.option_id for o in service.search_replacements(ORDER)] == ["oco_ok"]
+
+
+def test_offers_without_flight_times_or_offsets_are_left_out(client, service):
+    no_times = offer("oco_1")
+    no_times["slices"]["add"][0]["segments"][0]["departing_at"] = None
+    no_zone = offer("oco_2", dep="2026-11-14T13:00:00", arr="2026-11-14T13:38:00")
+    no_zone["slices"]["add"][0]["segments"][0]["origin"]["time_zone"] = None
+    client.requests_by_date["2026-11-14"] = [no_times, no_zone, offer("oco_3", dep="2026-11-14T15:00:00")]
+    assert [o.option_id for o in service.search_replacements(ORDER)] == ["oco_3"]
 
 
 def test_changes_not_allowed_by_the_fare_mean_unknown_eligibility(client, service):
@@ -285,7 +295,7 @@ def test_complete_creates_a_pending_change_and_confirms_the_reviewed_cost(client
     assert confirmation["confirmation_id"] == "ocg_1" and confirmation["data_source"] == "duffel"
     assert confirmation["additional_cost"] == 125.0 and "TEST API" in confirmation["note"]
     assert service.get_confirmation(ORDER) == confirmation
-    assert service.get_trip_context(ORDER).original_itinerary["status"] == "rebooked"
+    assert service.get_trip_context(ORDER).original_itinerary.status == "rebooked"
 
 
 def test_complete_requires_a_prepare_of_the_same_option(client, service):
@@ -356,7 +366,7 @@ def test_airline_changes_are_read_from_the_order(client, service):
 
 
 def test_escalation_is_a_simulated_handoff(service):
-    needs = Limits(budget_additional_cost=0, arrival_window="by 3 PM", max_connections=1, passenger_count=1)
+    needs = Limits(budget_additional_cost=0, currency="USD", arrive_by="2026-10-15T15:00-07:00", max_connections=1, passenger_count=1)
     handoff = service.escalate_to_support(ORDER, "No option fits.", needs)
     assert handoff.case_id == f"SIM-{ORDER}" and handoff.booking_details["simulated"] is True
     assert handoff.booking_details["data_source"] == "duffel" and "SIMULATED" in handoff.booking_details["label"]

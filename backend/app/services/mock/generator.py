@@ -38,7 +38,7 @@ def _duration(minutes: int) -> str:
 def _renamed(base: Scenario, booking_id: str, seed: int) -> Scenario:
     """The same scenario under a new booking id, so several copies can live in one session."""
     trip = base.trip.model_copy(deep=True)
-    trip.original_itinerary["booking_id"] = booking_id
+    trip.original_itinerary.booking_id = booking_id
     return Scenario(f"{base.scenario_id}-g{seed}", booking_id, base.passenger_count, trip, base.options)
 
 
@@ -75,7 +75,7 @@ def generate_scenario(seed: int, today: date | None = None, scenario: str | None
             "duration": _duration(minutes), "connections": connections, "simulated": True,
         }
         if passengers > 1:
-            details["cost_applies_to"] = f"all {passengers} travelers"
+            details["extras"] = {"cost_applies_to": f"all {passengers} travelers"}
         options.append(Option(
             option_id=f"opt-g{index}", flight_details=details, eligibility=provisional.ELIGIBLE,
             additional_cost=float(rng.choice(COSTS)), currency="USD", validity=provisional.VALIDITY_VALID,
@@ -87,7 +87,7 @@ def generate_scenario(seed: int, today: date | None = None, scenario: str | None
             "booking_id": booking_id, "flight": f"Mock Air {rng.randint(100, 199)}", "origin": origin,
             "destination": destination, "departs": _iso(departs), "status": status,
         },
-        passengers=[{"name": f"Passenger {i + 1}"} for i in range(passengers)],
+        passengers=[{"passenger_id": f"{booking_id}-P{i + 1}", "type": "adult"} for i in range(passengers)],
         disruption_details={"type": disruption, "simulated": True},
         data_source="mock",
     )

@@ -1,5 +1,19 @@
 # Jian work log
 
+## 2026-10-16: contract v1 (branch feat/contract-v1)
+Decided with Jian (either owner may change the contract; this entry is the record):
+- `Limits`: `arrival_window` (free text) is replaced by `arrive_by`, the latest arrival at the destination as local time with its UTC offset (e.g. `2026-10-15T15:00-07:00`). The budget gets its own `currency`. All four eval cases are deadlines.
+- Money stays a plain number rounded to cents. `additional_cost` and the budget are never negative (refunds are out of scope); Duffel offers that would refund are left out.
+- Allowed values are enforced: `eligibility` eligible / ineligible / unknown, `validity` valid / expired / unavailable, `validation_result` valid / changed / unavailable / invalid, booking `status` on time / delayed / canceled / missed by traveler / rebooked.
+- `flight_details` is a typed `FlightDetails` (origin, destination, departs, arrives required); free text such as the mock's `note` and `cost_applies_to` moved into `extras` and is untrusted data. `original_itinerary` is a typed `Itinerary`, passengers are `Passenger` (id and type, no names), and `disruption_details` is a typed `Disruption`.
+- Times stay text with a UTC offset, so the JSON and the UI look the same as before; a time without an offset is rejected.
+- Updated to match: mock service, generator, scenario loader, Duffel service, tool schemas (`currency`, `arrive_by`), API, `types.ts`, sample data and tests. Also fixed my two date-dependent tests, and updated CLAUDE.md and CODEOWNERS (frontend split, new test folders, contract rule). 370 backend tests pass; frontend build and lint pass.
+
+Handoff for Cheich
+- I made the minimum change to `agent/stub_tools.py` so main stays green: origin and destination in flight details, free text in `extras`, passenger ids instead of names, `arrive_by` and `currency` in the stub `Limits`, and `model_dump()` for the itinerary and flight details. Nothing else in your folders changed.
+- Your branch `feat/guards-and-cutoff` should merge main after this lands. Your guard's TODO can now use the contract's values: `unknown` is the only unknown eligibility value, and costs are never negative, so the negative-cost check matches the contract.
+- Your limits filter can parse `arrive_by` and each option's `flight_details.arrives` with `datetime.fromisoformat` and compare them directly (both carry offsets). Compare `budget_additional_cost` only when `Limits.currency` equals the option's `currency`; otherwise the option cannot be checked and must not be recommended.
+
 ## 2026-10-15: UI polish from a design review (branch feature/duffel-client)
 Done
 - Booking cards: route with city names, departure time, airline, traveler count, the booking reference as secondary text, and a visible action ("Find a replacement", "View booking" or "View confirmation"). `BookingSummary` gained `airline` (backend, `types.ts`, tests).

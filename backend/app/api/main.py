@@ -93,15 +93,15 @@ def _summary(session: Session, booking_id: str) -> BookingSummary:
     rebooked = service.get_confirmation(booking_id) is not None
     return BookingSummary(
         booking_id=booking_id,
-        origin=itinerary["origin"],
-        destination=itinerary["destination"],
-        departs=itinerary["departs"],
+        origin=itinerary.origin,
+        destination=itinerary.destination,
+        departs=itinerary.departs,
         passenger_count=len(trip.passengers),
-        status="rebooked" if rebooked else itinerary["status"],
-        disruption_type=trip.disruption_details["type"],
+        status="rebooked" if rebooked else itinerary.status,
+        disruption_type=trip.disruption_details.type,
         data_source=trip.data_source,
         rebooked=rebooked,
-        airline=itinerary.get("airline") or itinerary.get("flight"),
+        airline=itinerary.airline or itinerary.flight,
     )
 
 

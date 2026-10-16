@@ -88,7 +88,7 @@ Run through `DuffelService` (`services/duffel/service.py`) and the API, on a one
 - **A fresh order is not disrupted.** The booking status is "on time" until Duffel has an open (not yet actioned) change; the UI shows a neutral banner for it.
 - **Replacement offers for the order** came back as one flat cost again (125.00 USD change total, 25.00 penalty). The agent prepared the earliest one and the app completed it through `create pending change` + `confirm` with the pending change's own amount; a repeat confirm was refused by the app before reaching Duffel.
 - The change summary is built from the `removed` and `added` slices: "moved the departure from ... to ...". Its `kind` is always `delay` because Duffel's changes are time shifts.
-- The mapping rules (eligibility, validity, cost, search dates, de-duplicating the 9 identical-looking offers) are provisional and documented in the module docstring of `services/duffel/service.py`.
+- The mapping follows contract v1 (`backend/app/contract/models.py`, 2026-10-16) and is documented in the module docstring of `services/duffel/service.py`. Offers whose `change_total_amount` is negative (a refund) are left out, because the contract allows no negative cost in MVP 1; offers missing flight times or a time zone are left out too. None of our test runs returned a refund.
 - Each live run creates real orders on the Duffel test account.
 
 ## What this means for Travel Buddy (inferences, not observations)

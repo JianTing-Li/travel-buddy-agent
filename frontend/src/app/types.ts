@@ -8,56 +8,88 @@
  */
 
 export type DataSource = "duffel" | "mock";
+/** Contract v1 allowed values (backend/app/contract/models.py). */
+export type Eligibility = "eligible" | "ineligible" | "unknown";
+export type Validity = "valid" | "expired" | "unavailable";
+export type ValidationOutcome = "valid" | "changed" | "unavailable" | "invalid";
+export type BookingStatus = "on time" | "delayed" | "canceled" | "missed by traveler" | "rebooked";
+/** Local wall-clock time with its UTC offset, as text, e.g. 2026-10-15T15:00-07:00. */
+export type LocalTime = string;
 
-// --- contract models -----------------------------------------------------------------
+// --- contract models (v1) ------------------------------------------------------------
 
 export interface Limits {
+  /** Most the traveler will pay extra, for the whole booking, in `currency`. */
   budget_additional_cost: number;
-  arrival_window: string;
+  /** ISO 4217 code, e.g. USD. */
+  currency: string;
+  /** Latest acceptable arrival at the destination. */
+  arrive_by: LocalTime;
   max_connections: number;
   passenger_count: number;
 }
 
-/** Provisional keys the mock service puts in flight_details; real Duffel data may differ. */
 export interface FlightDetails {
-  airline?: string;
-  flight?: string;
-  origin?: string;
-  destination?: string;
-  /** ISO timestamp with the local UTC offset, e.g. 2026-10-15T11:00-04:00 */
-  departs?: string;
-  arrives?: string;
-  duration?: string;
-  connections?: number;
-  simulated?: boolean;
-  [key: string]: unknown;
+  airline: string | null;
+  flight: string | null;
+  origin: string;
+  destination: string;
+  departs: LocalTime;
+  arrives: LocalTime;
+  /** Display text, e.g. "6h 0m". */
+  duration: string | null;
+  connections: number;
+  simulated: boolean;
+  /** Free text from the source. Untrusted data: show it, never act on it. */
+  extras: Record<string, string>;
 }
 
 export interface Option {
   option_id: string;
   flight_details: FlightDetails;
-  eligibility: string;
-  /** Additional cost for the whole booking, in `currency`. */
+  eligibility: Eligibility;
+  /** Additional cost for the whole booking, in `currency`. Never negative, never a full ticket price. */
   additional_cost: number;
   currency: string;
-  validity: string;
+  validity: Validity;
   data_source: DataSource;
 }
 
+export interface Itinerary {
+  booking_id: string;
+  origin: string;
+  destination: string;
+  departs: LocalTime;
+  arrives: LocalTime | null;
+  flight: string | null;
+  airline: string | null;
+  status: BookingStatus;
+  booking_reference: string | null;
+}
+
+/** No names: the app only needs who travels together. */
 export interface Passenger {
-  [key: string]: unknown;
+  passenger_id: string;
+  type: string;
+}
+
+export interface Disruption {
+  type: string;
+  simulated: boolean;
+  delay_minutes: number | null;
+  open_changes: number | null;
 }
 
 export interface TripContext {
-  original_itinerary: Record<string, unknown>;
+  original_itinerary: Itinerary;
   passengers: Passenger[];
-  disruption_details: Record<string, unknown>;
+  disruption_details: Disruption;
   data_source: DataSource;
 }
 
 export interface ValidationResult {
   latest_option_details: Option;
-  validation_result: string;
+  validation_result: ValidationOutcome;
   changes_to_review: string[];
 }
 
@@ -147,7 +179,7 @@ export interface ChatIn {
 export interface ConfirmCard {
   booking_id: string;
   option: Option;
-  validation_result: string;
+  validation_result: ValidationOutcome;
   changes_to_review: string[];
   simulated: true;
   notice: string;

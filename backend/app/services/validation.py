@@ -36,8 +36,9 @@ def diff_options(old: Option, new: Option) -> list[str]:
         changes.append(f"Additional cost changed from {old.additional_cost:g} {old.currency} "
                        f"to {new.additional_cost:g} {new.currency}.")
     for key, label in DETAIL_LABELS.items():
-        if old.flight_details.get(key) != new.flight_details.get(key):
-            changes.append(f"{label} changed from {old.flight_details.get(key)} to {new.flight_details.get(key)}.")
+        before, after = getattr(old.flight_details, key), getattr(new.flight_details, key)
+        if before != after:
+            changes.append(f"{label} changed from {before} to {after}.")
     if old.eligibility != new.eligibility:
         changes.append(f"Eligibility changed from {old.eligibility} to {new.eligibility}.")
     return changes

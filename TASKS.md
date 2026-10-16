@@ -4,8 +4,8 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 
 ## 0. Setup (Shared)
 - [~] Scaffold repo (branch setup/scaffold): backend/, frontend/, CODEOWNERS, docs
-- [ ] Review and agree the DRAFT models in backend/app/contract/models.py (both)
-- [ ] Decide who owns the frontend (features/chat, features/booking)
+- [x] Contract v1 for backend/app/contract/models.py: deadline arrive_by, budget currency, allowed values, typed flight details, itinerary, passengers and disruption (decided 2026-10-16; either owner may change it)
+- [x] Frontend ownership: Jian owns frontend/ except features/chat/, which is Cheich's (CLAUDE.md, CODEOWNERS)
 - [ ] Decide: UI scope for MVP 1 and deadline
 
 ## Cheich: agent and harness
@@ -60,6 +60,4 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 
 ## Open decisions
 - UI scope and deadline for MVP 1
-- Frontend ownership
 - Dev panel (generate booking, simulate disruption) is not in the PRD: agree it is in MVP 1 scope
-- Whether Duffel test account and API token exist yet
