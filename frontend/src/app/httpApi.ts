@@ -19,6 +19,7 @@ import {
   type DevDisruptIn,
   type DevDuffelBookingIn,
   type DevFaultsOut,
+  type DevResetOut,
   type SessionOut,
 } from './types.ts'
 
@@ -140,6 +141,7 @@ export function createHttpApi(
               json<AirlineChange>(await call(`/dev/bookings/${encodeURIComponent(bookingId)}/disrupt`, post(body)), [201]),
             setFaults: async (bookingId: string, faults: string[]) =>
               json<DevFaultsOut>(await call(`/dev/bookings/${encodeURIComponent(bookingId)}/faults`, post({ faults }))),
+            reset: async () => json<DevResetOut>(await call('/dev/reset', { method: 'POST' })),
           }
         : undefined,
   }

@@ -4,8 +4,8 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 
 ## 0. Setup (Shared)
 - [~] Scaffold repo (branch setup/scaffold): backend/, frontend/, CODEOWNERS, docs
-- [ ] Review and agree the DRAFT models in backend/app/contract/models.py (both)
-- [ ] Decide who owns the frontend (features/chat, features/booking)
+- [x] Contract v1 for backend/app/contract/models.py: deadline arrive_by, budget currency, allowed values, typed flight details, itinerary, passengers and disruption (decided 2026-10-16; either owner may change it)
+- [x] Frontend ownership: Jian owns frontend/ except features/chat/, which is Cheich's (CLAUDE.md, CODEOWNERS)
 - [ ] Decide: UI scope for MVP 1 and deadline
 
 ## Cheich: agent and harness
@@ -28,14 +28,15 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Tools: get_trip_context, search_replacements, prepare_rebooking, escalate_to_support, plus registry (mock and Duffel test bookings)
 - [x] Source tagging so each option uses its matching validation and confirmation service (booking id routes to the mock or Duffel service; option data_source must match)
 - [x] FastAPI app: chat and confirm endpoints, booking access check, log redaction (api/main.py); sessions are in memory
-- [x] Dev/booking endpoints: generate test booking (seeded scenarios, Duffel test order), simulate disruption, set faults; only with dev_app, scoped to the session (api/) (proposed)
-- [ ] Optional, nice to have: richer generated booking options (3 to 5 options with a spread of costs, arrival times and connections, including a $0 option and a one-connection option) so the comparison screen has more to show; Duffel's test airline only returns one flat cost, a few departure times and nonstop flights, so this is mock-only (services/mock/generator.py)
+- [x] Dev/booking endpoints: generate test booking (seeded scenarios, Duffel test order), simulate disruption, set faults, reset this session's test data; only with dev_app, scoped to the session (api/) (proposed)
+- [x] Richer generated booking options (3 to 5 per booking, always a $0 option that leaves later, pricier earlier options, a one-connection option and a nonstop one; services/mock/generator.py)
+- [ ] Optional experiment: book a real airline's Duffel sandbox offer (e.g. British Airways) in test mode and check whether its order-change offers vary in cost and time, unlike Duffel Airways' flat 125 USD. Airline sandboxes can be down or out of seats, so results may not be repeatable; record findings in docs/duffel-notes.md
 - [x] Airline-change check while the app is open (PRD "Application responsibilities"); polls every 8 seconds, mock and Duffel
 - [x] Unit tests for tools
 - [x] frontend/src/app/types.ts mirroring the contract models (and the API schemas)
 
 ## UI shell (extra, proposed: needs agreement before starting; Jian shell, Cheich features/chat)
-- [ ] Agree: frontend ownership, booking summary type for the list page, chat-slot interface (messages in, onSend out), dev panel in MVP 1 scope, and react-router (routes / and /bookings/:id; CLAUDE.md requires agreement)
+- [ ] Agree: booking summary type for the list page, chat-slot interface (messages in, onSend out), dev panel in MVP 1 scope (frontend ownership is settled; react-router moved to Future improvements)
 - Design decided by Jian (Cheich to confirm): plain CSS with CSS variables, light and dark mode, app name "Travel Buddy", persistent "Simulated environment" badge, source pill (Duffel test or Mock) on every booking
 - [x] Shell built on fixtures typed by types.ts: bookings list, booking detail with disruption banner, confirm card with simulated label, placeholder where the chat goes
 - [x] Dev panel: generate test booking (seeded scenario picker, Duffel test order) and simulate disruption, labeled simulated; shown only with VITE_DEV_PANEL=true
@@ -52,6 +53,9 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [ ] Check the host offers Python 3.14 (CLAUDE.md) BEFORE choosing it, or agree an older version with Cheich. Start the backend with `--no-access-log` and with `backend.app.api.main:app`, never `dev_app` (its /dev endpoints create test orders and must not be public)
 - [ ] Public demo protection: anyone with the link can use the Anthropic key through POST /chat and create Duffel test orders. Before sharing a live URL add a simple guard (a shared access code the page sends, plus a per-session and per-IP rate limit and a cap on chat turns), and set a spending limit on the Anthropic key. Nothing like this is built yet
 
+## Future improvements (not MVP 1)
+- [ ] react-router: replace the small hash router (`frontend/src/app/route.ts`, URLs like `#/bookings/ID`) with react-router for clean URLs (`/bookings/ID`), more pages and "not found" handling. Needs a rewrite-all-to-index.html rule on the host (see Deployment). The swap is one file; worth it once the app has more than two screens
+
 ## Integration (Shared)
 - [ ] Happy path end to end (eval case 1)
 - [ ] Cases 2-4, no-options flow, failure and simulated handoff
@@ -60,6 +64,4 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 
 ## Open decisions
 - UI scope and deadline for MVP 1
-- Frontend ownership
 - Dev panel (generate booking, simulate disruption) is not in the PRD: agree it is in MVP 1 scope
-- Whether Duffel test account and API token exist yet

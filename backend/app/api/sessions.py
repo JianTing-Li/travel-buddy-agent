@@ -48,6 +48,8 @@ class Session:
     prepared: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> latest prepare_rebooking result
     notices: dict[str, list[str]] = field(default_factory=dict)  # booking_id -> app notices for the next chat turn
     shown_changes: dict[str, set[str]] = field(default_factory=dict)  # booking_id -> change ids already shown
+    scenario_names: list[str] = field(default_factory=list)  # the mock scenarios this session started with
+    duffel_client: DuffelClient | None = None  # kept so a reset can start a fresh Duffel service
     last_used: float = field(default_factory=time.monotonic)
     lock: threading.Lock = field(default_factory=threading.Lock)  # one request at a time per session
 
@@ -84,6 +86,45 @@ class Session:
         self.allowed_ids.add(booking_id)
         return booking_id
 
+    def reset(self) -> None:
+        """Start this session over: its first mock bookings only, nothing generated, changed, faulted or rebooked,
+        no chat history. Duffel test bookings leave the session (the orders stay on the Duffel test account).
+        Other sessions are untouched. The caller holds the session lock."""
+        parts = _build(self.scenario_names, self.duffel_client)
+        self.service, self.toolset, self.gate, self.tools = parts.service, parts.toolset, parts.gate, parts.tools
+        self.allowed_ids, self.duffel, self.prepared = parts.allowed_ids, parts.duffel, parts.prepared
+        self.histories, self.notices, self.shown_changes = {}, {}, {}
+
+
+@dataclass
+class _Parts:
+    service: MockService
+    toolset: ToolSet
+    gate: ConfirmationGate
+    tools: dict[str, Callable[..., Any]]
+    allowed_ids: set[str]
+    duffel: DuffelService | None
+    prepared: dict[str, dict[str, Any]]
+
+
+def _build(names: list[str], client: DuffelClient | None) -> _Parts:
+    """Everything a session needs, wired together: services, tools, the confirmation gate."""
+    service = MockService(scenarios=list(dict.fromkeys(names)))
+    allowed = set(service.booking_ids())
+    duffel = DuffelService(client) if client is not None else None
+    toolset = build_tools(service, allowed_booking_ids=allowed, duffel=duffel)
+    gate = ConfirmationGate(toolset.tools, toolset.complete_rebooking, source="real")
+    prepared: dict[str, dict[str, Any]] = {}
+    gate_tools = gate.tools()
+
+    def prepare_rebooking(booking_id: str, option_id: str) -> dict[str, Any]:
+        result = gate_tools["prepare_rebooking"](booking_id=booking_id, option_id=option_id)
+        prepared[booking_id] = result  # what the confirm card shows comes from this, not from the model
+        return result
+
+    tools = {**gate_tools, "prepare_rebooking": prepare_rebooking}
+    return _Parts(service, toolset, gate, tools, allowed, duffel, prepared)
+
 
 class SessionStore:
     def __init__(
@@ -104,22 +145,10 @@ class SessionStore:
         unknown = [n for n in names if n not in known]
         if unknown or not names:
             raise UnknownScenarioError(f"Unknown or empty scenarios. Choose from: {', '.join(known)}")
-        service = MockService(scenarios=list(dict.fromkeys(names)))
-        allowed = set(service.booking_ids())
         client = self._duffel_client_factory() if self._duffel_client_factory else None
-        duffel = DuffelService(client) if client is not None else None
-        toolset = build_tools(service, allowed_booking_ids=allowed, duffel=duffel)
-        gate = ConfirmationGate(toolset.tools, toolset.complete_rebooking, source="real")
-        prepared: dict[str, dict[str, Any]] = {}
-        gate_tools = gate.tools()
-
-        def prepare_rebooking(booking_id: str, option_id: str) -> dict[str, Any]:
-            result = gate_tools["prepare_rebooking"](booking_id=booking_id, option_id=option_id)
-            prepared[booking_id] = result  # what the confirm card shows comes from this, not from the model
-            return result
-
-        tools = {**gate_tools, "prepare_rebooking": prepare_rebooking}
-        session = Session(secrets.token_urlsafe(32), service, toolset, gate, tools, allowed, duffel, prepared=prepared)
+        p = _build(names, client)
+        session = Session(secrets.token_urlsafe(32), p.service, p.toolset, p.gate, p.tools, p.allowed_ids, p.duffel,
+                          prepared=p.prepared, scenario_names=list(names), duffel_client=client)
         with self._lock:
             self._expire()
             while len(self._sessions) >= self._max_sessions:

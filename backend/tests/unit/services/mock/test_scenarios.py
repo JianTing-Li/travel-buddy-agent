@@ -47,31 +47,31 @@ def test_scenarios_are_mock_tagged_contract_models(name, booking_id, passengers)
     assert scenario.booking_id == booking_id
     assert isinstance(scenario.trip, TripContext) and scenario.trip.data_source == "mock"
     assert len(scenario.trip.passengers) == passengers
-    assert scenario.trip.disruption_details["simulated"] is True
+    assert scenario.trip.disruption_details.simulated is True
     assert scenario.options and all(isinstance(o, Option) for o in scenario.options)
-    assert all(o.data_source == "mock" and o.flight_details["simulated"] is True for o in scenario.options)
+    assert all(o.data_source == "mock" and o.flight_details.simulated is True for o in scenario.options)
 
 
 @pytest.mark.parametrize("name", CASES)
 def test_duration_matches_departure_and_arrival(name):
     for option in load_scenario(name, today=TODAY).options:
         details = option.flight_details
-        elapsed = datetime.fromisoformat(details["arrives"]) - datetime.fromisoformat(details["departs"])
-        assert elapsed.total_seconds() / 60 == duration_minutes(details["duration"]), option.option_id
+        elapsed = datetime.fromisoformat(details.arrives) - datetime.fromisoformat(details.departs)
+        assert elapsed.total_seconds() / 60 == duration_minutes(details.duration), option.option_id
 
 
 def test_dates_are_relative_to_today():
     first = load_scenario("case_3", today=date(2026, 10, 15))
     later = load_scenario("case_3", today=date(2026, 10, 20))
-    assert first.trip.original_itinerary["departs"].startswith("2026-10-16T08:00")  # "tomorrow"
-    assert later.trip.original_itinerary["departs"].startswith("2026-10-21T08:00")
+    assert first.trip.original_itinerary.departs.startswith("2026-10-16T08:00")  # "tomorrow"
+    assert later.trip.original_itinerary.departs.startswith("2026-10-21T08:00")
 
 
 def test_offsets_follow_daylight_saving():
     summer = load_scenario("case_1", today=date(2026, 10, 15)).options[0].flight_details
     winter = load_scenario("case_1", today=date(2026, 12, 1)).options[0].flight_details
-    assert summer["departs"].endswith("-04:00") and summer["arrives"].endswith("-07:00")
-    assert winter["departs"].endswith("-05:00") and winter["arrives"].endswith("-08:00")
+    assert summer.departs.endswith("-04:00") and summer.arrives.endswith("-07:00")
+    assert winter.departs.endswith("-05:00") and winter.arrives.endswith("-08:00")
 
 
 @pytest.mark.parametrize("case", ["case_1", "case_2", "case_3"])
@@ -81,30 +81,30 @@ def test_arrival_times_and_costs_match_the_eval_file(case):
         for r in eval_case(case)["test_setup"]["mock_replacements"]
     )
     actual = sorted(
-        (local_hour(o.flight_details["arrives"]), o.additional_cost)
+        (local_hour(o.flight_details.arrives), o.additional_cost)
         for o in load_scenario(case, today=TODAY).options
     )
     assert actual == expected
 
 
 def test_case_1_connecting_option_is_the_one_arriving_at_1pm():
-    options = {o.flight_details["arrives"][11:16]: o for o in load_scenario("case_1", today=TODAY).options}
-    assert options["13:00"].flight_details["connections"] == 1
-    assert options["14:00"].flight_details["connections"] == 0
-    assert options["16:00"].flight_details["connections"] == 0
+    options = {o.flight_details.arrives[11:16]: o for o in load_scenario("case_1", today=TODAY).options}
+    assert options["13:00"].flight_details.connections == 1
+    assert options["14:00"].flight_details.connections == 0
+    assert options["16:00"].flight_details.connections == 0
 
 
 def test_case_3_costs_are_for_the_whole_group():
     scenario = load_scenario("case_3", today=TODAY)
     assert scenario.passenger_count == 3
-    assert all(o.flight_details["cost_applies_to"] == "all three travelers" for o in scenario.options)
+    assert all(o.flight_details.extras["cost_applies_to"] == "all three travelers" for o in scenario.options)
 
 
 def test_case_4_carries_the_embedded_instruction_as_data():
     setup = eval_case("case_4")["test_setup"]["mock_result"]
     (option,) = load_scenario("case_4", today=TODAY).options
     assert option.additional_cost == setup["additional_cost"]
-    assert option.flight_details["note"] == setup["embedded_text"]
+    assert option.flight_details.extras["note"] == setup["embedded_text"]
 
 
 @pytest.mark.parametrize("name", CASES)

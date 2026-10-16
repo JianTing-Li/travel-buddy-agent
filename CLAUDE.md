@@ -21,7 +21,7 @@ An AI agent that helps a disrupted traveler compare up to three replacement flig
 ## Git workflow
 - Never work on main. One branch per task: <type>/<short-name> (e.g. setup/scaffold, feat/limits-filter).
 - Every change goes through a pull request; the other person reviews anything touching their folders.
-- No commit or push until the owner says yes. No force-push. No self-merging without review.
+- No commit or push until the owner says yes. No force-push, except `git push --force-with-lease` to your own feature branch after rebasing it onto main (never to main or someone else's branch). No self-merging without review.
 
 ## Shared docs
 - TASKS.md is the live task board. Update it in the same PR as the work it describes so either of us can take over.
@@ -38,8 +38,9 @@ Owners review changes in their folders. The other person can edit with the owner
 Cheich
 - backend/app/agent/
 - backend/app/harness/
-- backend/tests/unit/harness/
+- backend/tests/unit/agent/, backend/tests/unit/harness/
 - backend/tests/evals/
+- frontend/src/features/chat/ (the chat component; it plugs into the shell's chat slot via ChatSlotProps)
 - docs/work-log/cheich.md
 
 Jian (@JianTing-Li)
@@ -47,14 +48,11 @@ Jian (@JianTing-Li)
 - backend/app/services/
 - backend/app/api/
 - backend/data/mock/
-- backend/tests/unit/tools/
-- frontend/src/app/types.ts
+- backend/tests/unit/tools/, backend/tests/unit/services/, backend/tests/unit/api/
+- frontend/ except frontend/src/features/chat/ (the shell, booking screens, dev panel, types.ts)
 - docs/duffel-notes.md, docs/work-log/jian.md
 - .gitignore, .env.example
 
-Shared (both approve)
-- backend/app/contract/
-- backend/app/config.py
-- .github/CODEOWNERS, CLAUDE.md, TASKS.md, README.md
-
-Unassigned (decide together): frontend/ except types.ts
+Shared
+- backend/app/contract/ (contract v1): either owner may change it. Record the change in your work log and tell the other owner.
+- Both approve: backend/app/config.py, .github/CODEOWNERS, CLAUDE.md, TASKS.md, README.md

@@ -8,6 +8,7 @@ import type { BookingsApi } from './dataSource.ts'
 import type {
   AirlineChange,
   BookingDetail,
+  BookingStatus,
   BookingSummary,
   ChangeCheckOut,
   ChatOut,
@@ -34,7 +35,7 @@ function option(
   arrives: string,
   duration: string,
   cost: number,
-  extra: Record<string, unknown> = {},
+  extras: Record<string, string> = {},
 ): Option {
   return {
     option_id: id,
@@ -48,7 +49,7 @@ function option(
       duration,
       connections: 0,
       simulated: true,
-      ...extra,
+      extras,
     },
     eligibility: 'eligible',
     additional_cost: cost,
@@ -151,11 +152,11 @@ export function createFixtureApi(): BookingsApi {
         summary: { ...s },
         trip: {
           original_itinerary: {
-            booking_id: id, flight: 'Mock Air 100', origin: s.origin, destination: s.destination,
-            departs: s.departs, status: s.status,
+            booking_id: id, flight: 'Mock Air 100', airline: s.airline, origin: s.origin, destination: s.destination,
+            departs: s.departs, arrives: null, status: s.status as BookingStatus, booking_reference: null,
           },
-          passengers: Array.from({ length: entry.sample.passengers }, (_, i) => ({ name: `Passenger ${i + 1}` })),
-          disruption_details: { type: s.disruption_type, simulated: true },
+          passengers: Array.from({ length: entry.sample.passengers }, (_, i) => ({ passenger_id: `${id}-P${i + 1}`, type: 'adult' })),
+          disruption_details: { type: s.disruption_type, simulated: true, delay_minutes: null, open_changes: null },
           data_source: 'mock',
         },
         confirmation: entry.confirmation,

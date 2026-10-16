@@ -7,6 +7,13 @@ An AI agent that helps a disrupted traveler compare replacement flights and comp
 - **Stack:** Python (FastAPI), React + TypeScript, Anthropic API, Duffel test API. 300+ backend tests.
 - **Status:** MVP working end to end on test data (bookings, airline-change detection, chat, confirm). Agent-side limits filter, guards, evals and the chat UI are in progress. Not a production airline integration.
 
+## Screenshots
+| Bookings list | Airline change detected |
+|---|---|
+| ![Bookings list with disrupted test bookings](docs/images/bookings-list.jpg) | ![Booking page after a simulated airline delay](docs/images/booking-airline-change.jpg) |
+
+All data shown is simulated test data.
+
 ## Run it
 Put `ANTHROPIC_API_KEY`, `MODEL` and a Duffel **test** `DUFFEL_ACCESS_TOKEN` in a local `.env`, then:
 

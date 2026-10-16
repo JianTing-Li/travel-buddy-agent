@@ -9,10 +9,14 @@ from typing import Any, Callable
 from .access import BookingRouter, LimitsFilter, ToolError, mock_errors_as_tool_errors
 
 LIMITS_PROPERTIES: dict[str, Any] = {
-    "budget_additional_cost": {"type": "number", "description": "Most the traveler will pay extra, whole booking."},
-    "arrival_window": {"type": "string", "description": "When the traveler must arrive, as confirmed."},
-    "max_connections": {"type": "integer"},
-    "passenger_count": {"type": "integer"},
+    "budget_additional_cost": {"type": "number", "minimum": 0,
+                               "description": "Most the traveler will pay extra, for the whole booking."},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$", "description": "Currency of the budget, e.g. USD."},
+    "arrive_by": {"type": "string",
+                  "description": "Latest acceptable arrival at the destination, as local time with its UTC offset, "
+                                 "e.g. 2026-10-15T15:00-07:00."},
+    "max_connections": {"type": "integer", "minimum": 0},
+    "passenger_count": {"type": "integer", "minimum": 1},
 }
 
 SCHEMA: dict[str, Any] = {

@@ -15,7 +15,8 @@ from backend.app.services.mock.mock_service import (
 )
 
 TODAY = date(2026, 10, 15)
-LIMITS = Limits(budget_additional_cost=100, arrival_window="by 3 PM", max_connections=1, passenger_count=1)
+LIMITS = Limits(budget_additional_cost=100, currency="USD", arrive_by="2026-10-15T15:00-07:00", max_connections=1,
+                passenger_count=1)
 
 
 @pytest.fixture
@@ -32,7 +33,7 @@ def tamper(service: MockService, booking_id: str, option_id: str, **changes) -> 
 def test_trip_context_is_a_mock_contract_model(service):
     trip = service.get_trip_context("MOCK-CASE-3")
     assert isinstance(trip, TripContext) and trip.data_source == "mock"
-    assert len(trip.passengers) == 3 and trip.disruption_details["simulated"] is True
+    assert len(trip.passengers) == 3 and trip.disruption_details.simulated is True
 
 
 @pytest.mark.parametrize("booking_id", ["ord_0000A1", "off_0000B2", "oco_0000C3", "aic_0000D4"])

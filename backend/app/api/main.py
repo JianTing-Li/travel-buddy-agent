@@ -43,6 +43,7 @@ from .schemas import (
     DevDuffelBookingIn,
     DevFaultsIn,
     DevFaultsOut,
+    DevResetOut,
     ErrorOut,
     SessionCreate,
     SessionOut,
@@ -93,15 +94,15 @@ def _summary(session: Session, booking_id: str) -> BookingSummary:
     rebooked = service.get_confirmation(booking_id) is not None
     return BookingSummary(
         booking_id=booking_id,
-        origin=itinerary["origin"],
-        destination=itinerary["destination"],
-        departs=itinerary["departs"],
+        origin=itinerary.origin,
+        destination=itinerary.destination,
+        departs=itinerary.departs,
         passenger_count=len(trip.passengers),
-        status="rebooked" if rebooked else itinerary["status"],
-        disruption_type=trip.disruption_details["type"],
+        status="rebooked" if rebooked else itinerary.status,
+        disruption_type=trip.disruption_details.type,
         data_source=trip.data_source,
         rebooked=rebooked,
-        airline=itinerary.get("airline") or itinerary.get("flight"),
+        airline=itinerary.airline or itinerary.flight,
     )
 
 
@@ -327,6 +328,14 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
         except MockServiceError as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
 
+
+    @app.post("/dev/reset", response_model=DevResetOut, responses=errors)
+    def dev_reset(session: SessionDep) -> DevResetOut:
+        """Start THIS session over with its first mock bookings. Other sessions are untouched; to reset
+        everything, restart the backend (all state is in memory)."""
+        with session.lock:
+            session.reset()
+            return DevResetOut(booking_ids=session.booking_ids)
 
     @app.post("/dev/duffel-bookings", status_code=status.HTTP_201_CREATED, response_model=BookingSummary,
               responses={**errors, 502: {"model": ErrorOut}, 503: {"model": ErrorOut}})

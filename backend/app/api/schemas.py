@@ -125,3 +125,7 @@ class DevFaultsIn(BaseModel):
 
 class DevFaultsOut(BaseModel):
     faults: list[str]
+
+
+class DevResetOut(BaseModel):
+    booking_ids: list[str]  # the session's bookings after the reset
