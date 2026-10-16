@@ -85,3 +85,23 @@ Known gap (needs a decision)
 - Wrong currency is NOT caught. The guard only checks that a currency exists. Nothing compares it to the traveler's budget currency, and contract `Limits` and `TripContext` have no currency. Recorded as a strict `xfail` test, so it fails loudly once someone fixes it. Fix needs a contract change (expected currency) agreed with Jian. PRD target: 100% of displayed costs match the service.
 
 Covered elsewhere (Jian's `test_registry_with_gate.py`): confirm without prepare, wrong option, repeat confirm, changed cost, failure inside completion, another session's booking.
+
+## Update for Jian (2026-10-16), in plain words
+What I did
+- I pulled your merged work (PR #5) into my copy and checked I have everything: Python packages, frontend packages and the frontend build all work.
+- My three older branches were started before your merge, so I made one fresh branch from the new `main`: `feat/guards-and-cutoff`. It has your work plus all of mine, and it is pushed. There is no PR yet, so nothing is merged. None of your files are changed.
+- What is in it: guards (options with unknown eligibility or cost are blocked, and tool text that looks like instructions is flagged), the fix for replies cut off mid-sentence, the confirmation gate now tells the traveler what changed, and new safety checks that run against your mock fault switches.
+- I set my git name and email for this repo. Five older commits still show "Your Name"; I left them, because fixing that would mean rewriting history and I won't force-push.
+- I added `MODEL` to my local `.env` (not committed) so the chat can run locally.
+
+Tests
+- 402 pass and 1 is an expected failure (the wrong-currency gap below).
+- 2 fail, and both are yours: `tests/unit/api/test_changes.py::test_a_new_change_is_returned_once_and_updates_the_booking` and `tests/unit/api/test_duffel_api.py::test_a_duffel_rebooking_confirms_once_through_the_gate_and_the_api`. They fail on plain `main` too, so my changes did not cause them. They look tied to today's date: on Oct 16 the first one expects `2026-10-16` but gets `2026-10-17`, and the second gets `unavailable` from `prepare_rebooking` instead of `valid` (same as I flagged on PR #5). Could you look?
+
+What I need from you
+1. A look at those two date-based tests.
+2. A review when I open the PR for `feat/guards-and-cutoff`.
+3. Still waiting on: the eval runner question (free mode and live mode?), a session on the contract fields, and the `CLAUDE.md` and `CODEOWNERS` updates (frontend split, your new test folders).
+
+New thing to decide together
+- Wrong currency is not caught. If an option is priced in EUR and the budget is in USD, nothing notices. The contract has no currency on `Limits` or `TripContext`, so this needs a contract decision. It is recorded as an expected failure in `tests/unit/harness/test_safety_checks.py`.
