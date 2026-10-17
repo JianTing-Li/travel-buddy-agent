@@ -15,7 +15,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Limits filter: budget, arrive_by, connections (harness/limits.py), plugged into the live session tools (api/sessions.py, one line) and tested with the 4 PRD scenarios; a search without complete limits is now refused by the requirement check
 - [x] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py), mock completer for now
 - [x] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
-- [ ] Unit tests for harness
+- [x] Unit tests for harness: 99% line and branch coverage of harness/ and agent/ (measured with coverage, installed locally only); every safety rule has tests
 - [x] Eval cases 1-4 from PRD 3d, expected behavior written first (tests/evals/cases/), written as JSON; no runner yet
 - [~] Automated checks: unknown eligibility, wrong cost/currency, unavailable option, changed details, tool failure, duplicates, other traveler's booking, mock/Duffel mixing. Done except wrong currency (known gap, needs a contract decision); changed details, duplicates, other booking and mock/Duffel mixing are covered by Jian's gate tests
 

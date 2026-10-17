@@ -158,3 +158,9 @@ Done
 Not done
 - The code can only check that limits are COMPLETE and VALID, not that the traveler really said them. The prompt still has to make the agent ask and confirm. The PRD's 90% metric needs the eval runner in live mode.
 - Preferences (for example nonstop) are not in the contract's `Limits` in MVP 1, so they are not checked; the agent weighs them when it compares options.
+
+## 2026-10-16: harness tests (branch feat/guards-and-cutoff)
+- Measured coverage of `harness/` and `agent/` with the `coverage` package, installed in my local venv only (not in `backend/requirements.txt`). It was 94%; the gaps were mostly failure paths.
+- Added tests for them: `tests/unit/agent/test_edge_cases.py` (a real API error, unknown reply blocks, a missing prompt file, the real prompt keeps the rules code relies on, every tool-source problem, stub tool errors), `tests/unit/harness/test_limits_edge_cases.py` (an unreadable option fails closed), and one in `test_confirmation.py` (a re-check that blows up rejects and books nothing).
+- Now 99% (decide, loop, tool_source, confirmation and guards are at 100%). Left: `stub_tools.py` lines 126-127, one tiny branch in `limits.py`, and `requirements.py:56`, which is defensive code that cannot be reached because pydantic wraps every validation error.
+- Suite: 545 passed, 1 expected failure (the confirm-step currency gap). Frontend build and lint pass.

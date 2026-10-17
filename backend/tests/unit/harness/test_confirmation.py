@@ -110,3 +110,15 @@ def test_unavailable_option_rejection_includes_changes():
         "changes_to_review": ["option is no longer available"]}
     out = gate.confirm(B, OPT)
     assert out["status"] == "rejected" and "no longer available" in out["reason"]
+
+
+def test_a_recheck_that_blows_up_rejects_and_books_nothing():
+    gate, tools, calls = make()
+    tools["prepare_rebooking"](B, OPT)
+
+    def broken(booking_id, option_id):
+        raise TimeoutError("lost connection")
+
+    gate._prepare = broken
+    out = gate.confirm(B, OPT)
+    assert out["status"] == "rejected" and "Could not re-check" in out["reason"] and calls == []
