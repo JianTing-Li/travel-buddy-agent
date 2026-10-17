@@ -41,7 +41,7 @@ function initialDevTools(): boolean {
 function App() {
   const [baseApi] = useState<BookingsApi>(createApi)
   const [devTools, setDevTools] = useState<boolean>(initialDevTools)
-  // With the dev tools off, the screens see no dev API, so every test tool and test label disappears.
+  // With the dev tools off, the screens see no dev API, so the test tools and source labels disappear.
   const api = useMemo(() => (baseApi.dev && !devTools ? { ...baseApi, dev: undefined } : baseApi), [baseApi, devTools])
   const [theme, setTheme] = useState<Theme>(initialTheme)
   const route = parseHash(useHash())
@@ -90,8 +90,8 @@ function App() {
                 Dev tools
               </button>
             )}
-            {/* Shown unless a dev build is in demo mode (dev tools off), where it would spoil the realism. */}
-            {(!baseApi.dev || devTools) && <span className="pill pill-sim">Simulated environment</span>}
+            {/* Always shown, also in demo mode: nobody should mistake this for a real airline system. */}
+            <span className="pill pill-sim">Simulated environment</span>
             <button
               className="btn btn-small"
               type="button"
