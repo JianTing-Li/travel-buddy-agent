@@ -175,6 +175,21 @@ export interface ChatIn {
   booking_id: string;
   /** 1 to 2000 characters, not blank. */
   message: string;
+  /** Set per traveler message and reused on retry, so a retry never runs a turn twice. */
+  message_id?: string | null;
+}
+
+/** One line of the conversation as the traveler saw it. */
+export interface ChatEntry {
+  role: "traveler" | "assistant" | "app";
+  text: string;
+  search?: SearchResults | null;
+}
+
+/** GET /bookings/{id}/chat: the conversation so far, for a reloaded page. */
+export interface ChatHistoryOut {
+  messages: ChatEntry[];
+  confirm_card: ConfirmCard | null;
 }
 
 export interface ConfirmCard {
@@ -223,6 +238,8 @@ export interface ConfirmOut {
   reason: string | null;
   confirmation: Confirmation | null;
   repeat: boolean;
+  /** The app's note for the chat when a rebooking is confirmed. */
+  receipt?: string | null;
 }
 
 // --- dev panel (the backend serves these only when started as dev_app) ---------------------

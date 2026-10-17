@@ -263,3 +263,51 @@ def test_chat_logs_hold_no_message_text(caplog):
     chat(client, session_id, "My name is Alice Example and I was born 1990-01-01")
     text_ = "\n".join(r.getMessage() for r in caplog.records)
     assert "route=/chat" in text_ and "Alice" not in text_ and "1990" not in text_ and session_id not in text_
+
+
+def history(client, session_id, booking_id="MOCK-CASE-1"):
+    return client.get(f"/bookings/{booking_id}/chat", headers=auth(session_id))
+
+
+def test_the_history_is_what_the_traveler_saw_with_the_receipt_and_without_app_notices():
+    client, _, session_id = make(*PREPARE_FLOW, resp(text("Enjoy the flight.")))
+    assert history(client, session_id).json() == {"messages": [], "confirm_card": None}
+    chat(client, session_id, "Book the 2 PM one")
+    shown = history(client, session_id).json()
+    assert [m["role"] for m in shown["messages"]] == ["traveler", "assistant"]
+    assert shown["messages"][1]["search"]["options"][0]["option_id"] == "opt-1a"
+    assert shown["confirm_card"]["option"]["option_id"] == "opt-1a"
+
+    receipt = confirm(client, session_id).json()["receipt"]
+    assert receipt.startswith("You're rebooked. Mock Air 210: leaves JFK at 11:00 AM on") and "SIM-CONF-" in receipt
+    chat(client, session_id, "Thanks")  # this turn carries an [App notice] for the agent
+    shown = history(client, session_id).json()["messages"]
+    assert [m["role"] for m in shown] == ["traveler", "assistant", "app", "traveler", "assistant"]
+    assert shown[2]["text"] == receipt and shown[3]["text"] == "Thanks"
+    assert "[App notice]" not in str(shown)
+
+
+def test_the_history_belongs_to_the_session_and_its_booking():
+    client, _, session_id = make()
+    other = client.post("/sessions", json={"scenarios": ["case_2"]}).json()["session_id"]
+    assert history(client, other).status_code == 404
+    assert client.get("/bookings/MOCK-CASE-1/chat").status_code == 401
+
+
+def test_a_retried_message_gets_the_same_answer_without_a_second_turn():
+    client, model, session_id = make(resp(text("When do you need to arrive?")), resp(text("Noted.")))
+    body = {"booking_id": "MOCK-CASE-1", "message": "My flight was canceled", "message_id": "m-1"}
+    first = client.post("/chat", json=body, headers=auth(session_id)).json()
+    again = client.post("/chat", json=body, headers=auth(session_id)).json()
+    assert again == first and len(model.requests) == 1  # the model ran once
+    assert len(history(client, session_id).json()["messages"]) == 2  # and the message shows once
+    client.post("/chat", json={**body, "message": "By 3 PM", "message_id": "m-2"}, headers=auth(session_id))
+    assert len(model.requests) == 2  # a new message id is a new turn
+
+
+def test_a_failed_turn_is_not_remembered_so_its_retry_runs_again():
+    client, model, session_id = make(RuntimeError("model down"), resp(text("Back again.")))
+    body = {"booking_id": "MOCK-CASE-1", "message": "Hello", "message_id": "m-1"}
+    assert client.post("/chat", json=body, headers=auth(session_id)).json()["stopped_reason"] == "error"
+    assert client.post("/chat", json=body, headers=auth(session_id)).json()["reply"] == "Back again."
+    assert [m["text"] for m in history(client, session_id).json()["messages"]] == ["Hello", "Back again."]

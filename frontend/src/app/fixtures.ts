@@ -11,6 +11,7 @@ import type {
   BookingStatus,
   BookingSummary,
   ChangeCheckOut,
+  ChatHistoryOut,
   ChatOut,
   ConfirmCard,
   ConfirmOut,
@@ -173,11 +174,15 @@ export function createFixtureApi(): BookingsApi {
         entry.summary = { ...entry.summary, status: 'delayed', departs, disruption_type: 'airline delay' }
         fresh.push({
           change_id: 'SIM-CHG-MOCK-CASE-3-1', booking_id: id, kind: 'delay',
-          summary: 'The airline delayed the departure by 60 minutes, to 9:00 AM (UTC-04:00).',
+          summary: 'The airline delayed your flight by 60 minutes. It now leaves JFK at 9:00 AM on Oct 15.',
           detected_at: new Date().toISOString(), data_source: 'mock', simulated: true,
         })
       }
       return wait({ new_changes: fresh, booking: { ...entry.summary } })
+    },
+
+    chatHistory(): Promise<ChatHistoryOut> {
+      return wait({ messages: [], confirm_card: null })  // sample data keeps no history across reloads
     },
 
     chat(id): Promise<ChatOut> {

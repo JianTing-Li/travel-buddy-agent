@@ -11,6 +11,7 @@ import {
   type BookingDetail,
   type BookingSummary,
   type ChangeCheckOut,
+  type ChatHistoryOut,
   type ChatOut,
   type AirlineChange,
   type ConfirmOut,
@@ -144,8 +145,11 @@ export function createHttpApi(
     getBooking: async (bookingId) => json<BookingDetail>(await call(`/bookings/${encodeURIComponent(bookingId)}`)),
     checkChanges: async (bookingId) =>
       json<ChangeCheckOut>(await call(`/bookings/${encodeURIComponent(bookingId)}/changes/check`, { method: 'POST' })),
-    chat: async (bookingId, message) =>
-      json<ChatOut>(await call('/chat', post({ booking_id: bookingId, message }), true, CHAT_TIMEOUT_MS)),
+    chat: async (bookingId, message, messageId) =>
+      json<ChatOut>(await call('/chat', post({ booking_id: bookingId, message, message_id: messageId ?? null }), true,
+        CHAT_TIMEOUT_MS)),
+    chatHistory: async (bookingId) =>
+      json<ChatHistoryOut>(await call(`/bookings/${encodeURIComponent(bookingId)}/chat`)),
     // 200 confirmed, 202 pending and 409 rejected all carry the outcome in the body.
     confirm: async (bookingId, optionId) =>
       json<ConfirmOut>(await call('/confirm', post({ booking_id: bookingId, option_id: optionId })), [200, 202, 409]),

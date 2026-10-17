@@ -4,6 +4,7 @@ import type {
   BookingDetail,
   BookingSummary,
   ChangeCheckOut,
+  ChatHistoryOut,
   ChatOut,
   ConfirmOut,
   DevBookingCreate,
@@ -35,7 +36,10 @@ export interface BookingsApi {
   getBooking(bookingId: string): Promise<BookingDetail>
   /** Looks for airline changes since the last check; each change is returned only once. */
   checkChanges(bookingId: string): Promise<ChangeCheckOut>
-  chat(bookingId: string, message: string): Promise<ChatOut>
+  /** messageId is reused when the same message is sent again, so the server answers it only once. */
+  chat(bookingId: string, message: string, messageId?: string): Promise<ChatOut>
+  /** The conversation so far as the traveler saw it (empty for a new one). */
+  chatHistory(bookingId: string): Promise<ChatHistoryOut>
   confirm(bookingId: string, optionId: string): Promise<ConfirmOut>
   dev?: DevApi
 }

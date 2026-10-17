@@ -2,7 +2,7 @@
  * One booking: the flight card (the trip, what happened, the flights) on top, then the chat with Travel Buddy, with
  * the confirm card shown inside the chat, just above the input. Owner: Jian.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChatSlot } from '../../app/ChatSlot.tsx'
 import type { Conversation } from '../../app/conversations.ts'
 import type { BookingsApi } from '../../app/dataSource.ts'
@@ -15,7 +15,7 @@ import { EMPTY_CONVERSATION } from '../../app/conversations.ts'
 import { DevBookingPanel } from '../dev/DevPanel.tsx'
 import { ConfirmCard, type ConfirmProblem } from './ConfirmCard.tsx'
 import { FlightCard } from './FlightCard.tsx'
-import { flightLabel, formatDate, formatTime } from './format.ts'
+import { flightLabel, formatTime } from './format.ts'
 
 /** What the traveler sees when a message gets no answer, by cause. Never shown as if Travel Buddy said it. */
 const CANT_REACH = "Can't reach Travel Buddy. Check your connection, then try again."
@@ -49,7 +49,7 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
   const [reload, setReload] = useState(0)
   const [sending, setSending] = useState(false)
   // The last message that got no answer, and how many times in a row that happened.
-  const [unanswered, setUnanswered] = useState<{ text: string; message: string; failures: number } | null>(null)
+  const [unanswered, setUnanswered] = useState<{ text: string; id: string; message: string; failures: number } | null>(null)
   const { messages, card, changes, dismissed } = conversation
 
   useEffect(() => {
@@ -62,6 +62,29 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
       cancelled = true
     }
   }, [api, bookingId, reload])
+
+  // A reloaded page starts with an empty conversation in memory: show the one the server kept, once.
+  const openedEmpty = useRef(messages.length === 0)  // the page is remounted per booking (keyed by its id)
+  useEffect(() => {
+    if (!openedEmpty.current) return
+    let cancelled = false
+    api
+      .chatHistory(bookingId)
+      .then((history) => {
+        if (cancelled || history.messages.length === 0) return
+        update(bookingId, (c) => (c.messages.length > 0 ? c : {
+          ...c,
+          messages: history.messages.map((m) => ({ role: m.role, text: m.text, search: m.search ?? null })),
+          card: history.confirm_card,
+        }))
+      })
+      .catch(() => {
+        // no history to show; the traveler can still start a new message
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, bookingId, update])
 
   useEffect(() => {
     let cancelled = false
@@ -90,13 +113,15 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
 
   /** Ask Travel Buddy. The traveler's message is shown once; a retry sends the same text again. */
   const ask = useCallback(
-    async (text: string, retry: boolean) => {
-      if (!retry) {
+    async (text: string, retryOf?: string) => {
+      // The same id on a retry lets the server answer a message it already answered instead of running it twice.
+      const id = retryOf ?? newMessageId()
+      if (!retryOf) {
         update(bookingId, (c) => ({ ...c, messages: [...c.messages, { role: 'traveler', text }], dismissed: false }))
       }
       setSending(true)
       try {
-        const out = await api.chat(bookingId, text)
+        const out = await api.chat(bookingId, text, id)
         if (out.stopped_reason === 'error') throw new ApiError(503, out.reply)
         setUnanswered(null)
         update(bookingId, (c) => ({
@@ -107,14 +132,14 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
       } catch (e) {
         const status = e instanceof ApiError ? e.status : null
         const message = status === OFFLINE ? CANT_REACH : status === TIMED_OUT ? TOO_SLOW : ASSISTANT_DOWN
-        setUnanswered((u) => ({ text, message, failures: (u?.text === text ? u.failures : 0) + 1 }))
+        setUnanswered((u) => ({ text, id, message, failures: (u?.id === id ? u.failures : 0) + 1 }))
       } finally {
         setSending(false)
       }
     },
     [api, bookingId, update],
   )
-  const send = useCallback((text: string) => ask(text, false), [ask])
+  const send = useCallback((text: string) => ask(text), [ask])
 
   /** A card was chosen: mark it, and tell Travel Buddy in words the traveler can read back. */
   const choose = useCallback(
@@ -123,7 +148,7 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
         ...c, messages: c.messages.map((m, i) => (i === messageIndex ? { ...m, chosen: option.option_id } : m)),
       }))
       const d = option.flight_details
-      void ask(`I'll take ${flightLabel(d.airline, d.flight)}, leaving ${d.origin} at ${formatTime(d.departs)}.`, false)
+      void ask(`I'll take ${flightLabel(d.airline, d.flight)}, leaving ${d.origin} at ${formatTime(d.departs)}.`)
     },
     [ask, bookingId, update],
   )
@@ -133,10 +158,10 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
       try {
         const out = await api.confirm(bookingId, optionId)
         if (out.status === 'confirmed') {
-          const fresh = await api.getBooking(bookingId)
-          setDetail(fresh)
-          // Say it where the traveler is looking: the card they pressed is replaced by a receipt in the chat.
-          update(bookingId, (c) => ({ ...c, card: null, messages: [...c.messages, receipt(fresh)] }))
+          setDetail(await api.getBooking(bookingId))
+          // Say it where the traveler is looking: the card they pressed is replaced by the app's receipt in the chat.
+          const note: ChatMessage = { role: 'app', text: out.receipt ?? "You're rebooked." }
+          update(bookingId, (c) => ({ ...c, card: null, messages: [...c.messages, note] }))
           return null
         }
         if (out.status === 'pending') return { kind: 'pending', message: NOT_KNOWN_YET }
@@ -223,7 +248,7 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
             ? `Still not working? Contact your airline and give them booking ref ${detail.summary.booking_id}.`
             : undefined,
           retrying: sending,
-          onRetry: () => void ask(unanswered.text, true),
+          onRetry: () => void ask(unanswered.text, unanswered.id),
         }}
       />
       {api.dev && (
@@ -267,14 +292,8 @@ function BookingSkeleton() {
   )
 }
 
-/** The app's note in the chat once a rebooking is confirmed. */
-function receipt(detail: BookingDetailData): ChatMessage {
-  const c = detail.confirmation
-  if (!c) return { role: 'app', text: "You're rebooked." }
-  const d = c.updated_itinerary
-  return {
-    role: 'app',
-    text: `You're rebooked on ${flightLabel(d.airline, d.flight)}: ${formatDate(d.departs)}, ${formatTime(d.departs)} ` +
-      `${d.origin} → ${formatTime(d.arrives)} ${d.destination}. Confirmation ${c.confirmation_id}.`,
-  }
+function newMessageId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }

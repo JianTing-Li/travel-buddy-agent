@@ -8,6 +8,7 @@ Every call except POST /sessions and GET /health needs the X-Session-Id header f
 A session can only reach its own bookings; any other booking id gets the same 404 as an unknown one.
 Everything served today is simulated mock data.
 """
+from datetime import datetime
 from functools import lru_cache
 from typing import Annotated, Any
 
@@ -26,12 +27,15 @@ from ..services.duffel.test_orders import create_test_booking
 from ..services.errors import ServiceError
 from ..services.mock.generator import MAX_SEED, GeneratorError, generate_scenario
 from ..services.mock.mock_service import MockServiceError
+from ..services.validation import local_time_text
 from ..agent.loop import load_system_prompt, run_turn
 from .request_log import RedactedRequestLog, configure_logging
 from .schemas import (
     BookingDetail,
     BookingSummary,
     ChangeCheckOut,
+    ChatEntry,
+    ChatHistoryOut,
     ChatIn,
     ChatOut,
     ConfirmCard,
@@ -252,6 +256,9 @@ def create_app(
         client, model_name = model_client_and_name()
         booking_id = body.booking_id
         with session.lock:
+            last = session.answered.get(booking_id)
+            if body.message_id and last and last[0] == body.message_id:
+                return last[1]  # a retry of a message already answered: the same answer, no second turn
             session.searched.pop(booking_id, None)  # cards come only from a search in THIS turn
             notices = session.notices.pop(booking_id, [])
             user_message = "\n".join([*notices, "", body.message]) if notices else body.message
@@ -266,8 +273,23 @@ def create_app(
             else:
                 session.histories[booking_id] = result.history
             searched = session.searched.get(booking_id) if result.stopped_reason != "error" else None
-            return ChatOut(reply=result.reply, stopped_reason=result.stopped_reason,
-                           confirm_card=confirm_card(session, booking_id), search=_search_results(searched))
+            out = ChatOut(reply=result.reply, stopped_reason=result.stopped_reason,
+                          confirm_card=confirm_card(session, booking_id), search=_search_results(searched))
+            if result.stopped_reason != "error":
+                session.transcripts.setdefault(booking_id, []).extend([
+                    {"role": "traveler", "text": body.message},
+                    {"role": "assistant", "text": out.reply, "search": out.search},
+                ])
+                if body.message_id:
+                    session.answered[booking_id] = (body.message_id, out)
+            return out
+
+    @app.get("/bookings/{booking_id}/chat", response_model=ChatHistoryOut, responses=errors)
+    def chat_history(booking_id: BookingDep, session: SessionDep) -> ChatHistoryOut:
+        """The conversation as the traveler saw it, so a reloaded page can show it again."""
+        with session.lock:
+            return ChatHistoryOut(messages=[ChatEntry(**m) for m in session.transcripts.get(booking_id, [])],
+                                  confirm_card=confirm_card(session, booking_id))
 
     @app.post("/confirm", response_model=ConfirmOut, responses={**errors, 409: {"model": ConfirmOut},
                                                               202: {"model": ConfirmOut}})
@@ -282,18 +304,35 @@ def create_app(
                 notices = session.notices.setdefault(body.booking_id, [])
                 notices.append(_notice(outcome, body.option_id))
                 del notices[:-MAX_NOTICES]
+            receipt = None
             if outcome["status"] == "confirmed":
                 session.prepared.pop(body.booking_id, None)
+                if not repeat:
+                    receipt = _receipt(outcome["result"])
+                    session.transcripts.setdefault(body.booking_id, []).append({"role": "app", "text": receipt})
             elif outcome["status"] == "rejected":
                 response.status_code = status.HTTP_409_CONFLICT
             else:
                 response.status_code = status.HTTP_202_ACCEPTED
             return ConfirmOut(status=outcome["status"], reason=outcome.get("reason"),
-                              confirmation=outcome.get("result"), repeat=repeat)
+                              confirmation=outcome.get("result"), repeat=repeat, receipt=receipt)
 
     if dev:
         add_dev_routes(app, SessionDep, BookingDep, get_duffel_client)
     return app
+
+
+def _receipt(confirmation: dict[str, Any]) -> str:
+    """The app's note in the chat once a rebooking is confirmed, in the words travelers read."""
+    flight = confirmation.get("updated_itinerary") or {}
+    try:
+        leaves = local_time_text(datetime.fromisoformat(flight["departs"]))
+        lands = local_time_text(datetime.fromisoformat(flight["arrives"]))
+        trip = (f" {flight.get('flight') or 'your new flight'}: leaves {flight['origin']} at {leaves}, "
+                f"lands at {flight['destination']} at {lands}.")
+    except (KeyError, TypeError, ValueError):
+        trip = ""
+    return f"You're rebooked.{trip} Confirmation {confirmation.get('confirmation_id')}."
 
 
 def _search_results(searched: dict[str, Any] | None) -> SearchResults | None:

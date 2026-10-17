@@ -48,6 +48,8 @@ class ChatIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     booking_id: str = Field(min_length=1, max_length=64)
     message: str = Field(max_length=2000)
+    # Set by the app per traveler message and reused when it retries, so a retry never runs a turn twice.
+    message_id: str | None = Field(default=None, max_length=64)
 
     @field_validator("message")
     @classmethod
@@ -91,6 +93,18 @@ class ChatOut(BaseModel):
     search: SearchResults | None = None  # only when this turn ran a checked search
 
 
+class ChatEntry(BaseModel):
+    """One line of the conversation as the traveler saw it: no tool calls, no app notices meant for the agent."""
+    role: Literal["traveler", "assistant", "app"]
+    text: str
+    search: SearchResults | None = None
+
+
+class ChatHistoryOut(BaseModel):
+    messages: list[ChatEntry]
+    confirm_card: ConfirmCard | None
+
+
 class ConfirmIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     booking_id: str = Field(min_length=1, max_length=64)
@@ -102,6 +116,7 @@ class ConfirmOut(BaseModel):
     reason: str | None = None
     confirmation: dict[str, Any] | None = None
     repeat: bool = False
+    receipt: str | None = None  # the app's note for the chat when a rebooking is confirmed
 
 
 class ChangeCheckOut(BaseModel):

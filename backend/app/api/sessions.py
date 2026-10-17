@@ -52,6 +52,8 @@ class Session:
     histories: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # booking_id -> chat history
     prepared: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> latest prepare_rebooking result
     searched: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> last checked search, for cards
+    transcripts: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # booking_id -> what the traveler saw
+    answered: dict[str, tuple[str, Any]] = field(default_factory=dict)  # booking_id -> (message_id, ChatOut)
     notices: dict[str, list[str]] = field(default_factory=dict)  # booking_id -> app notices for the next chat turn
     shown_changes: dict[str, set[str]] = field(default_factory=dict)  # booking_id -> change ids already shown
     scenario_names: list[str] = field(default_factory=list)  # the mock scenarios this session started with
@@ -98,7 +100,8 @@ class Session:
         The caller holds the session lock and has checked it is a mock booking."""
         self.service.clear_disruption(booking_id)
         self.gate.forget(booking_id)
-        for per_booking in (self.histories, self.prepared, self.searched, self.notices, self.shown_changes):
+        for per_booking in (self.histories, self.prepared, self.searched, self.notices, self.shown_changes,
+                            self.transcripts, self.answered):
             per_booking.pop(booking_id, None)
 
     def reset(self) -> None:
@@ -110,6 +113,7 @@ class Session:
         self.allowed_ids, self.duffel, self.prepared = parts.allowed_ids, parts.duffel, parts.prepared
         self.searched = parts.searched
         self.histories, self.notices, self.shown_changes = {}, {}, {}
+        self.transcripts, self.answered = {}, {}
 
 
 @dataclass
