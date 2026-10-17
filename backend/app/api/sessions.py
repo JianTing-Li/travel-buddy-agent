@@ -206,7 +206,8 @@ def _build(names: list[str], client: DuffelClient | None, starters: bool = False
         if not latest or option_id not in {o.get("option_id") for o in latest["options"]}:
             raise ValueError("You can only recommend an option the latest search returned as fitting the limits.")
         latest["recommended"] = option_id
-        return {"recommended": option_id, "note": "The app highlights this option's card. Nothing was prepared."}
+        return {"recommended": option_id,
+                "note": "The app highlights this option's card. Nothing was prepared. Now write your reply."}
 
     tools = {**gate_tools, "search_replacements": search_replacements, "prepare_rebooking": prepare_rebooking,
              "recommend_option": recommend_option}

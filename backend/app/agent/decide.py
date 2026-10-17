@@ -14,6 +14,9 @@ class ToolCall:
     input: Any  # validated by the loop, may be malformed
 
 
+EMPTY_RESPONSE = "Model returned an empty response"
+
+
 @dataclass
 class Decision:
     kind: str  # "tool_calls" | "text" | "error"
@@ -44,7 +47,7 @@ def decide(
 
     blocks = getattr(response, "content", None)
     if not isinstance(blocks, list) or not blocks:
-        return Decision(kind="error", error="Model returned an empty response")
+        return Decision(kind="error", error=EMPTY_RESPONSE)
 
     text_parts: list[str] = []
     content: list[dict[str, Any]] = []

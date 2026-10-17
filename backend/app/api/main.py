@@ -282,6 +282,7 @@ def create_app(
                                     _other_travel_day(session, booking_id)),
                 session.histories.get(booking_id, []),
                 user_message, session.tools, [*session.toolset.schemas, RECOMMEND_SCHEMA],
+                display_tools=frozenset({RECOMMEND_SCHEMA["name"]}),
             )
             if result.stopped_reason == "error":
                 session.notices[booking_id] = notices  # the model never saw them; keep them for the next try
