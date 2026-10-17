@@ -54,6 +54,8 @@
 .chat-examples { max-width: 680px; }
 
 .chat-action { scroll-margin-bottom: 96px; }
+/* The confirm card slides in and briefly glows so it is noticed. */
+.chat-action > * { animation: rise var(--dur-slow) var(--ease-out) both, attention 1.4s ease-out 0.25s both; }
 .chat-examples { display: grid; gap: 8px; }
 .chat-chip {
   padding: 10px 12px;
@@ -64,6 +66,7 @@
   font-size: 14px;
   line-height: 1.4;
   cursor: pointer;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 .chat-chip:hover { background: var(--accent-bg); border-color: var(--accent); }
 

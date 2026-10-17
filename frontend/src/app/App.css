@@ -115,8 +115,10 @@
   color: var(--text);
   font-weight: 500;
   cursor: pointer;
+  transition: background-color var(--dur-fast) ease, opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
 }
 .btn:hover { background: var(--surface-2); }
+.btn:active:not(:disabled) { transform: scale(0.98); }
 .btn-primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .btn-primary:hover { background: var(--primary); opacity: 0.88; }
 .btn-small { min-height: 32px; padding: 4px 12px; font-size: 14px; }
@@ -149,7 +151,15 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
-.booking-card:hover { border-color: var(--accent); }
+.booking-card {
+  transition: border-color var(--dur) ease, box-shadow var(--dur) ease, transform var(--dur) var(--ease-out);
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+.booking-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 14px rgb(0 0 0 / 0.06); }
+.stack > .booking-card:nth-child(2) { animation-delay: 40ms; }
+.stack > .booking-card:nth-child(3) { animation-delay: 80ms; }
+.stack > .booking-card:nth-child(4) { animation-delay: 120ms; }
+.stack > .booking-card:nth-child(n + 5) { animation-delay: 160ms; }
 .booking-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .booking-route { font-size: 20px; font-weight: 600; }
 .booking-cities { font-size: 15px; color: var(--text-2); }
@@ -179,7 +189,7 @@
 .banner h2 { font-size: 16px; font-weight: 600; }
 .banner p { font-size: 14px; }
 
-.booking-page { display: grid; gap: 16px; }
+.booking-page { display: grid; gap: 16px; animation: rise var(--dur-slow) var(--ease-out) both; }
 .booking-page > .back { justify-self: start; margin-bottom: 0; }
 .notice { background: var(--surface-2); }
 .pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -187,14 +197,16 @@
 /* flight card: the trip, what happened, and the flight(s) */
 .flight-card { display: grid; gap: 14px; padding: 20px; }
 .flight-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
-.flight-status { padding: 12px 14px; border-radius: 10px; }
+.flight-status { padding: 12px 14px; border-radius: 10px; transition: background-color var(--dur-slow) ease, color var(--dur-slow) ease; }
+.flight-status--change { animation: rise var(--dur-slow) var(--ease-out) both, attention 1.2s ease-out 0.2s both; }
 .flight-status h2 { font-size: 16px; font-weight: 600; }
 .flight-status p { font-size: 14px; }
 .flight-status--danger { background: var(--danger-bg); color: var(--danger-text); }
 .flight-status--warn { background: var(--warn-bg); color: var(--warn-text); }
 .flight-status--success { background: var(--success-bg); color: var(--success-text); }
 .flight-status--neutral { background: var(--surface-2); color: var(--text); }
-.flight-row { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--border); }
+.flight-row { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--border); transition: color var(--dur-slow) ease; }
+.flight-row--new { animation: rise var(--dur-slow) var(--ease-out) both; }
 .flight-row-label { font-size: 13px; font-weight: 600; color: var(--text-2); }
 .flight-line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
 .flight-end { display: grid; gap: 1px; }

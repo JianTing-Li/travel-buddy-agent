@@ -7,7 +7,7 @@ import { ChatSlot } from '../../app/ChatSlot.tsx'
 import type { Conversation } from '../../app/conversations.ts'
 import type { BookingsApi } from '../../app/dataSource.ts'
 import { listHref } from '../../app/route.ts'
-import type { BookingDetail as BookingDetailData } from '../../app/types.ts'
+import type { BookingDetail as BookingDetailData, BookingSummary, ChatSituation } from '../../app/types.ts'
 import { DevBookingPanel } from '../dev/DevPanel.tsx'
 import { ConfirmCard, type ConfirmProblem } from './ConfirmCard.tsx'
 import { FlightCard } from './FlightCard.tsx'
@@ -150,8 +150,22 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
     <section className="booking-page">
       <a className="back" href={listHref}>← All bookings</a>
       <FlightCard detail={detail} changes={disrupted ? changes : []} showSource={Boolean(api.dev)} />
-      <ChatSlot bookingId={bookingId} messages={messages} sending={sending} onSend={send} action={action} />
+      <ChatSlot
+        bookingId={bookingId}
+        messages={messages}
+        sending={sending}
+        onSend={send}
+        action={action}
+        situation={situationOf(detail.summary)}
+        travelers={detail.summary.passenger_count}
+      />
       {api.dev && <DevBookingPanel dev={api.dev} bookingId={bookingId} />}
     </section>
   )
+}
+
+function situationOf(summary: BookingSummary): ChatSituation {
+  if (summary.rebooked || summary.status === 'rebooked') return 'rebooked'
+  if (summary.status === 'canceled' || summary.status === 'delayed' || summary.status === 'on time') return summary.status
+  return 'missed'
 }

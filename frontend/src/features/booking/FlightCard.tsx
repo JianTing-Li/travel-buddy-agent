@@ -48,13 +48,13 @@ export function FlightCard({ detail, changes, showSource }: Props) {
       ) : (
         <div className={`flight-status flight-status--${status.tone}`} role="status">
           <h2>{status.title}</h2>
-          <p>{status.text}</p>
+          {status.text && <p>{status.text}</p>}
         </div>
       )}
 
       {!summary.rebooked &&
         changes.map((change) => (
-          <div className="flight-status flight-status--warn" role="status" key={change.change_id}>
+          <div className="flight-status flight-status--warn flight-status--change" role="status" key={change.change_id}>
             <h2>Airline change</h2>
             <p>{change.summary}</p>
           </div>
@@ -62,6 +62,7 @@ export function FlightCard({ detail, changes, showSource }: Props) {
 
       {rebooked && (
         <FlightRow
+          fresh
           label="New flight"
           airline={flightLabel(confirmation.updated_itinerary.airline, confirmation.updated_itinerary.flight)}
           origin={confirmation.updated_itinerary.origin}
@@ -97,13 +98,15 @@ interface RowProps {
   duration?: string | null
   connections?: number
   replaced?: boolean
+  /** Just added: slides in. */
+  fresh?: boolean
 }
 
-function FlightRow({ label, airline, origin, destination, departs, arrives, duration, connections, replaced }: RowProps) {
+function FlightRow({ label, airline, origin, destination, departs, arrives, duration, connections, replaced, fresh }: RowProps) {
   const stops = connections === undefined ? null : connections === 0 ? 'Nonstop' : `${connections} connection${connections === 1 ? '' : 's'}`
   const middle = [duration, stops].filter(Boolean).join(' · ')
   return (
-    <div className={`flight-row${replaced ? ' flight-row--replaced' : ''}`}>
+    <div className={`flight-row${replaced ? ' flight-row--replaced' : ''}${fresh ? ' flight-row--new' : ''}`}>
       <p className="flight-row-label">{label} · {airline}</p>
       <div className="flight-line" aria-hidden="true">
         <div className="flight-end">
@@ -132,16 +135,12 @@ function FlightRow({ label, airline, origin, destination, departs, arrives, dura
 
 type Tone = 'danger' | 'warn' | 'neutral'
 
-function statusText(status: string, delayMinutes: number | null): { tone: Tone; title: string; text: string } {
-  if (status === 'canceled') {
-    return { tone: 'danger', title: 'Your flight was canceled', text: 'Travel Buddy can find you a replacement flight below.' }
-  }
+/** What happened, in a line. The chat below does the inviting, so this only states the facts. */
+function statusText(status: string, delayMinutes: number | null): { tone: Tone; title: string; text?: string } {
+  if (status === 'canceled') return { tone: 'danger', title: 'Your flight was canceled' }
   if (status === 'delayed') {
-    const by = delayMinutes ? ` by about ${formatMinutes(delayMinutes)}` : ''
-    return { tone: 'warn', title: `Your flight is delayed${by}`, text: 'If the new time doesn\'t work for you, Travel Buddy can look for another flight.' }
+    return { tone: 'warn', title: delayMinutes ? `Your flight is delayed by about ${formatMinutes(delayMinutes)}` : 'Your flight is delayed' }
   }
-  if (status.startsWith('missed')) {
-    return { tone: 'warn', title: 'You missed this flight', text: 'Travel Buddy can find you the next flight that works.' }
-  }
-  return { tone: 'neutral', title: 'Your flight is on time', text: "We'll show any airline change here while this page is open." }
+  if (status.startsWith('missed')) return { tone: 'warn', title: 'You missed this flight' }
+  return { tone: 'neutral', title: 'Your flight is on time', text: "If the airline changes it, you'll see it here." }
 }

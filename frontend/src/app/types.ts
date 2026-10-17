@@ -278,4 +278,10 @@ export interface ChatSlotProps {
   onSend: (text: string) => void;
   /** Something the traveler acts on, shown between the messages and the input (the confirm card). */
   action?: ReactNode;
+  /** What happened to the booking, so the welcome text and examples fit it. */
+  situation: ChatSituation;
+  /** How many people are on the booking. */
+  travelers: number;
 }
+
+export type ChatSituation = "canceled" | "delayed" | "missed" | "on time" | "rebooked";

@@ -6,18 +6,53 @@
  * the confirm card, never through a chat message.
  */
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import type { ChatSlotProps } from '../../app/types.ts'
+import type { ChatSituation, ChatSlotProps } from '../../app/types.ts'
 import { RichText } from './RichText.tsx'
 import './chat.css'
 
-const EXAMPLES = [
-  "My flight was canceled. I need to land by 3 PM and I don't want to pay extra.",
-  'I missed my flight. I can pay up to $150 extra and want to arrive today.',
-  'There are three of us. We need to stay together and land before 3 PM.',
-]
+/** The welcome text and tap-to-edit examples, by what happened to the booking. */
+const WELCOME: Record<ChatSituation, { intro: string; examples: string[] }> = {
+  canceled: {
+    intro: "Let's find you a new flight. Tell me what you need:",
+    examples: [
+      "I need to land by 3 PM and don't want to pay extra.",
+      'Any flight today works. I can pay up to $100 more.',
+      'Nonstop only, please. I have to arrive before 6 PM.',
+    ],
+  },
+  missed: {
+    intro: "Let's get you on the next flight that works. Tell me what you need:",
+    examples: [
+      'I can pay up to $150 extra and need to arrive today.',
+      'What is the next flight I can take without paying more?',
+      'I need to be there by 10 PM. One connection is fine.',
+    ],
+  },
+  delayed: {
+    intro: "If the new time doesn't work for you, tell me what you need:",
+    examples: [
+      'The delay makes me too late. I need to land by 3 PM.',
+      'Is there an earlier flight at no extra cost?',
+      "I'll keep this flight unless something gets me in before noon.",
+    ],
+  },
+  'on time': {
+    intro: 'Want a different flight? Tell me what you need:',
+    examples: [
+      'Is there an earlier flight? I can pay up to $100 more.',
+      "I'd like to arrive before 5 PM, nonstop only.",
+      'Can I move to a later flight at no extra cost?',
+    ],
+  },
+  rebooked: {
+    intro: "You're rebooked. Ask me anything about your new flight.",
+    examples: ['When does my new flight land?', 'What changed from my original booking?'],
+  },
+}
 const MAX_INPUT_HEIGHT = 160
 
-export function ChatPanel({ bookingId, messages, sending, onSend, action }: ChatSlotProps) {
+export function ChatPanel({ bookingId, messages, sending, onSend, action, situation, travelers }: ChatSlotProps) {
+  const welcome = WELCOME[situation]
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const lastRef = useRef<HTMLDivElement>(null)
@@ -77,24 +112,26 @@ export function ChatPanel({ bookingId, messages, sending, onSend, action }: Chat
     <section className="card chat" aria-labelledby={`chat-title-${bookingId}`}>
       <div>
         <h2 className="card-title" id={`chat-title-${bookingId}`}>Chat with Travel Buddy</h2>
-        <p className="muted small">
-          AI assistant. It confirms your limits before it searches, and only you can confirm a new flight.
-        </p>
+        <p className="muted small">AI assistant</p>
       </div>
 
       <div className="chat-log" role="log" aria-live="polite" aria-relevant="additions">
         {messages.length === 0 && !sending && (
           <div className="chat-welcome">
-            <p>Tell me what happened and what you need:</p>
-            <ul className="chat-needs">
-              <li><strong>When you must arrive</strong>, and where you need to be</li>
-              <li><strong>The most you can pay extra</strong>, for the whole booking</li>
-              <li><strong>How many connections</strong> are okay</li>
-            </ul>
-            <p className="muted small">Everyone on the booking stays together on the same flight.</p>
-            <p className="muted small">For example (tap one to edit it first):</p>
+            <p>{welcome.intro}</p>
+            {situation !== 'rebooked' && (
+              <ul className="chat-needs">
+                <li><strong>When you must arrive</strong></li>
+                <li><strong>The most you can pay extra</strong> for the whole booking</li>
+                <li><strong>How many connections</strong> are okay</li>
+              </ul>
+            )}
+            {travelers > 1 && situation !== 'rebooked' && (
+              <p className="muted small">All {travelers} travelers stay together on the same flight.</p>
+            )}
+            <p className="muted small">Try one (you can edit it first):</p>
             <div className="chat-examples">
-              {EXAMPLES.map((example) => (
+              {welcome.examples.map((example) => (
                 <button key={example} type="button" className="chat-chip" onClick={() => pickExample(example)}>
                   {example}
                 </button>

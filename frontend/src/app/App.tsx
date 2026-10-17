@@ -33,6 +33,14 @@ function App() {
   const route = parseHash(useHash())
   const conversations = useConversations()
 
+  // Fade the colors for a moment while the theme changes (see .theme-switching in index.css).
+  const switchTheme = (next: Theme) => {
+    const root = document.documentElement
+    root.classList.add('theme-switching')
+    setTheme(next)
+    window.setTimeout(() => root.classList.remove('theme-switching'), 400)
+  }
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     try {
@@ -55,7 +63,7 @@ function App() {
             <button
               className="btn btn-small"
               type="button"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              onClick={() => switchTheme(theme === 'dark' ? 'light' : 'dark')}
               aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             >
               {theme === 'dark' ? 'Light mode' : 'Dark mode'}
