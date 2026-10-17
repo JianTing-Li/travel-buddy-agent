@@ -284,7 +284,8 @@ export interface DevFaultsOut {
 // --- UI only (not sent to the backend) ---------------------------------------------------
 
 export interface ChatMessage {
-  role: "traveler" | "assistant";
+  /** "app": written by the app (e.g. the rebooking receipt), never shown as Travel Buddy speaking. */
+  role: "traveler" | "assistant" | "app";
   text: string;
   /** Options found in this turn, shown as cards under the reply. */
   search?: SearchResults | null;

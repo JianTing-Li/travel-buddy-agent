@@ -180,6 +180,8 @@ def test_explicit_confirm_completes_the_simulated_rebooking_and_the_next_turn_he
     assert after["confirm_card"] is None
     last_user = model.requests[-1]["messages"][-1]["content"]
     assert "[App notice]" in last_user and "SIM-CONF-MOCK-CASE-1-opt-1a" in last_user and last_user.endswith("Thanks")
+    # every later turn is told the trip is already rebooked, so the agent never starts over as if it were open
+    assert "already rebooked" in model.requests[-1]["system"] and "already rebooked" not in model.requests[0]["system"]
 
 
 def test_confirm_without_a_prepared_option_is_rejected_and_books_nothing():

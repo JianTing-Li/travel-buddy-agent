@@ -1,10 +1,12 @@
 /** Shows the option the traveler is about to confirm. Only the Confirm button here triggers a rebooking. Owner: Jian. */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ConfirmCard as ConfirmCardData } from '../../app/types.ts'
 import { flightLabel, formatDateTime, formatMoney } from './format.ts'
 import { SourcePill } from './Pills.tsx'
 
 /** What a confirm attempt came back with, when it did not simply work. */
+const ARM_DELAY_MS = 1000
+
 export type ConfirmProblem = { kind: 'error' | 'pending'; message: string }
 
 interface Props {
@@ -22,13 +24,22 @@ export function ConfirmCard({ card, showSource, onConfirm, onCheck, onDismiss }:
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [pending, setPending] = useState('')
+  // A booking can't be undone, so the button only works a moment after the card appears: a click meant for
+  // something else, landing where the card just popped up, must not book.
+  const shown = `${card.option.option_id}:${card.option.additional_cost}`
+  const [armedFor, setArmedFor] = useState<string | null>(null)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setArmedFor(shown), ARM_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [shown])
+  const armed = armedFor === shown
   const { option } = card
   const d = option.flight_details
   const connections = typeof d.connections === 'number' ? d.connections : null
   const free = option.additional_cost === 0
 
   async function confirm() {
-    if (busy) return
+    if (busy || !armed) return
     setBusy(true)
     setError('')
     const problem = await onConfirm(option.option_id)
@@ -87,7 +98,7 @@ export function ConfirmCard({ card, showSource, onConfirm, onCheck, onDismiss }:
         </div>
       ) : (
         <div className="confirm-actions">
-          <button className="btn btn-primary" type="button" onClick={confirm} aria-busy={busy}>
+          <button className="btn btn-primary" type="button" onClick={confirm} aria-busy={busy} disabled={!armed}>
             {busy ? 'Confirming…' : 'Confirm rebooking'}
           </button>
           <button className="btn" type="button" onClick={onDismiss}>Choose another</button>

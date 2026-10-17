@@ -200,6 +200,31 @@
   .option-card .btn { grid-column: 1 / -1; }
 }
 
+/* The app's receipt once a rebooking is confirmed: from the app, not from Travel Buddy. */
+.chat-receipt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--success-bg);
+  color: var(--success-text);
+  font-weight: 500;
+  scroll-margin-bottom: 96px;
+  animation: rise var(--dur-slow) var(--ease-out) both, attention 1.4s ease-out 0.25s both;
+}
+.chat-receipt-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--success-text);
+  color: var(--surface);
+  font-size: 13px;
+}
+
 /* A message that got no answer: an app notice, not a reply from Travel Buddy. */
 .chat-problem {
   display: grid;

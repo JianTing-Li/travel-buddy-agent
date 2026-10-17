@@ -7,13 +7,15 @@ import { ChatSlot } from '../../app/ChatSlot.tsx'
 import type { Conversation } from '../../app/conversations.ts'
 import type { BookingsApi } from '../../app/dataSource.ts'
 import { listHref } from '../../app/route.ts'
-import type { BookingDetail as BookingDetailData, BookingSummary, ChatSituation, Option } from '../../app/types.ts'
+import type {
+  BookingDetail as BookingDetailData, BookingSummary, ChatMessage, ChatSituation, Option,
+} from '../../app/types.ts'
 import { ApiError, OFFLINE, TIMED_OUT } from '../../app/httpApi.ts'
 import { EMPTY_CONVERSATION } from '../../app/conversations.ts'
 import { DevBookingPanel } from '../dev/DevPanel.tsx'
 import { ConfirmCard, type ConfirmProblem } from './ConfirmCard.tsx'
 import { FlightCard } from './FlightCard.tsx'
-import { flightLabel, formatTime } from './format.ts'
+import { flightLabel, formatDate, formatTime } from './format.ts'
 
 /** What the traveler sees when a message gets no answer, by cause. Never shown as if Travel Buddy said it. */
 const CANT_REACH = "Can't reach Travel Buddy. Check your connection, then try again."
@@ -131,8 +133,10 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
       try {
         const out = await api.confirm(bookingId, optionId)
         if (out.status === 'confirmed') {
-          update(bookingId, (c) => ({ ...c, card: null }))
-          setDetail(await api.getBooking(bookingId))
+          const fresh = await api.getBooking(bookingId)
+          setDetail(fresh)
+          // Say it where the traveler is looking: the card they pressed is replaced by a receipt in the chat.
+          update(bookingId, (c) => ({ ...c, card: null, messages: [...c.messages, receipt(fresh)] }))
           return null
         }
         if (out.status === 'pending') return { kind: 'pending', message: NOT_KNOWN_YET }
@@ -261,4 +265,16 @@ function BookingSkeleton() {
       </div>
     </section>
   )
+}
+
+/** The app's note in the chat once a rebooking is confirmed. */
+function receipt(detail: BookingDetailData): ChatMessage {
+  const c = detail.confirmation
+  if (!c) return { role: 'app', text: "You're rebooked." }
+  const d = c.updated_itinerary
+  return {
+    role: 'app',
+    text: `You're rebooked on ${flightLabel(d.airline, d.flight)}: ${formatDate(d.departs)}, ${formatTime(d.departs)} ` +
+      `${d.origin} → ${formatTime(d.arrives)} ${d.destination}. Confirmation ${c.confirmation_id}.`,
+  }
 }

@@ -64,10 +64,17 @@ def _system_prompt() -> str:
     return load_system_prompt()
 
 
-def _chat_system_prompt(booking_id: str) -> str:
+def _chat_system_prompt(booking_id: str, confirmation: dict[str, Any] | None = None) -> str:
     """The agent's prompt plus app-controlled context; the booking id never comes from the traveler's text."""
-    return (f"{_system_prompt()}\n\nApp context (written by the application, not the traveler): the traveler has "
-            f"opened booking {booking_id}. Use this booking_id when you call tools. All data is simulated.")
+    context = (f"{_system_prompt()}\n\nApp context (written by the application, not the traveler): the traveler has "
+               f"opened booking {booking_id}. Use this booking_id when you call tools. All data is simulated.")
+    if confirmation:
+        # every turn, not only the one after confirming, so the agent never treats a rebooked trip as open
+        context += (f" This booking is already rebooked (simulated, confirmation {confirmation.get('confirmation_id')})."
+                    " It cannot be rebooked again here. Answer questions about the new flight; if the traveler wants a"
+                    " different flight, explain that and offer the simulated support handoff. Do not search for or"
+                    " prepare another replacement.")
+    return context
 
 
 def _change_notice(change: AirlineChange) -> str:
@@ -249,7 +256,9 @@ def create_app(
             notices = session.notices.pop(booking_id, [])
             user_message = "\n".join([*notices, "", body.message]) if notices else body.message
             result = run_turn(
-                client, model_name, _chat_system_prompt(booking_id), session.histories.get(booking_id, []),
+                client, model_name,
+                _chat_system_prompt(booking_id, session.service_for(booking_id).get_confirmation(booking_id)),
+                session.histories.get(booking_id, []),
                 user_message, session.tools, session.toolset.schemas,
             )
             if result.stopped_reason == "error":

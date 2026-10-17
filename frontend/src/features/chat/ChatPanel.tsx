@@ -157,6 +157,14 @@ export function ChatPanel(
 
         {messages.map((m, i) => {
           const last = i === messages.length - 1 ? lastRef : undefined
+          if (m.role === 'app') {
+            return (
+              <div key={i} ref={last} className="chat-receipt" role="status">
+                <span className="chat-receipt-icon" aria-hidden="true">✓</span>
+                <p>{m.text}</p>
+              </div>
+            )
+          }
           if (m.role === 'traveler') {
             return (
               <div key={i} ref={last} className="chat-msg chat-msg--traveler">
