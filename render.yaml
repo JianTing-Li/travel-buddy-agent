@@ -1,12 +1,13 @@
 # Render Blueprint for the Travel Buddy API. Owner: Jian. See docs/deploy.md.
 # One worker on purpose: sessions, chat history and the confirmation gate live in memory.
-# Never start dev_app here: its /dev endpoints are test tools and must not be public.
+# dev_app serves the public demo's dev tools (Vercel sets VITE_DEV_PANEL=true). They only touch the caller's own
+# session and are rate limited; use backend.app.api.main:app instead to run without them.
 services:
   - type: web
     name: travel-buddy-api
     runtime: python
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: uvicorn backend.app.api.main:app --host 0.0.0.0 --port $PORT --workers 1 --no-access-log --proxy-headers --forwarded-allow-ips="*"
+    startCommand: uvicorn backend.app.api.main:dev_app --host 0.0.0.0 --port $PORT --workers 1 --no-access-log --proxy-headers --forwarded-allow-ips="*"
     healthCheckPath: /health
     envVars:
       - key: ANTHROPIC_API_KEY

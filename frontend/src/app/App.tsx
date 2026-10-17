@@ -30,11 +30,14 @@ function createApi(): BookingsApi {
 /** Dev builds can hide the test tools for a demo; the choice is remembered in this browser. */
 const DEV_TOOLS_KEY = 'travel-buddy-dev-tools'
 
+/** On by default while developing; off by default on the deployed demo, so visitors first see the real app. */
 function initialDevTools(): boolean {
+  const fallback = !import.meta.env.PROD
   try {
-    return window.localStorage.getItem(DEV_TOOLS_KEY) !== 'off'
+    const saved = window.localStorage.getItem(DEV_TOOLS_KEY)
+    return saved === null ? fallback : saved === 'on'
   } catch {
-    return true
+    return fallback
   }
 }
 
@@ -85,13 +88,22 @@ function App() {
           </a>
           <div className="header-actions">
             {baseApi.dev && (
-              <button className="switch" type="button" role="switch" aria-checked={devTools} onClick={toggleDevTools}>
+              <button
+                className="switch"
+                type="button"
+                role="switch"
+                aria-checked={devTools}
+                title="Dev tools: simulate delays and add test bookings"
+                aria-label="Dev tools"
+                onClick={toggleDevTools}
+              >
+                <span className="switch-icon" aria-hidden="true">🛠</span>
+                Dev
                 <span className="switch-track" aria-hidden="true"><span className="switch-knob" /></span>
-                Dev tools
               </button>
             )}
             {/* Always shown, also in demo mode: nobody should mistake this for a real airline system. */}
-            <span className="pill pill-sim">Simulated environment</span>
+            <span className="pill pill-sim">Simulated</span>
             <button
               className="btn btn-small"
               type="button"
@@ -112,7 +124,7 @@ function App() {
             update={conversations.update}
           /> : <BookingsList api={api} onReset={conversations.clear} />}
       </main>
-      {/* The header's "Simulated environment" badge says it for the whole app; the footer only helps developers. */}
+      {/* The header's "Simulated" badge says it for the whole app; the footer only helps developers. */}
       {(api.kind === 'sample' || api.dev) && <footer className="footer">{api.label}</footer>}
     </>
   )

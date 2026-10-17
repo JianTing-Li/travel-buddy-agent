@@ -89,7 +89,8 @@ def _chat_system_prompt(booking_id: str, confirmation: dict[str, Any] | None = N
                     f" the traveler gives as local time on {travel_day} unless they say another day.")
     if confirmation:
         # every turn, not only the one after confirming, so the agent never treats a rebooked trip as open
-        context += (f" This booking is already rebooked (simulated, confirmation {confirmation.get('confirmation_id')})."
+        confirmation_id = confirmation.get("confirmation_id")
+        context += (f" This booking is already rebooked (simulated, confirmation {confirmation_id})."
                     " It cannot be rebooked again here. Answer questions about the new flight; if the traveler wants a"
                     " different flight, explain that and offer the simulated support handoff. Do not search for or"
                     " prepare another replacement.")
@@ -289,7 +290,8 @@ def create_app(
                 raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
                                     "This demo session has reached its message limit.")
             if not limiter.allow("chat", _client_ip(request), limits.chat_per_ip_per_minute, 60):
-                raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many messages. Wait a minute, then try again.")
+                raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                                    "Too many messages. Wait a minute, then try again.")
         client, model_name = model_client_and_name()
         booking_id = body.booking_id
         with session.lock:
@@ -358,7 +360,7 @@ def create_app(
                               confirmation=outcome.get("result"), repeat=repeat, receipt=receipt)
 
     if dev:
-        add_dev_routes(app, SessionDep, BookingDep, get_duffel_client)
+        add_dev_routes(app, SessionDep, BookingDep, get_duffel_client, limiter, limits)
     return app
 
 
@@ -400,10 +402,24 @@ def _search_results(searched: dict[str, Any] | None) -> SearchResults | None:
         return None
 
 
-def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_client: Any) -> None:
+def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_client: Any,
+                   limiter: RateLimiter | None = None, limits: Limits | None = None) -> None:
+    """The test tools. On a public demo anyone can use them (only on their own session), so they are rate limited."""
+
+    def limited(kind: str, per_hour: int) -> Any:
+        def check(request: Request) -> None:
+            if limiter and limits and not limiter.allow(kind, _client_ip(request), per_hour, 3600):
+                raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                                    "You've used the dev tools a lot. Try again in an hour.")
+        return Depends(check)
+
+    dev_limit = [limited("dev", limits.dev_actions_per_ip_per_hour)] if limits else []
+    duffel_limit = [limited("duffel", limits.duffel_bookings_per_ip_per_hour)] if limits else []
+
     errors = {401: {"model": ErrorOut}, 404: {"model": ErrorOut}, 409: {"model": ErrorOut}, 422: {"model": ErrorOut}}
 
-    @app.post("/dev/bookings", status_code=status.HTTP_201_CREATED, response_model=DevBookingOut, responses=errors)
+    @app.post("/dev/bookings", status_code=status.HTTP_201_CREATED, response_model=DevBookingOut, responses=errors,
+              dependencies=dev_limit)
     def dev_create_booking(session: SessionDep, body: DevBookingCreate | None = None) -> DevBookingOut:
         """Add a simulated booking to this session: an eval case, or a random one. The seed reproduces it."""
         body = body or DevBookingCreate()
@@ -422,7 +438,7 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
         return DevBookingOut(booking=summary, seed=seed, scenario=body.scenario)
 
     @app.post("/dev/bookings/{booking_id}/disrupt", status_code=status.HTTP_201_CREATED,
-              response_model=AirlineChange, responses=errors)
+              response_model=AirlineChange, responses=errors, dependencies=dev_limit)
     def dev_disrupt(booking_id: BookingDep, body: DevDisruptIn, session: SessionDep) -> AirlineChange:
         """Simulate an airline change. The open page finds it through the normal change check."""
         try:
@@ -438,7 +454,8 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
         except ServiceError as exc:
             raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
 
-    @app.post("/dev/bookings/{booking_id}/faults", response_model=DevFaultsOut, responses=errors)
+    @app.post("/dev/bookings/{booking_id}/faults", response_model=DevFaultsOut, responses=errors,
+              dependencies=dev_limit)
     def dev_set_faults(booking_id: BookingDep, body: DevFaultsIn, session: SessionDep) -> DevFaultsOut:
         """Make the mock misbehave on purpose for this booking; an empty list clears it."""
         if session.service_for(booking_id) is session.duffel:
@@ -449,7 +466,8 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
         except MockServiceError as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
 
-    @app.post("/dev/bookings/{booking_id}/clear", response_model=BookingSummary, responses=errors)
+    @app.post("/dev/bookings/{booking_id}/clear", response_model=BookingSummary, responses=errors,
+              dependencies=dev_limit)
     def dev_clear_disruption(booking_id: BookingDep, session: SessionDep) -> BookingSummary:
         """Put a mock booking back to normal (on time) and start its chat over. Duffel can't undo its changes."""
         if session.service_for(booking_id) is session.duffel:
@@ -458,7 +476,7 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
             session.clear_disruption(booking_id)
             return _summary(session, booking_id)
 
-    @app.post("/dev/reset", response_model=DevResetOut, responses=errors)
+    @app.post("/dev/reset", response_model=DevResetOut, responses=errors, dependencies=dev_limit)
     def dev_reset(session: SessionDep) -> DevResetOut:
         """Start THIS session over with its first mock bookings. Other sessions are untouched; to reset
         everything, restart the backend (all state is in memory)."""
@@ -467,7 +485,8 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
             return DevResetOut(booking_ids=session.booking_ids)
 
     @app.post("/dev/duffel-bookings", status_code=status.HTTP_201_CREATED, response_model=BookingSummary,
-              responses={**errors, 502: {"model": ErrorOut}, 503: {"model": ErrorOut}})
+              responses={**errors, 502: {"model": ErrorOut}, 503: {"model": ErrorOut}},
+              dependencies=[*dev_limit, *duffel_limit])
     def dev_create_duffel_booking(session: SessionDep, body: DevDuffelBookingIn | None = None) -> BookingSummary:
         """Create a real Duffel TEST order (test token, test balance) and add it to this session."""
         body = body or DevDuffelBookingIn()

@@ -37,7 +37,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 
 ## UI shell (extra, proposed: needs agreement before starting; Jian shell, Cheich features/chat)
 - [ ] Agree: booking summary type for the list page, chat-slot interface (messages in, onSend out), dev panel in MVP 1 scope (frontend ownership is settled; react-router moved to Future improvements)
-- Design decided by Jian (Cheich to confirm): plain CSS with CSS variables, light and dark mode, app name "Travel Buddy", persistent "Simulated environment" badge, source pill (Duffel test or Mock) on every booking
+- Design decided by Jian (Cheich to confirm): plain CSS with CSS variables, light and dark mode, app name "Travel Buddy", persistent "Simulated" badge, source pill (Duffel test or Mock) on every booking
 - [x] Shell built on fixtures typed by types.ts: bookings list, booking detail with disruption banner, confirm card with simulated label, placeholder where the chat goes
 - [x] Dev panel: generate test booking (seeded scenario picker, Duffel test order) and simulate disruption, labeled simulated; shown only with VITE_DEV_PANEL=true
 - [x] Wire the shell to the real API once the chat/confirm and dev/booking endpoints exist
@@ -51,7 +51,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Fresh mock data: replacements always in the future, missed flights in the past, departed flights refused, untouched bookings refreshed
 - [x] Demo mode: "Dev tools" switch hides test tools and labels; realistic names (Skyway Air, record locators)
 - [x] Cheich's chat plugs into the chat slot (features/chat: messages, thinking indicator, example prompts, safe formatting; checked in the browser, light and dark, phone width)
-- [x] Booking page layout: full-width flight card on top (new flight leads after a rebooking, original shown as replaced), full-width chat with the confirm card above the input; one app-wide "Simulated environment" label, source pills in dev mode only
+- [x] Booking page layout: full-width flight card on top (new flight leads after a rebooking, original shown as replaced), full-width chat with the confirm card above the input; one app-wide "Simulated" label, source pills in dev mode only
 - [x] Errors and outages: a message that gets no answer shows an app notice (can't reach the server, assistant unavailable, too slow) with Try again, never a fake reply; after two failures it points to the airline with the booking ref. Model calls time out after 45 s (one retry); requests time out in the browser. Loading skeletons on the list and booking pages
 - [x] Dev panel rework: add a generated booking that is on time, canceled, delayed or missed (or a PRD case), a Duffel test booking, "Back to normal" per mock booking (clears changes, faults, rebooking and chat), plain-language fault names. Default sessions also start with two on-time bookings (MOCK-ONTIME-1 and -2)
 

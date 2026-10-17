@@ -64,3 +64,19 @@ def test_the_limiter_forgets_hits_outside_its_window():
     now[0] = 61
     assert limiter.allow("chat", "1.2.3.4", 1, 60)
     assert limiter.allow("chat", "5.6.7.8", 1, 60)  # another address has its own count
+
+
+def test_the_dev_tools_are_rate_limited_per_address_and_duffel_orders_more_strictly(monkeypatch):
+    monkeypatch.setattr("backend.app.api.main.config.DUFFEL_ACCESS_TOKEN", None)  # never reach Duffel from a test
+    client = TestClient(create_app(dev=True, access_code=None,
+                                   limits=Limits(dev_actions_per_ip_per_hour=2, duffel_bookings_per_ip_per_hour=1)))
+    headers = {"X-Session-Id": client.post("/sessions").json()["session_id"]}
+    codes = [client.post("/dev/bookings", json={"seed": n}, headers=headers).status_code for n in range(3)]
+    assert codes == [201, 201, 429]
+    assert client.post("/dev/reset", headers=headers).status_code == 429  # the same budget covers every dev action
+
+    client = TestClient(create_app(dev=True, access_code=None,
+                                   limits=Limits(dev_actions_per_ip_per_hour=100, duffel_bookings_per_ip_per_hour=1)))
+    headers = {"X-Session-Id": client.post("/sessions").json()["session_id"]}
+    first = client.post("/dev/duffel-bookings", headers=headers).status_code
+    assert first == 503  # Duffel switched off for the test and client.post("/dev/duffel-bookings", headers=headers).status_code == 429

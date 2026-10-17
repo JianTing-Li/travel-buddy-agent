@@ -84,18 +84,23 @@
   font-size: 13px;
 }
 
-/* the dev tools switch in the header (dev builds only) */
+/* the dev tools switch in the header (dev builds and the public demo) */
 .switch {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 6px;
-  border: 0;
-  background: none;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
   color: var(--text-2);
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background-color var(--dur) ease, box-shadow var(--dur) ease;
 }
+.switch:hover { border-color: var(--accent); }
+.switch-icon { font-size: 14px; line-height: 1; }
 .switch-track {
   position: relative;
   width: 34px;

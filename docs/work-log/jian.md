@@ -1,5 +1,12 @@
 # Jian work log
 
+## 2026-10-17: dev tools on the public demo (branch feature/updates)
+- The live demo shows a "Dev tools" switch so visitors can simulate delays and add bookings: Render runs `dev_app`, Vercel sets `VITE_DEV_PANEL=true`. No access code (Jian's call).
+- The switch is a small outlined pill with a wrench, "Dev" and a toggle; the header badge now just says "Simulated" (a hover tooltip explains it). It starts off on the deployed build, on while developing; the choice is remembered per browser.
+- Dev endpoints are rate limited per address: 60 actions per hour, and 3 Duffel test orders per hour. They only touch the caller's own session.
+- Note: while writing the test for the Duffel limit, one run created a real order on the Duffel TEST account (the local .env token was picked up). The test now switches Duffel off; no unit test reaches the network.
+- Checked: 695 backend tests; a production build with `VITE_DEV_PANEL=true` shows the switch, off and pulsing.
+
 ## 2026-10-17: ready to deploy (branch feature/polish-travel-buddy)
 - Two new env vars (CLAUDE.md updated; Cheich to confirm): `ALLOWED_ORIGINS` (the frontend address for CORS; default the Vite dev server) and `DEMO_ACCESS_CODE` (when set, `POST /sessions` needs it in `X-Access-Code`; wrong or missing gives 403). `.env.example` lists all five names.
 - Rate limits (`api/rate_limit.py`, in memory): 20 new sessions per address per hour, 20 messages per address per minute, 80 messages per session; 429 with a plain message. Tests can pass `limits=None`.
