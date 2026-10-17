@@ -17,16 +17,24 @@ const EXAMPLES = [
 ]
 const MAX_INPUT_HEIGHT = 160
 
-export function ChatPanel({ bookingId, messages, sending, onSend }: ChatSlotProps) {
+export function ChatPanel({ bookingId, messages, sending, onSend, action }: ChatSlotProps) {
   const [draft, setDraft] = useState('')
-  const logRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const lastRef = useRef<HTMLDivElement>(null)
+  const typingRef = useRef<HTMLDivElement>(null)
+  const seen = useRef(messages.length)
 
-  // Keep the newest message in view.
+  // Bring what is new into view: the traveler's message and the typing dots, then the START of Travel Buddy's reply
+  // (a long reply read from its end is hard to follow). Nothing moves when the page first opens with a history.
   useEffect(() => {
-    const log = logRef.current
-    if (log) log.scrollTop = log.scrollHeight
-  }, [messages.length, sending])
+    const grew = messages.length > seen.current
+    seen.current = messages.length
+    if (!grew && !sending) return
+    const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches ? 'smooth' : 'auto'
+    const reply = !sending && messages[messages.length - 1]?.role === 'assistant'
+    const target = sending ? typingRef.current : lastRef.current
+    target?.scrollIntoView({ block: reply ? 'start' : 'nearest', behavior: smooth })
+  }, [messages, sending])
 
   const grow = (el: HTMLTextAreaElement) => {
     el.style.height = 'auto'
@@ -66,19 +74,24 @@ export function ChatPanel({ bookingId, messages, sending, onSend }: ChatSlotProp
   }
 
   return (
-    <section className="card chat" aria-label={`Chat with Travel Buddy about booking ${bookingId}`}>
+    <section className="card chat" aria-labelledby={`chat-title-${bookingId}`}>
       <div>
-        <h2 className="card-title">Chat with Travel Buddy</h2>
-        <p className="muted small">Simulated: no real tickets are bought or changed.</p>
+        <h2 className="card-title" id={`chat-title-${bookingId}`}>Chat with Travel Buddy</h2>
+        <p className="muted small">
+          AI assistant. It confirms your limits before it searches, and only you can confirm a new flight.
+        </p>
       </div>
 
-      <div ref={logRef} className="chat-log" role="log" aria-live="polite" aria-relevant="additions" tabIndex={0}>
+      <div className="chat-log" role="log" aria-live="polite" aria-relevant="additions">
         {messages.length === 0 && !sending && (
           <div className="chat-welcome">
-            <p>
-              Tell me what happened and what you need: how much extra you can pay, when you must arrive, how many
-              connections are okay, and how many people are traveling.
-            </p>
+            <p>Tell me what happened and what you need:</p>
+            <ul className="chat-needs">
+              <li><strong>When you must arrive</strong>, and where you need to be</li>
+              <li><strong>The most you can pay extra</strong>, for the whole booking</li>
+              <li><strong>How many connections</strong> are okay</li>
+            </ul>
+            <p className="muted small">Everyone on the booking stays together on the same flight.</p>
             <p className="muted small">For example (tap one to edit it first):</p>
             <div className="chat-examples">
               {EXAMPLES.map((example) => (
@@ -91,19 +104,21 @@ export function ChatPanel({ bookingId, messages, sending, onSend }: ChatSlotProp
         )}
 
         {messages.map((m, i) => (
-          <div key={i} className={`chat-msg chat-msg--${m.role}`}>
+          <div key={i} ref={i === messages.length - 1 ? lastRef : undefined} className={`chat-msg chat-msg--${m.role}`}>
             <span className="chat-sr">{m.role === 'traveler' ? 'You said: ' : 'Travel Buddy said: '}</span>
             {m.role === 'assistant' ? <RichText text={m.text} /> : m.text}
           </div>
         ))}
 
         {sending && (
-          <div className="chat-msg chat-msg--assistant chat-typing" role="status">
+          <div ref={typingRef} className="chat-msg chat-msg--assistant chat-typing" role="status">
             <span className="chat-sr">Travel Buddy is working on it</span>
             <span className="chat-dots" aria-hidden="true"><i /><i /><i /></span>
           </div>
         )}
       </div>
+
+      {action && <div className="chat-action">{action}</div>}
 
       <form className="chat-form" onSubmit={onSubmit}>
         <label className="chat-sr" htmlFor={`chat-input-${bookingId}`}>Message Travel Buddy</label>
@@ -113,7 +128,7 @@ export function ChatPanel({ bookingId, messages, sending, onSend }: ChatSlotProp
           className="chat-input"
           rows={1}
           value={draft}
-          placeholder="Tell Travel Buddy what you need…"
+          placeholder="Message Travel Buddy…"
           onChange={(e) => {
             setDraft(e.target.value)
             grow(e.target)

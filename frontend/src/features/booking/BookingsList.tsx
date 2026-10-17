@@ -59,7 +59,7 @@ export function BookingsList({ api, onReset }: { api: BookingsApi; onReset: () =
               <p className="booking-route">{b.origin} → {b.destination}</p>
               <div className="booking-meta">
                 <StatusPill status={b.status} />
-                <SourcePill source={b.data_source} />
+                {api.dev && <SourcePill source={b.data_source} />}
               </div>
             </div>
             <p className="booking-cities">{cityName(b.origin)} to {cityName(b.destination)}</p>

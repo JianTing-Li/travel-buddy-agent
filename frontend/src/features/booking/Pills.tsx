@@ -6,10 +6,10 @@ export function StatusPill({ status }: { status: string }) {
   return <span className={`pill pill-${statusTone(status)}`}>{statusLabel(status)}</span>
 }
 
-/** Every booking and option shows where its data comes from; mock data is always labeled simulated. */
+/** Where a booking or option comes from. Shown in dev mode only: the header badge already says the app is simulated. */
 export function SourcePill({ source }: { source: DataSource }) {
   return source === 'mock' ? (
-    <span className="pill pill-sim">Mock · simulated</span>
+    <span className="pill pill-sim">Mock data</span>
   ) : (
     <span className="pill pill-accent">Duffel test</span>
   )

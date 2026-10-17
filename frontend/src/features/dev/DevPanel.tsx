@@ -34,7 +34,7 @@ function Frame({ title, children }: { title: string; children: React.ReactNode }
     <section className="card dev-panel" aria-label={title}>
       <div className="dev-head">
         <h2 className="card-title">{title}</h2>
-        <span className="pill pill-sim">Dev tools · test data only</span>
+        <span className="pill pill-sim">Dev tools</span>
       </div>
       {children}
     </section>

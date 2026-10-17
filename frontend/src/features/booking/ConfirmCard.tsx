@@ -1,7 +1,7 @@
 /** Shows the option the traveler is about to confirm. Only the Confirm button here triggers a rebooking. Owner: Jian. */
 import { useState } from 'react'
 import type { ConfirmCard as ConfirmCardData } from '../../app/types.ts'
-import { formatLocalTime, formatMoney } from './format.ts'
+import { flightLabel, formatDateTime, formatMoney } from './format.ts'
 import { SourcePill } from './Pills.tsx'
 
 /** What a confirm attempt came back with, when it did not simply work. */
@@ -9,6 +9,8 @@ export type ConfirmProblem = { kind: 'error' | 'pending'; message: string }
 
 interface Props {
   card: ConfirmCardData
+  /** Dev mode: also show where the option comes from (mock or Duffel test). */
+  showSource: boolean
   /** Resolves to null when it worked, or to the problem to show. */
   onConfirm: (optionId: string) => Promise<ConfirmProblem | null>
   /** Asks the app whether an uncertain rebooking went through. */
@@ -16,7 +18,7 @@ interface Props {
   onDismiss: () => void
 }
 
-export function ConfirmCard({ card, onConfirm, onCheck, onDismiss }: Props) {
+export function ConfirmCard({ card, showSource, onConfirm, onCheck, onDismiss }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [pending, setPending] = useState('')
@@ -46,7 +48,7 @@ export function ConfirmCard({ card, onConfirm, onCheck, onDismiss }: Props) {
     <section className="confirm" aria-labelledby="confirm-title">
       <div className="confirm-head">
         <h2 className="card-title" id="confirm-title" style={{ margin: 0 }}>Review your new flight</h2>
-        <SourcePill source={option.data_source} />
+        {showSource && <SourcePill source={option.data_source} />}
       </div>
       <p className="route-line" style={{ fontSize: 20 }}>
         {String(d.origin ?? '')} to {String(d.destination ?? '')}
@@ -55,13 +57,13 @@ export function ConfirmCard({ card, onConfirm, onCheck, onDismiss }: Props) {
         </span>
       </p>
       <ul className="facts">
-        <li><strong>{String(d.airline ?? 'Airline')}</strong> · {String(d.flight ?? '')}</li>
-        <li>Departs {formatLocalTime(d.departs)}</li>
-        <li>Arrives {formatLocalTime(d.arrives)}</li>
-        <li>Duration {String(d.duration ?? 'unknown')}</li>
+        <li><strong>{flightLabel(d.airline, d.flight)}</strong></li>
+        <li>Departs {d.origin} · {formatDateTime(d.departs)}</li>
+        <li>Arrives {d.destination} · {formatDateTime(d.arrives)}</li>
+        {d.duration && <li>Flight time {d.duration}</li>}
       </ul>
       <div className="confirm-cost">
-        <span>Additional cost, whole booking</span>
+        <span>Extra cost, whole booking</span>
         <strong>{formatMoney(option.additional_cost, option.currency)}</strong>
       </div>
       {free && <p className="muted">No additional payment required.</p>}

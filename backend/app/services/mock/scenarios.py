@@ -17,7 +17,7 @@ from ...contract.models import Option, TripContext
 from . import provisional
 
 SCENARIOS_DIR = Path(__file__).resolve().parents[3] / "data" / "mock" / "scenarios"
-MOCK_AIRLINE = "Mock Air (SIMULATED)"
+MOCK_AIRLINE = "Mock Air"  # simulated data is marked by each option's simulated flag and data_source, not its name
 
 
 class ScenarioError(Exception):

@@ -14,6 +14,41 @@ export function formatLocalTime(iso: unknown): string {
   return `${MONTHS[Number(month) - 1]} ${Number(day)}, ${clock} (UTC${zone === 'Z' ? '+00:00' : zone})`
 }
 
+/**
+ * The wall-clock time where the flight is, without the UTC offset, e.g. "11:00 AM". Shown next to an airport code,
+ * which already says whose local time it is (the airline convention).
+ */
+export function formatTime(iso: unknown): string {
+  return formatClock(iso).replace(/ \(UTC[^)]*\)$/, '')
+}
+
+/** e.g. "Oct 15, 11:00 AM", the airport's local time, without the UTC offset. */
+export function formatDateTime(iso: unknown): string {
+  return formatLocalTime(iso).replace(/ \(UTC[^)]*\)$/, '')
+}
+
+/** e.g. "Fri, Oct 17" for the date line under a flight. */
+export function formatDate(iso: unknown): string {
+  if (typeof iso !== 'string') return ''
+  const m = ISO.exec(iso)
+  if (!m) return ''
+  const weekday = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay()
+  return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][weekday]}, ${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}`
+}
+
+/** "Mock Air 210" rather than "Mock Air · Mock Air 210" when the flight already names the airline. */
+export function flightLabel(airline: string | null | undefined, flight: string | null | undefined): string {
+  if (airline && flight) return flight.startsWith(airline) ? flight : `${airline} · ${flight}`
+  return airline || flight || 'Flight'
+}
+
+/** "1h 30m" from minutes, for delays. */
+export function formatMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return h && m ? `${h}h ${m}m` : h ? `${h}h` : `${m} min`
+}
+
 export function formatDay(iso: string): string {
   const m = ISO.exec(iso)
   return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}` : iso

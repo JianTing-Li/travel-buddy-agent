@@ -6,6 +6,7 @@
  * Fields typed loosely (string, Record) are TODOs in the contract: eligibility, validity, validation_result
  * and flight_details have no agreed allowed values yet.
  */
+import type { ReactNode } from 'react';
 
 export type DataSource = "duffel" | "mock";
 /** Contract v1 allowed values (backend/app/contract/models.py). */
@@ -275,4 +276,6 @@ export interface ChatSlotProps {
   messages: ChatMessage[];
   sending: boolean;
   onSend: (text: string) => void;
+  /** Something the traveler acts on, shown between the messages and the input (the confirm card). */
+  action?: ReactNode;
 }

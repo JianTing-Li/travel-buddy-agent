@@ -179,20 +179,64 @@
 .banner h2 { font-size: 16px; font-weight: 600; }
 .banner p { font-size: 14px; }
 
-.recovery-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-.recovery { padding: 20px; }
-.recovery-title { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
-.needs { margin: 12px 0; padding-left: 20px; display: grid; gap: 4px; }
+.booking-page { display: grid; gap: 16px; }
+.booking-page > .back { justify-self: start; margin-bottom: 0; }
 .notice { background: var(--surface-2); }
-.compact { padding: 14px; font-size: 14px; }
-.compact .card-title { font-size: 14px; color: var(--text-2); font-weight: 600; }
-.compact-route { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
 .pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* flight card: the trip, what happened, and the flight(s) */
+.flight-card { display: grid; gap: 14px; padding: 20px; }
+.flight-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.flight-status { padding: 12px 14px; border-radius: 10px; }
+.flight-status h2 { font-size: 16px; font-weight: 600; }
+.flight-status p { font-size: 14px; }
+.flight-status--danger { background: var(--danger-bg); color: var(--danger-text); }
+.flight-status--warn { background: var(--warn-bg); color: var(--warn-text); }
+.flight-status--success { background: var(--success-bg); color: var(--success-text); }
+.flight-status--neutral { background: var(--surface-2); color: var(--text); }
+.flight-row { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--border); }
+.flight-row-label { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.flight-line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.flight-end { display: grid; gap: 1px; }
+.flight-end--arrive { text-align: right; }
+.flight-time { font-size: 22px; font-weight: 600; line-height: 1.2; }
+.flight-airport { font-size: 15px; font-weight: 600; }
+.flight-path { display: grid; gap: 4px; justify-items: center; text-align: center; }
+.flight-path-line {
+  position: relative;
+  width: 100%;
+  height: 2px;
+  background: var(--border-strong);
+}
+.flight-path-line::after {
+  content: '✈';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -54%);
+  padding: 0 6px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 14px;
+}
+.flight-row--replaced { color: var(--text-3); }
+.flight-row--replaced .flight-time { text-decoration: line-through; font-size: 18px; }
+.flight-row--replaced .flight-time--blank { text-decoration: none; }
+.flight-row--replaced .flight-airport { font-weight: 500; }
+.flight-ref { margin-top: -4px; }
+
+/* text for screen readers only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .pending { margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-text); }
 .pending h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 
@@ -228,9 +272,10 @@
 .error-text { color: var(--danger-text); font-size: 14px; margin-top: 8px; }
 
 @media (max-width: 720px) {
-  .recovery-grid { grid-template-columns: minmax(0, 1fr); }
   .booking-meta { justify-content: flex-start; }
   .page-title { font-size: 21px; }
+  .flight-card { padding: 16px; }
+  .flight-time { font-size: 19px; }
 }
 
 /* dev panel (test tools, only when VITE_DEV_PANEL=true) */

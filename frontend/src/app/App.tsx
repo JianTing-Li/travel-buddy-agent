@@ -72,10 +72,8 @@ function App() {
             update={conversations.update}
           /> : <BookingsList api={api} onReset={conversations.clear} />}
       </main>
-      <footer className="footer">
-        Everything in Travel Buddy is simulated. No real ticket will be issued.
-        {(api.kind === 'sample' || api.dev) && <span> {api.label}</span>}
-      </footer>
+      {/* The header's "Simulated environment" badge says it for the whole app; the footer only helps developers. */}
+      {(api.kind === 'sample' || api.dev) && <footer className="footer">{api.label}</footer>}
     </>
   )
 }
