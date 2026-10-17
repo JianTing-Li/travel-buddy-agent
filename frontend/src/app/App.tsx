@@ -93,11 +93,12 @@ function App() {
                 type="button"
                 role="switch"
                 aria-checked={devTools}
-                title="Simulate delays and add test bookings"
+                title="Dev tools: simulate delays and add test bookings"
+                aria-label="Dev tools"
                 onClick={toggleDevTools}
               >
                 <span className="switch-icon" aria-hidden="true">🛠</span>
-                Dev tools
+                Dev
                 <span className="switch-track" aria-hidden="true"><span className="switch-knob" /></span>
               </button>
             )}
