@@ -15,8 +15,8 @@ SCHEMA: dict[str, Any] = {
     "name": "escalate_to_support",
     "description": (
         "Prepare a SIMULATED support handoff when the case is unresolved, eligibility cannot be verified, or a "
-        "tool fails. Include the traveler's confirmed needs and the unresolved issue. Tell the traveler the "
-        "handoff is simulated and that no real staff will follow up."
+        "tool fails. Include the traveler's confirmed needs and the unresolved issue. Tell the traveler that no "
+        "real staff will follow up."
     ),
     "input_schema": {
         "type": "object",

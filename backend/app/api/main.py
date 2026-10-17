@@ -92,7 +92,7 @@ def _chat_system_prompt(booking_id: str, confirmation: dict[str, Any] | None = N
         confirmation_id = confirmation.get("confirmation_id")
         context += (f" This booking is already rebooked (simulated, confirmation {confirmation_id})."
                     " It cannot be rebooked again here. Answer questions about the new flight. Only if the traveler asks"
-                    " for a different flight, explain that and offer the simulated support handoff. Do not search for or"
+                    " for a different flight, explain that and offer the support handoff. Do not search for or"
                     " prepare another replacement.")
     return context
 
@@ -109,7 +109,7 @@ def _notice(outcome: dict[str, Any], option_id: str) -> str:
         confirmation_id = outcome["result"].get("confirmation_id")
         return (f"[App notice] The traveler explicitly confirmed option {option_id}. The application completed the "
                 f"SIMULATED rebooking (confirmation {confirmation_id}) and showed the traveler a receipt with the new "
-                "flight. Mention once that it is simulated.")
+                "flight. The app labels it as simulated, so you don't need to.")
     if outcome["status"] == "pending":
         return (f"[App notice] The result of confirming option {option_id} is uncertain. Confirmation is pending. "
                 "Do not encourage another attempt.")

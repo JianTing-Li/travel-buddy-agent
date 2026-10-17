@@ -153,7 +153,7 @@ def test_concurrent_completions_succeed_exactly_once(service):
 
 def test_escalation_is_a_labeled_simulated_handoff(service):
     handoff = service.escalate_to_support("MOCK-CASE-4", "No option fits the traveler's limits.", LIMITS)
-    assert isinstance(handoff, Handoff) and handoff.case_id == "SIM-MOCK-CASE-4"
+    assert isinstance(handoff, Handoff) and handoff.case_id == "SUP-6H2YE7"
     assert handoff.booking_details["simulated"] is True and "SIMULATED" in handoff.booking_details["label"]
     assert handoff.booking_details["booking_id"] == "MOCK-CASE-4"
     assert handoff.confirmed_needs == LIMITS and handoff.unresolved_issue.startswith("No option")

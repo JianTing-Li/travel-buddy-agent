@@ -327,7 +327,7 @@ class MockService:
             booking = self._booking(booking_id)
             trip = booking.scenario.trip
             handoff = Handoff(
-                case_id=f"SIM-{booking_id}",
+                case_id=f"SUP-{booking_reference(f'handoff/{booking_id}')}",  # reads like a support ticket
                 booking_details={**trip.original_itinerary.model_dump(), "passenger_count": len(trip.passengers),
                                  "simulated": True, "label": HANDOFF_NOTE},
                 confirmed_needs=confirmed_needs,
