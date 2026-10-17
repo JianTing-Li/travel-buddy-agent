@@ -12,7 +12,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] System Prompt v0 from PRD 3b (agent/prompts/)
 - [x] Tool-use loop with Claude (agent/loop.py), tested with stub tools (agent/stub_tools.py)
 - [ ] Requirement extraction: required limits vs preferences, clarifying questions (agent/decide.py)
-- [~] Limits filter: budget, arrive_by, connections (harness/limits.py): built and tested through Jian's tool with the 4 PRD scenarios; not yet plugged into the live app (api/sessions.py builds tools without it, Jian's file)
+- [x] Limits filter: budget, arrive_by, connections (harness/limits.py), plugged into the live session tools (api/sessions.py, one line) and tested with the 4 PRD scenarios. Gap: if the model searches without limits, options come back unchecked (limits_checked_by_code is false)
 - [x] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py), mock completer for now
 - [x] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
 - [ ] Unit tests for harness

@@ -140,3 +140,9 @@ Not done / for Jian
 - The live app does not use it yet. `api/sessions.py` line 115 builds the tools without `limits_filter`; adding `limits_filter=limits_filter` there is a one-line change in Jian's file.
 - If the model calls `search_replacements` without `limits`, Jian's tool returns every option with `limits_checked_by_code: false` (the filter is only called when limits are given). The agent should never recommend from an unchecked result; the tool could refuse to search without limits.
 - `passenger_count` is validated but not compared: options carry no passenger count.
+
+## 2026-10-16: limits filter plugged into the live app (branch feat/guards-and-cutoff)
+- One line in Jian's `api/sessions.py` (`_build`): `build_tools(..., limits_filter=limits_filter)`, plus its import. The prompt for this branch says to plug the filter in with `build_tools(limits_filter=...)`; this is the only place that happens. Nothing else in his folders changed. Please check it in review.
+- `tests/unit/harness/test_limits_wired.py` (3 tests) proves it through the session builder the live app uses: with limits the search is checked by code and the 4 PM option is dropped; a budget in the wrong currency returns nothing; incomplete limits return nothing.
+- The expected-failure currency test now says exactly what is still open: the confirmation gate itself does not compare currencies (search does).
+- Still open: if the model calls `search_replacements` without `limits`, the options come back unchecked (`limits_checked_by_code: false`). The tool could refuse to search without limits, or the prompt could stress it; for Jian and me to decide.

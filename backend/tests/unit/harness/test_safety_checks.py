@@ -90,8 +90,9 @@ def test_normal_mock_data_is_not_flagged_as_suspicious():
 
 
 @pytest.mark.xfail(strict=True, reason=(
-    "KNOWN GAP: nothing compares an option's currency to the traveler's budget currency. The guard only checks "
-    "that a currency exists, and contract Limits and TripContext have no currency. Needs a contract decision."))
+    "KNOWN GAP at the confirm step: the limits filter now removes wrong-currency options at SEARCH (see "
+    "test_limits.py), but the confirmation gate itself does not compare an option's currency with the traveler's "
+    "budget currency, so a wrong-currency option that reaches prepare and confirm is not blocked there."))
 def test_a_wrong_currency_option_is_blocked():
     _, gate, tools, completed = make(["wrong_currency"])
     prepare(tools)

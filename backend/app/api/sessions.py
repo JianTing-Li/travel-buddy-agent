@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from ..harness.confirmation import ConfirmationGate
+from ..harness.limits import limits_filter
 from ..services.duffel.client import DuffelClient
 from ..services.duffel.service import DuffelService
 from ..services.mock.mock_service import MockService
@@ -112,7 +113,7 @@ def _build(names: list[str], client: DuffelClient | None) -> _Parts:
     service = MockService(scenarios=list(dict.fromkeys(names)))
     allowed = set(service.booking_ids())
     duffel = DuffelService(client) if client is not None else None
-    toolset = build_tools(service, allowed_booking_ids=allowed, duffel=duffel)
+    toolset = build_tools(service, allowed_booking_ids=allowed, duffel=duffel, limits_filter=limits_filter)
     gate = ConfirmationGate(toolset.tools, toolset.complete_rebooking, source="real")
     prepared: dict[str, dict[str, Any]] = {}
     gate_tools = gate.tools()
