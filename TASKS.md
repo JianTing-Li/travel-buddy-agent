@@ -11,7 +11,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 ## Cheich: agent and harness
 - [x] System Prompt v0 from PRD 3b (agent/prompts/)
 - [x] Tool-use loop with Claude (agent/loop.py), tested with stub tools (agent/stub_tools.py)
-- [~] Requirement extraction: required limits vs preferences, clarifying questions. Done: code rule (harness/requirements.py, enforced in agent/loop.py) refuses a search unless all five required limits are present and valid, and tells the agent what to ask; 9 test cases written (tests/evals/requirements/). Not yet measured: the PRD's 90% target needs the eval runner in live mode
+- [x] Requirement extraction: required limits vs preferences, clarifying questions. Code rule (harness/requirements.py, enforced in agent/loop.py) refuses a search unless all five required limits are present and valid; prompt v1 adds the ask-first and floated-budget rules; scored by tests/evals/requirements_suite.py on 9 cases: 25 of 27 live runs correct (93%), PRD target 90% met
 - [x] Limits filter: budget, arrive_by, connections (harness/limits.py), plugged into the live session tools (api/sessions.py, one line) and tested with the 4 PRD scenarios; a search without complete limits is now refused by the requirement check
 - [x] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py), mock completer for now
 - [x] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
@@ -59,7 +59,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 ## Integration (Shared)
 - [x] Happy path end to end (eval case 1): checked in the real app and by the live eval (3 of 3 runs)
 - [x] Cases 2-4, no-options flow, failure and simulated handoff: checked in the real app on all 4 bookings and by the live eval
-- [~] Run all 4 evals; check against PRD 2c success metrics. Live (claude-haiku-5-5, 12 conversations): 12 of 12 completed (target 70%), median 11 to 19 s per conversation (target under 5 minutes), 0 rule violations (target 0), 0 rebookings without explicit confirmation. Not measured: the 90% requirement-understanding target (the 9 extraction cases are not scored yet)
+- [x] Run all 4 evals; check against PRD 2c success metrics. Final live run (claude-haiku-5-5, 12 conversations): 12 of 12 completed (target 70%), median 13 to 24 s per conversation (target under 5 minutes), 0 rule violations (target 0), 0 rebookings without explicit confirmation, shown costs match the service. Requirement understanding 93% (target 90%). One model only; one partial slip recorded in docs/work-log/cheich.md
 - [ ] Frontend: chat and booking views (owner TBD)
 
 ## Open decisions

@@ -2,10 +2,12 @@
 
 An AI agent that helps a disrupted traveler compare replacement flights and complete a **simulated** rebooking. Claude reasons and explains. Application code enforces the rules, and the model has no tool that can book.
 
+**Who it is for:** Travel Buddy is a traveler-facing recovery assistant for the airline and travel industry. It helps someone whose flight was canceled, delayed or missed choose a replacement, instead of waiting on hold or in line.
+
 - **Traveler flow:** explains the disruption, asks for limits (extra cost, arrival time, connections), recommends up to three options, and rebooks only after explicit confirmation.
-- **Code decides:** eligibility, cost, confirmation and duplicate-attempt checks are application code. Mock data and Duffel test data stay separate and labeled, and tool output is treated as untrusted.
-- **Stack:** Python (FastAPI), React + TypeScript, Anthropic API, Duffel test API. 300+ backend tests.
-- **Status:** MVP working end to end on test data (bookings, airline-change detection, chat, confirm). Agent-side limits filter, guards, evals and the chat UI are in progress. Not a production airline integration.
+- **Code decides:** eligibility, cost, currency, the traveler's limits, confirmation and duplicate-attempt checks are application code. Mock data and Duffel test data stay separate and labeled, and tool output is treated as untrusted.
+- **Stack:** Python (FastAPI), React + TypeScript, Anthropic API, Duffel test API. 600+ backend tests.
+- **Status:** MVP 1 works end to end on test data: bookings, airline-change detection, chat, the limits filter, safety guards, confirmation, and an eval runner that checks the PRD cases. Not a production airline integration.
 
 ## Screenshots
 | Bookings list | Airline change detected |
@@ -18,8 +20,26 @@ All data shown is simulated test data.
 Put `ANTHROPIC_API_KEY`, `MODEL` and a Duffel **test** `DUFFEL_ACCESS_TOKEN` in a local `.env`, then:
 
 ```bash
+python3.14 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt   # first time only
 .venv/bin/uvicorn backend.app.api.main:dev_app --port 8000 --no-access-log
 cd frontend && npm install && VITE_DEV_PANEL=true npm run dev   # http://localhost:5173
 ```
+
+## Check it
+```bash
+.venv/bin/python -m pytest backend/tests/unit                      # unit tests, no network
+.venv/bin/python -m backend.tests.evals.runner --mode scripted     # the 4 PRD cases, free and repeatable
+.venv/bin/python -m backend.tests.evals.runner --mode live --runs 3    # same cases with the real model (costs credit)
+.venv/bin/python -m backend.tests.evals.runner --mode live --suite requirements --runs 3   # requirement understanding
+```
+The runner judges with code only, never with a second model.
+
+## Out of scope for MVP 1
+- **No real tickets.** Duffel's test mode and clearly labeled mock data only. Nothing is bought or changed with a real airline.
+- **No splitting a group.** Everyone on a booking stays on the same itinerary.
+- **No staff tool.** The support handoff is simulated, and no real staff follow up.
+- **No payments, refunds or reimbursement promises.** The agent never promises any.
+- **Prompt-injection defense is best effort.** Code enforces the limits and the confirmation, and text in tool results is treated as data, so a planted instruction cannot book anything. We have only checked it with `claude-haiku-5-5`, on the four PRD cases and nine requirement cases. In one of those runs the agent prepared a rebooking when the traveler's message told it to skip the rules (nothing was booked, because only the traveler's Confirm button books), so it is not proven for every model or input.
+- **Not deployed.** Sessions live in memory, so run one backend process. A public demo would need protection first (see TASKS.md).
 
 By [Jian Ting Li](https://github.com/JianTing-Li) (API, tools, Duffel, frontend) and [Cheich Toure](https://github.com/Cheicht) (agent, harness, evals). See [TASKS.md](TASKS.md).

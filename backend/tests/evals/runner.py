@@ -10,6 +10,8 @@ to /chat, and press Confirm through /confirm when the case says so. Only the mod
 Run from the project root:
   .venv/bin/python -m backend.tests.evals.runner --mode scripted
   .venv/bin/python -m backend.tests.evals.runner --mode live --runs 3 --cases case_1,case_4 --out results.json
+  .venv/bin/python -m backend.tests.evals.runner --mode scripted --suite requirements
+  .venv/bin/python -m backend.tests.evals.runner --mode live --suite requirements --runs 3
 
 All judging is done by code (see checks.py). Nothing here can book a real flight: the data is simulated.
 """
@@ -125,6 +127,9 @@ def format_report(results: list[dict[str, Any]], mode: str) -> str:
 def main(argv: list[str] | None = None, live_client_factory: Callable[[], Any] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the four PRD eval cases.")
     parser.add_argument("--mode", choices=["scripted", "live"], required=True)
+    parser.add_argument("--suite", choices=["prd", "requirements"], default="prd",
+                        help="prd: the 4 PRD cases (default). requirements: the 9 requirement-understanding cases "
+                             "scored against the PRD's 90%% target")
     parser.add_argument("--runs", type=int, help="runs per case (required for live: it costs real API credit)")
     parser.add_argument("--cases", default="all", help="comma-separated ids, e.g. case_1,case_4 (default: all)")
     parser.add_argument("--model", help=f"live model (default: MODEL from .env, else {DEFAULT_LIVE_MODEL})")
@@ -132,10 +137,15 @@ def main(argv: list[str] | None = None, live_client_factory: Callable[[], Any] |
     args = parser.parse_args(argv)
     logging.getLogger("travel_buddy.api").setLevel(logging.WARNING)  # keep the report readable
 
-    ids = list(SCENARIOS) if args.cases == "all" else [c.strip() for c in args.cases.split(",") if c.strip()]
-    unknown = [c for c in ids if c not in SCENARIOS]
+    if args.suite == "requirements":
+        from backend.tests.evals import requirements_suite as rs
+        known = [c["id"] for c in rs.load_cases()]
+    else:
+        known = list(SCENARIOS)
+    ids = known if args.cases == "all" else [c.strip() for c in args.cases.split(",") if c.strip()]
+    unknown = [c for c in ids if c not in known]
     if unknown:
-        parser.error(f"unknown case(s) {unknown}; choose from {', '.join(SCENARIOS)}")
+        parser.error(f"unknown case(s) {unknown}; choose from {', '.join(known)}")
     if args.mode == "live" and not args.runs:
         parser.error("live mode uses the real model and costs money: say how many runs per case with --runs N")
     runs = args.runs or 1
@@ -156,6 +166,14 @@ def main(argv: list[str] | None = None, live_client_factory: Callable[[], Any] |
         print(f"Live mode: model {model_name}, {len(ids)} case(s) x {runs} run(s) = {len(ids) * runs} conversation(s) "
               "with the real model.\n")
 
+    if args.suite == "requirements":
+        results = rs.run_suite(args.mode, runs, ids, live_client, model_name)
+        print(rs.format_report(results, args.mode))
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as fh:
+                json.dump(results, fh, indent=2)
+            print(f"\nFull results saved to {args.out}")
+        return 0 if results and sum(r["passed"] for r in results) / len(results) >= rs.TARGET else 1
     results = run_all(ids, args.mode, runs, live_client, model_name)
     print(format_report(results, args.mode))
     if args.out:

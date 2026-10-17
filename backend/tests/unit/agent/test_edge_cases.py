@@ -80,3 +80,16 @@ def test_stub_tools_reject_unknown_bookings_and_options():
         tools["prepare_rebooking"](booking_id=booking, option_id="nope")
     with pytest.raises(ValueError):
         build_stub_completer(name)("NOPE", "nope")
+
+
+def test_prompt_v1_is_the_prd_prompt_plus_exactly_one_added_paragraph():
+    from backend.app.agent.loop import PROMPT_PATH
+    v0 = (PROMPT_PATH.parent / "system_prompt_v0.txt").read_text(encoding="utf-8")
+    v1 = PROMPT_PATH.read_text(encoding="utf-8")
+    assert PROMPT_PATH.name == "system_prompt_v1.txt"
+    added = [line for line in v1.splitlines() if line not in v0.splitlines()]
+    assert len(added) == 1
+    assert v1.replace(added[0] + "\n", "", 1) == v0  # nothing else differs from the PRD text
+    for rule in ('"by 3"', "ask first and do not guess", "Do not ask about what the booking already settles",
+                 "is not their budget", "ask before raising it"):
+        assert rule in added[0]
