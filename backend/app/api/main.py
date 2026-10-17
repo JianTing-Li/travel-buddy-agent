@@ -53,7 +53,14 @@ from .schemas import (
     SessionCreate,
     SessionOut,
 )
-from .sessions import DuffelNotConfiguredError, Session, SessionStore, TooManyBookingsError, UnknownScenarioError
+from .sessions import (
+    RECOMMEND_SCHEMA,
+    DuffelNotConfiguredError,
+    Session,
+    SessionStore,
+    TooManyBookingsError,
+    UnknownScenarioError,
+)
 
 DEV_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")  # Vite dev server
 SESSION_HEADER = "X-Session-Id"
@@ -266,7 +273,7 @@ def create_app(
                 client, model_name,
                 _chat_system_prompt(booking_id, session.service_for(booking_id).get_confirmation(booking_id)),
                 session.histories.get(booking_id, []),
-                user_message, session.tools, session.toolset.schemas,
+                user_message, session.tools, [*session.toolset.schemas, RECOMMEND_SCHEMA],
             )
             if result.stopped_reason == "error":
                 session.notices[booking_id] = notices  # the model never saw them; keep them for the next try

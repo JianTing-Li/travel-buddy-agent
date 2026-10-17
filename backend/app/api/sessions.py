@@ -23,6 +23,21 @@ from ..tools.registry import ToolSet, build_tools
 SESSION_IDLE_SECONDS = 12 * 60 * 60
 MAX_SESSIONS = 200
 MAX_BOOKINGS_PER_SESSION = 50
+# A display-only tool: the agent says which checked option it recommends, so the app can mark that card.
+# It books nothing and changes nothing the gate checks.
+RECOMMEND_SCHEMA: dict[str, Any] = {
+    "name": "recommend_option",
+    "description": (
+        "After a search, mark the one option you recommend so the app highlights its card. It must be one of the "
+        "options the latest search returned as fitting the traveler's limits. This does not prepare or book anything."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {"booking_id": {"type": "string"}, "option_id": {"type": "string"}},
+        "required": ["booking_id", "option_id"],
+    },
+}
+
 # On-time bookings every default session starts with next to the PRD cases, so the list is not only disruptions.
 # (booking id, generator seed); the seed fixes the route, times and options.
 STARTER_ON_TIME = (("MOCK-ONTIME-1", 1), ("MOCK-ONTIME-2", 6))
@@ -160,7 +175,15 @@ def _build(names: list[str], client: DuffelClient | None, starters: bool = False
             prepared.pop(kwargs["booking_id"], None)
         return result
 
-    tools = {**gate_tools, "search_replacements": search_replacements, "prepare_rebooking": prepare_rebooking}
+    def recommend_option(booking_id: str, option_id: str) -> dict[str, Any]:
+        latest = searched.get(booking_id)
+        if not latest or option_id not in {o.get("option_id") for o in latest["options"]}:
+            raise ValueError("You can only recommend an option the latest search returned as fitting the limits.")
+        latest["recommended"] = option_id
+        return {"recommended": option_id, "note": "The app highlights this option's card. Nothing was prepared."}
+
+    tools = {**gate_tools, "search_replacements": search_replacements, "prepare_rebooking": prepare_rebooking,
+             "recommend_option": recommend_option}
     return _Parts(service, toolset, gate, tools, allowed, duffel, prepared, searched)
 
 

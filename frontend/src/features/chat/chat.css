@@ -181,7 +181,18 @@
   transition: border-color var(--dur) ease, box-shadow var(--dur) ease, opacity var(--dur) ease;
 }
 .option-card:hover { border-color: var(--accent); }
+.option-card--recommended { border-color: var(--ai-border); background: linear-gradient(var(--surface), var(--surface)) padding-box, linear-gradient(135deg, var(--ai-1), var(--ai-2)) border-box; border-color: transparent; }
 .option-card--chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+.option-tag {
+  justify-self: start;
+  margin-bottom: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--ai-bg);
+  color: var(--ai-text);
+  font-size: 12px;
+  font-weight: 600;
+}
 .option-card:has(.btn:disabled):not(.option-card--chosen) { opacity: 0.6; }
 .option-card .btn:disabled { cursor: default; }
 .option-main { display: grid; gap: 2px; min-width: 0; }

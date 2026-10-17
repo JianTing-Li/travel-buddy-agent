@@ -225,6 +225,8 @@ export interface SearchResults {
   options: Option[];
   excluded: ExcludedOption[];
   limits: Limits;
+  /** The option Travel Buddy recommends, if it said; always one of `options`. */
+  recommended?: string | null;
 }
 
 export interface ConfirmIn {

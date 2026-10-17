@@ -84,6 +84,7 @@ class SearchResults(BaseModel):
     options: list[Option]  # within every limit
     excluded: list[ExcludedOption]  # removed, with the limit each one breaks
     limits: Limits  # what they were checked against
+    recommended: str | None = None  # the option Travel Buddy recommends, if it said (only one of `options`)
 
 
 class ChatOut(BaseModel):

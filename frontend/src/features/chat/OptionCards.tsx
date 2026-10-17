@@ -33,6 +33,7 @@ export function OptionCards({ search, chosen, active, onChoose }: Props) {
               option={option}
               index={i}
               chosen={chosen === option.option_id}
+              recommended={search.recommended === option.option_id}
               disabled={!active || (chosen !== undefined && chosen !== option.option_id)}
               onChoose={() => onChoose(option)}
             />
@@ -62,15 +63,21 @@ interface CardProps {
   option: Option
   index: number
   chosen: boolean
+  /** Travel Buddy's pick; the traveler still chooses. */
+  recommended: boolean
   disabled: boolean
   onChoose: () => void
 }
 
-function OptionCard({ option, index, chosen, disabled, onChoose }: CardProps) {
+function OptionCard({ option, index, chosen, recommended, disabled, onChoose }: CardProps) {
   const d = option.flight_details
   return (
-    <li className={`option-card${chosen ? ' option-card--chosen' : ''}`} style={{ animationDelay: `${index * 60}ms` }}>
+    <li
+      className={`option-card${chosen ? ' option-card--chosen' : ''}${recommended ? ' option-card--recommended' : ''}`}
+      style={{ animationDelay: `${index * 60}ms` }}
+    >
       <div className="option-main">
+        {recommended && <span className="option-tag">✦ Recommended</span>}
         <p className="option-times">
           <strong>{formatTime(d.departs)}</strong> {d.origin}
           <span className="option-arrow" aria-hidden="true">→</span>

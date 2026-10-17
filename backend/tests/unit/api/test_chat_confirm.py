@@ -102,7 +102,8 @@ def test_a_plain_reply_has_no_confirm_card_and_the_model_gets_app_context():
     assert "opened booking MOCK-CASE-1" in request["system"] and "Travel Buddy" in request["system"]
     assert request["messages"][-1] == {"role": "user", "content": "My flight was canceled"}
     assert {t["name"] for t in request["tools"]} == {
-        "get_trip_context", "search_replacements", "prepare_rebooking", "escalate_to_support"}  # no confirm tool
+        "get_trip_context", "search_replacements", "prepare_rebooking", "escalate_to_support",
+        "recommend_option"}  # no confirm tool
 
 
 def test_history_is_kept_per_booking():
@@ -311,3 +312,19 @@ def test_a_failed_turn_is_not_remembered_so_its_retry_runs_again():
     assert client.post("/chat", json=body, headers=auth(session_id)).json()["stopped_reason"] == "error"
     assert client.post("/chat", json=body, headers=auth(session_id)).json()["reply"] == "Back again."
     assert [m["text"] for m in history(client, session_id).json()["messages"]] == ["Hello", "Back again."]
+
+
+def test_the_recommended_option_is_marked_only_when_it_is_one_that_fits():
+    search = resp(tool("search_replacements",
+                       {"booking_id": "MOCK-CASE-1", "limits": scenario_limits("case_1", "opt-1a")}, "t1"))
+    client, model, session_id = make(
+        search,
+        resp(tool("recommend_option", {"booking_id": "MOCK-CASE-1", "option_id": "opt-1c"}, "t2")),  # removed
+        resp(tool("recommend_option", {"booking_id": "MOCK-CASE-1", "option_id": "opt-1a"}, "t3")),
+        resp(text("I recommend the 11 AM nonstop.")),
+    )
+    out = chat(client, session_id, "Find me something").json()
+    assert out["search"]["recommended"] == "opt-1a"
+    refused = model.requests[2]["messages"][-1]["content"][0]
+    assert refused["is_error"] is True and "latest search" in refused["content"]
+    assert client.app.state.sessions.get(session_id).prepared == {}  # recommending prepares nothing
