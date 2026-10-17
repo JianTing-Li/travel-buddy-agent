@@ -104,5 +104,6 @@ def test_prompt_v2_is_v1_plus_only_a_section_on_working_with_the_app():
     for rule in ("Confirm rebooking button", 'Never ask them to reply "yes"', "never say you passed a confirmation on",
                  "Never show UTC offsets, internal ids", "Do not ask the traveler to repeat or confirm limits",
                  "let them choose one before you prepare it", "ask one question at a time",
-                 "Never explain how the search or the tools work"):
+                 "Never explain how the search or the tools work", "warm, positive and calm",
+                 "never let it make a reply longer, soften a cost, promise anything"):
         assert rule in added

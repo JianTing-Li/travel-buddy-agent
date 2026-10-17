@@ -1,5 +1,10 @@
 # Jian work log
 
+## 2026-10-17: a warm, positive Travel Buddy (branch feature/warm-chat)
+- Prompt v2 gains a "Personality" paragraph (v1 and the PRD text unchanged): warm, positive and calm; the first reply starts with one sincere line about the disruption; good news is said warmly, "nothing fits" is encouraging, a confirmed rebooking gets one celebratory sentence without repeating the receipt. Guardrails in the same paragraph: at most one exclamation mark, no emoji, never longer, never softening a cost, promising anything or claiming what the app hasn't confirmed.
+- App-written text to match: the receipt reads "You're all set! You're rebooked on SW 210: it leaves JFK at …"; the confirmed [App notice] says the traveler already saw a receipt; the rebooked context offers the support handoff only if the traveler asks for another flight.
+- Live (claude-haiku-5-5): PRD cases 12 of 12, 0 rule violations; requirement understanding 29 of 30 (97%). Spot check: "Good choice.", "You're all set for LA! … Have a great flight!", "Sorry your flight was canceled again." Still seen once: asking which currency, which v1 already forbids.
+
 ## 2026-10-17: dev tools on the public demo (branch feature/updates)
 - The live demo shows a "Dev tools" switch so visitors can simulate delays and add bookings: Render runs `dev_app`, Vercel sets `VITE_DEV_PANEL=true`. No access code (Jian's call).
 - The switch is a small outlined pill with a wrench, "Dev" and a toggle; the header badge now just says "Simulated" (a hover tooltip explains it). It starts off on the deployed build, on while developing; the choice is remembered per browser.
