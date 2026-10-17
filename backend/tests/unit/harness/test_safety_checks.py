@@ -90,11 +90,20 @@ def test_normal_mock_data_is_not_flagged_as_suspicious():
         assert "warning" not in body
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "KNOWN GAP at the confirm step: the limits filter now removes wrong-currency options at SEARCH (see "
-    "test_limits.py), but the confirmation gate itself does not compare an option's currency with the traveler's "
-    "budget currency, so a wrong-currency option that reaches prepare and confirm is not blocked there."))
-def test_a_wrong_currency_option_is_blocked():
-    _, gate, tools, completed = make(["wrong_currency"])
-    prepare(tools)
+def test_a_wrong_currency_option_cannot_be_prepared_or_confirmed_after_a_checked_search():
+    """wrong_currency makes every option report EUR. The search removes them all (cannot be compared with a USD budget),
+    and the gate refuses to prepare one by id, so nothing is ever booked."""
+    from backend.app.harness.confirmation import GateRefusal
+    from backend.app.harness.limits import limits_filter
+
+    service = MockService(today=TODAY)
+    service.set_faults(B, ["wrong_currency"])
+    toolset = build_tools(service, limits_filter=limits_filter)
+    completed = []
+    gate = ConfirmationGate(toolset.tools, lambda b, o: completed.append(1) or {}, source="real")
+    tools = gate.tools()
+    found = tools["search_replacements"](booking_id=B, limits=LIMITS)
+    assert found["limits_checked_by_code"] is True and found["options"] == []
+    with pytest.raises(GateRefusal, match="cannot be compared"):
+        tools["prepare_rebooking"](booking_id=B, option_id=OPT)
     assert gate.confirm(B, OPT)["status"] == "rejected" and completed == []

@@ -16,8 +16,8 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py), mock completer for now
 - [x] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
 - [x] Unit tests for harness: 99% line and branch coverage of harness/ and agent/ (measured with coverage, installed locally only); every safety rule has tests
-- [x] Eval cases 1-4 from PRD 3d, expected behavior written first (tests/evals/cases/), written as JSON; no runner yet
-- [~] Automated checks: unknown eligibility, wrong cost/currency, unavailable option, changed details, tool failure, duplicates, other traveler's booking, mock/Duffel mixing. Done except wrong currency (known gap, needs a contract decision); changed details, duplicates, other booking and mock/Duffel mixing are covered by Jian's gate tests
+- [x] Eval cases 1-4 from PRD 3d (tests/evals/cases/) and the eval runner (tests/evals/runner.py): scripted mode is free and repeatable and tests the code around the model; live mode uses the real model, you choose --runs N. Judged by code only. Live results against the PRD 2c metrics are not collected yet
+- [x] Automated checks: unknown eligibility, wrong cost/currency, unavailable option, changed details, tool failure, duplicates, other traveler's booking, mock/Duffel mixing. Mine: tests/unit/harness/test_safety_checks.py, test_gate_limits.py and the runner's bad-agent tests; changed details, duplicates, other booking and mock/Duffel mixing are also covered by Jian's gate tests
 
 ## Jian: tools, services and API
 - [x] Find what Duffel's test API supports; record in docs/duffel-notes.md

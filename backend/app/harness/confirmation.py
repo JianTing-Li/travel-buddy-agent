@@ -10,11 +10,21 @@ Rules enforced here:
 - The option is re-checked first; if its details changed, the traveler must review and confirm again.
 - A confirmed or uncertain attempt is never repeated.
 - With the mock completer, only mock options are accepted (never send a mock option to Duffel or the reverse).
+- Once a search has been checked by code against the traveler's limits, those limits are remembered for the booking.
+  An option outside them cannot be prepared or confirmed, even if the agent asks for it by id. (PRD 3c: code checks
+  all confirmed limits before completing a change.) The limits are the ones the agent passed to its last checked
+  search; the code cannot know the traveler confirmed them, only that they were complete and valid.
 """
 import json
 from typing import Any, Callable
 
+from backend.app.contract.models import Limits, Option
 from backend.app.harness.guards import check_option_known
+from backend.app.harness.limits import check_option
+
+
+class GateRefusal(Exception):
+    """The gate refused to let an option through. The message is written for the agent, so it can explain."""
 
 
 class ConfirmationGate:
@@ -27,18 +37,50 @@ class ConfirmationGate:
         self._prepared: dict[str, tuple[str, str, str]] = {}  # booking -> (option_id, fingerprint, data_source)
         self._attempts: dict[tuple[str, str], dict[str, Any]] = {}
         self.last_prepared: tuple[str, str] | None = None  # (booking_id, option_id)
+        self._limits: dict[str, Limits] = {}  # booking -> limits of the last search that code checked
 
     def tools(self) -> dict[str, Callable[..., Any]]:
-        """The agent's tools, with prepare_rebooking wrapped to remember what was prepared."""
+        """The agent's tools: search remembers its limits, and prepare_rebooking is held to them and remembered."""
         wrapped = dict(self._tools)
+        search = self._tools.get("search_replacements")
+
+        if search is not None:
+            def search_replacements(**kwargs: Any) -> Any:
+                result = search(**kwargs)
+                booking_id = kwargs.get("booking_id")
+                if isinstance(result, dict) and result.get("limits_checked_by_code") is True:
+                    try:
+                        self._limits[booking_id] = Limits.model_validate(kwargs.get("limits"))
+                    except Exception:
+                        self._limits.pop(booking_id, None)
+                return result
+
+            wrapped["search_replacements"] = search_replacements
 
         def prepare_rebooking(booking_id: str, option_id: str) -> dict[str, Any]:
             result = self._prepare(booking_id=booking_id, option_id=option_id)
+            reasons = self._outside_limits(booking_id, result)
+            if reasons:
+                self._prepared.pop(booking_id, None)
+                raise GateRefusal(
+                    "This option is outside the traveler's confirmed limits (" + "; ".join(reasons) + "). Do not "
+                    "present or recommend it. Search again with limits the traveler has confirmed, or ask the "
+                    "traveler what to change.")
             self._record(booking_id, option_id, result)
             return result
 
         wrapped["prepare_rebooking"] = prepare_rebooking
         return wrapped
+
+    def _outside_limits(self, booking_id: str, result: Any) -> list[str]:
+        """Why a prepared option breaks the remembered limits. Empty when it fits, or when no limits are known yet."""
+        limits = self._limits.get(booking_id)
+        if limits is None:
+            return []
+        try:
+            return check_option(Option.model_validate(result["latest_option_details"]), limits)
+        except Exception:  # with limits known, an option that cannot be read must not pass
+            return ["the option could not be checked"]
 
     def _record(self, booking_id: str, option_id: str, result: dict[str, Any]) -> None:
         if result.get("validation_result") != "valid":
@@ -73,6 +115,10 @@ class ConfirmationGate:
             latest = self._prepare(booking_id=booking_id, option_id=option_id)
         except Exception as exc:
             return self._reject(f"Could not re-check the option: {type(exc).__name__}")
+        outside = self._outside_limits(booking_id, latest)
+        if outside:  # the option changed, or the limits did, since it was shown
+            self._prepared.pop(booking_id, None)
+            return self._reject("The option is outside the traveler's confirmed limits (" + "; ".join(outside) + ").")
         self._record(booking_id, option_id, latest)
         what_changed = self._changes_text(latest)
         if booking_id not in self._prepared:
