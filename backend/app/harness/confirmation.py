@@ -29,11 +29,15 @@ class GateRefusal(Exception):
 
 class ConfirmationGate:
     def __init__(self, tools: dict[str, Callable[..., Any]], complete: Callable[[str, str], dict[str, Any]],
-                 source: str = "mock"):
+                 source: str = "mock", require_checked_search: bool = False):
         self._prepare = tools["prepare_rebooking"]
         self._tools = tools
         self._complete = complete
         self.source = source  # "mock": accept only mock options. "real": the completer routes by option source.
+        # False (default): with no checked search yet there are no limits to hold an option to, so nothing is enforced.
+        # True: fail closed. An option cannot be prepared or confirmed until a search checked by code has confirmed
+        # the limits. Off by default because many existing flows prepare without searching first.
+        self.require_checked_search = require_checked_search
         self._prepared: dict[str, tuple[str, str, str]] = {}  # booking -> (option_id, fingerprint, data_source)
         self._attempts: dict[tuple[str, str], dict[str, Any]] = {}
         self.last_prepared: tuple[str, str] | None = None  # (booking_id, option_id)
@@ -50,9 +54,12 @@ class ConfirmationGate:
                 booking_id = kwargs.get("booking_id")
                 if isinstance(result, dict) and result.get("limits_checked_by_code") is True:
                     try:
-                        self._limits[booking_id] = Limits.model_validate(kwargs.get("limits"))
+                        limits = Limits.model_validate(kwargs.get("limits"))
                     except Exception:
                         self._limits.pop(booking_id, None)
+                        return result
+                    self._limits[booking_id] = limits
+                    return {**result, **self._excluded_summary(search, booking_id, result, limits)}
                 return result
 
             wrapped["search_replacements"] = search_replacements
@@ -72,11 +79,45 @@ class ConfirmationGate:
         wrapped["prepare_rebooking"] = prepare_rebooking
         return wrapped
 
+    @staticmethod
+    def _excluded_summary(search: Callable[..., Any], booking_id: str, result: dict[str, Any],
+                          limits: Limits) -> dict[str, Any]:
+        """The options the limits filter removed, and which limit each one breaks, so the agent can explain a
+        "nothing fits" result (PRD: say which limits cannot be met).
+
+        Only typed facts and code-written reasons are passed on. Free text from the source (flight_details.extras) is
+        untrusted and is never included, so a planted instruction cannot ride along.
+        """
+        try:
+            kept = {o["option_id"] for o in result.get("options", [])}
+            everything = search(booking_id=booking_id)  # no limits: the unfiltered list
+            removed = []
+            for raw in everything.get("options", []):
+                if raw.get("option_id") in kept:
+                    continue
+                option = Option.model_validate(raw)
+                removed.append({
+                    "option_id": option.option_id,
+                    "arrives": option.flight_details.arrives,
+                    "additional_cost": option.additional_cost,
+                    "currency": option.currency,
+                    "connections": option.flight_details.connections,
+                    "reasons": check_option(option, limits),
+                })
+            return {
+                "excluded_by_limits": removed,
+                "excluded_note": "Removed by code because they break the traveler's confirmed limits. They are NOT "
+                                 "suitable recommendations and cannot be prepared. You may explain which limit each "
+                                 "one breaks, clearly separate from any recommendation.",
+            }
+        except Exception:  # explaining is a bonus; a failure here must never break the search itself
+            return {}
+
     def _outside_limits(self, booking_id: str, result: Any) -> list[str]:
         """Why a prepared option breaks the remembered limits. Empty when it fits, or when no limits are known yet."""
         limits = self._limits.get(booking_id)
         if limits is None:
-            return []
+            return ["no limits were confirmed by a checked search yet"] if self.require_checked_search else []
         try:
             return check_option(Option.model_validate(result["latest_option_details"]), limits)
         except Exception:  # with limits known, an option that cannot be read must not pass

@@ -244,7 +244,7 @@ def costs_match_service(rec: RunRecord) -> CheckResult:
         body = _body(call)
         if not body:
             continue
-        for o in body.get("options", []):
+        for o in [*body.get("options", []), *body.get("excluded_by_limits", [])]:  # removed options are service facts too
             costs.add(float(o["additional_cost"]))
         if "latest_option_details" in body:
             costs.add(float(body["latest_option_details"]["additional_cost"]))

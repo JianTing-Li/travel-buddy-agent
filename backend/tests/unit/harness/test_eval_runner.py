@@ -166,3 +166,12 @@ def test_budget_left_over_is_arithmetic_not_an_invented_cost():
 
 def test_case_4_gives_the_traveler_a_last_line_so_a_live_agent_can_hand_off():
     assert len(CASE_4.turns) == 3 and "hand this over to support" in CASE_4.turns[-1].say
+
+
+def test_costs_of_removed_options_quoted_by_the_agent_are_service_facts_not_invented():
+    """With limits applied, the agent may say what a removed option costs, because the service reported it."""
+    ok = with_turn(CASE_3, 1, lambda c: [
+        resp(tool("search_replacements", {"booking_id": c.booking_id, "limits": c.limits(0, passengers=3)})),
+        resp(text("Nothing fits. The nearest is opt-3c at $90, but it arrives after your deadline. Raise the budget?"))])
+    result = runner.evaluate(runner.play(ok, "scripted"))
+    assert next(c for c in result["checks"] if c["name"] == "costs_match_service")["ok"]
