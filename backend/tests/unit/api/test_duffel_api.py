@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.api.main import create_app
 from backend.app.services.duffel.client import DuffelTransportError
+from backend.tests.unit.api.limits_helper import check_limits_for
 from backend.tests.unit.services.duffel.test_service import ORDER, FakeClient, offer, order, segment, slice_
 
 
@@ -142,6 +143,7 @@ def test_a_duffel_rebooking_confirms_once_through_the_gate_and_the_api():
     create_duffel(client, session_id)
     tools = client.app.state.sessions.get(session_id).tools
     option_id = tools["search_replacements"](booking_id=ORDER)["options"][0]["option_id"]
+    check_limits_for(tools, ORDER, option_id)  # the strict gate needs a checked search first
     assert tools["prepare_rebooking"](booking_id=ORDER, option_id=option_id)["validation_result"] == "valid"
     first = client.post("/confirm", json={"booking_id": ORDER, "option_id": option_id}, headers=auth(session_id))
     again = client.post("/confirm", json={"booking_id": ORDER, "option_id": option_id}, headers=auth(session_id))

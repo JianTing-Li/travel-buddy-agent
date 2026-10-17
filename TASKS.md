@@ -13,7 +13,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Tool-use loop with Claude (agent/loop.py), tested with stub tools (agent/stub_tools.py)
 - [x] Requirement extraction: required limits vs preferences, clarifying questions. Code rule (harness/requirements.py, enforced in agent/loop.py) refuses a search unless all five required limits are present and valid; prompt v1 adds the ask-first and floated-budget rules; scored by tests/evals/requirements_suite.py on 9 cases: 25 of 27 live runs correct (93%), PRD target 90% met
 - [x] Limits filter: budget, arrive_by, connections (harness/limits.py), plugged into the live session tools (api/sessions.py, one line) and tested with the 4 PRD scenarios; a search without complete limits is now refused by the requirement check
-- [x] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py), mock completer for now
+- [x] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py), mock completer for now. Strict mode is ON in the live app (api/sessions.py, 2026-10-16): nothing can be prepared or confirmed before a search checked by code has confirmed the limits
 - [x] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
 - [x] Unit tests for harness: 99% line and branch coverage of harness/ and agent/ (measured with coverage, installed locally only); every safety rule has tests
 - [x] Eval cases 1-4 from PRD 3d (tests/evals/cases/) and the eval runner (tests/evals/runner.py): scripted mode is free and repeatable and tests the code around the model; live mode uses the real model, you choose --runs N. Judged by code only. Live results against the PRD 2c metrics are not collected yet

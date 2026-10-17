@@ -114,7 +114,8 @@ def _build(names: list[str], client: DuffelClient | None) -> _Parts:
     allowed = set(service.booking_ids())
     duffel = DuffelService(client) if client is not None else None
     toolset = build_tools(service, allowed_booking_ids=allowed, duffel=duffel, limits_filter=limits_filter)
-    gate = ConfirmationGate(toolset.tools, toolset.complete_rebooking, source="real")
+    # strict: nothing can be prepared or confirmed until a search checked by code has confirmed the traveler's limits
+    gate = ConfirmationGate(toolset.tools, toolset.complete_rebooking, source="real", require_checked_search=True)
     prepared: dict[str, dict[str, Any]] = {}
     gate_tools = gate.tools()
 

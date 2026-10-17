@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.api.main import create_app
 from backend.app.api.sessions import MAX_BOOKINGS_PER_SESSION
+from backend.tests.unit.api.limits_helper import check_limits_for
 
 
 def start(dev=True, model=None) -> tuple[TestClient, str]:
@@ -205,6 +206,7 @@ def test_reset_puts_the_session_back_to_its_first_bookings():
     create(client, session_id, seed=8)
     client.post("/dev/bookings/MOCK-CASE-3/disrupt", json={"kind": "delay", "delay_minutes": 30}, headers=auth(session_id))
     client.post("/dev/bookings/MOCK-CASE-2/faults", json={"faults": ["tool_failure"]}, headers=auth(session_id))
+    check_limits_for(session.tools, "MOCK-CASE-1", "opt-1a")  # the strict gate needs a checked search first
     session.tools["prepare_rebooking"](booking_id="MOCK-CASE-1", option_id="opt-1a")
     client.post("/confirm", json={"booking_id": "MOCK-CASE-1", "option_id": "opt-1a"}, headers=auth(session_id))
     session.histories["MOCK-CASE-1"] = [{"role": "user", "content": "hi"}]
@@ -229,6 +231,7 @@ def test_after_a_reset_the_same_seed_can_be_generated_again_and_rebooking_works(
     reset(client, session_id)
     assert create(client, session_id, seed=9).status_code == 201  # no "already exists"
     session = client.app.state.sessions.get(session_id)
+    check_limits_for(session.tools, "MOCK-CASE-1", "opt-1a")  # the strict gate needs a checked search first
     session.tools["prepare_rebooking"](booking_id="MOCK-CASE-1", option_id="opt-1a")
     assert client.post("/confirm", json={"booking_id": "MOCK-CASE-1", "option_id": "opt-1a"},
                        headers=auth(session_id)).json()["status"] == "confirmed"
