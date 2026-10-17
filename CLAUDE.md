@@ -15,7 +15,7 @@ An AI agent that helps a disrupted traveler compare up to three replacement flig
 - Credentials stay server-side. Never log secrets or unnecessary personal data.
 
 ## Secrets
-- Never read, print, create or commit .env files or keys. Env var names only: ANTHROPIC_API_KEY, DUFFEL_ACCESS_TOKEN, MODEL.
+- Never read, print, create or commit .env files or keys. Env var names only: ANTHROPIC_API_KEY, DUFFEL_ACCESS_TOKEN, MODEL, plus ALLOWED_ORIGINS and DEMO_ACCESS_CODE for a deployment (added 2026-10-17, see docs/deploy.md; Cheich to confirm in review).
 - .gitignore and .env.example are owned by Jian. Do not edit without asking.
 
 ## Git workflow

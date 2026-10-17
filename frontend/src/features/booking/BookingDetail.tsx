@@ -14,6 +14,7 @@ import { ApiError, OFFLINE, TIMED_OUT } from '../../app/httpApi.ts'
 import { EMPTY_CONVERSATION } from '../../app/conversations.ts'
 import { DevBookingPanel } from '../dev/DevPanel.tsx'
 import { ConfirmCard, type ConfirmProblem } from './ConfirmCard.tsx'
+import { AccessCode } from './AccessCode.tsx'
 import { FlightCard } from './FlightCard.tsx'
 import { flightLabel, formatTime } from './format.ts'
 
@@ -45,7 +46,7 @@ interface Props {
 
 export function BookingDetail({ api, bookingId, conversation, update }: Props) {
   const [detail, setDetail] = useState<BookingDetailData | null>(null)
-  const [loadError, setLoadError] = useState<'not found' | 'failed' | null>(null)
+  const [loadError, setLoadError] = useState<'not found' | 'failed' | 'locked' | 'wrong code' | null>(null)
   const [reload, setReload] = useState(0)
   const [sending, setSending] = useState(false)
   // The last message that got no answer, and how many times in a row that happened.
@@ -57,7 +58,12 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
     api
       .getBooking(bookingId)
       .then((d) => !cancelled && setDetail(d))
-      .catch((e) => !cancelled && setLoadError(e instanceof ApiError && e.status === 404 ? 'not found' : 'failed'))
+      .catch((e) => {
+        if (cancelled) return
+        const status = e instanceof ApiError ? e.status : null
+        setLoadError((before) => status === 404 ? 'not found'
+          : status === 403 ? (before === 'locked' || before === 'wrong code' ? 'wrong code' : 'locked') : 'failed')
+      })
     return () => {
       cancelled = true
     }
@@ -131,7 +137,8 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
         }))
       } catch (e) {
         const status = e instanceof ApiError ? e.status : null
-        const message = status === OFFLINE ? CANT_REACH : status === TIMED_OUT ? TOO_SLOW : ASSISTANT_DOWN
+        const message = status === OFFLINE ? CANT_REACH : status === TIMED_OUT ? TOO_SLOW
+          : status === 429 && e instanceof ApiError ? e.message : ASSISTANT_DOWN
         setUnanswered((u) => ({ text, id, message, failures: (u?.id === id ? u.failures : 0) + 1 }))
       } finally {
         setSending(false)
@@ -193,6 +200,17 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
     [bookingId, update],
   )
 
+  if (loadError === 'locked' || loadError === 'wrong code') {
+    return (
+      <AccessCode
+        wrong={loadError === 'wrong code'}
+        onSubmit={(code) => {
+          api.setAccessCode?.(code)
+          setReload((n) => n + 1)
+        }}
+      />
+    )
+  }
   if (loadError) {
     return (
       <section className="booking-page">

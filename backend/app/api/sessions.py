@@ -71,6 +71,7 @@ class Session:
     # booking_id -> how to build that mock booking again with fresh dates (scenario files, starters, generated)
     sources: dict[str, Callable[[], Scenario]] = field(default_factory=dict)
     answered: dict[str, tuple[str, Any]] = field(default_factory=dict)  # booking_id -> (message_id, ChatOut)
+    turns: int = 0  # answered chat turns, for the per-session limit
     notices: dict[str, list[str]] = field(default_factory=dict)  # booking_id -> app notices for the next chat turn
     shown_changes: dict[str, set[str]] = field(default_factory=dict)  # booking_id -> change ids already shown
     scenario_names: list[str] = field(default_factory=list)  # the mock scenarios this session started with

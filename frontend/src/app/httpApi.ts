@@ -58,6 +58,16 @@ async function fetchWithin(fetchImpl: typeof fetch, url: string, init: RequestIn
   }
 }
 
+const ACCESS_CODE_KEY = 'travel-buddy-access-code'
+
+function readAccessCode(): string | null {
+  try {
+    return window.sessionStorage.getItem(ACCESS_CODE_KEY)
+  } catch {
+    return null
+  }
+}
+
 function readStored(): string | null {
   try {
     return window.sessionStorage.getItem(STORAGE_KEY)
@@ -93,7 +103,10 @@ export function createHttpApi(
   let sessionPromise: Promise<string> | null = null
 
   async function createSession(): Promise<string> {
-    const response = await fetchWithin(fetchImpl, `${base}/sessions`, { method: 'POST' }, TIMEOUT_MS)
+    // A deployed demo can require an access code to start a session (DEMO_ACCESS_CODE on the server).
+    const code = readAccessCode()
+    const init: RequestInit = { method: 'POST', headers: code ? { 'X-Access-Code': code } : {} }
+    const response = await fetchWithin(fetchImpl, `${base}/sessions`, init, TIMEOUT_MS)
     if (!response.ok) throw new ApiError(response.status, await errorMessage(response))
     const body = (await response.json()) as SessionOut
     writeStored(body.session_id)
@@ -140,6 +153,14 @@ export function createHttpApi(
 
   return {
     kind: 'live',
+    setAccessCode: (code: string) => {
+      try {
+        window.sessionStorage.setItem(ACCESS_CODE_KEY, code)
+      } catch {
+        // without storage the code only lasts until the session starts, which is enough
+      }
+      sessionPromise = null
+    },
     label: `Connected to the Travel Buddy API at ${base}.`,
     listBookings: async () => json<BookingSummary[]>(await call('/bookings')),
     getBooking: async (bookingId) => json<BookingDetail>(await call(`/bookings/${encodeURIComponent(bookingId)}`)),

@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 import type { BookingsApi } from '../../app/dataSource.ts'
 import { bookingHref } from '../../app/route.ts'
 import type { BookingSummary } from '../../app/types.ts'
+import { ApiError } from '../../app/httpApi.ts'
 import { DevCreatePanel } from '../dev/DevPanel.tsx'
+import { AccessCode } from './AccessCode.tsx'
 import { cityName } from './airports.ts'
 import { formatShort } from './format.ts'
 import { SourcePill, StatusPill } from './Pills.tsx'
@@ -19,17 +21,39 @@ export function BookingsList({ api, onReset }: { api: BookingsApi; onReset: () =
   const [bookings, setBookings] = useState<BookingSummary[] | null>(null)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
+  const [locked, setLocked] = useState<'no' | 'ask' | 'wrong'>('no')
 
   useEffect(() => {
     let cancelled = false
     api
       .listBookings()
-      .then((list) => !cancelled && setBookings(list))
-      .catch(() => !cancelled && setError("Couldn't load your bookings. Check your connection, then try again."))
+      .then((list) => {
+        if (cancelled) return
+        setLocked('no')
+        setBookings(list)
+      })
+      .catch((e) => {
+        if (cancelled) return
+        if (e instanceof ApiError && e.status === 403) setLocked((l) => (l === 'no' ? 'ask' : 'wrong'))
+        else if (e instanceof ApiError && e.status === 429) setError(e.message)
+        else setError("Couldn't load your bookings. Check your connection, then try again.")
+      })
     return () => {
       cancelled = true
     }
   }, [api, reload])
+
+  if (locked !== 'no') {
+    return (
+      <AccessCode
+        wrong={locked === 'wrong'}
+        onSubmit={(code) => {
+          api.setAccessCode?.(code)
+          setReload((n) => n + 1)
+        }}
+      />
+    )
+  }
 
   return (
     <section aria-labelledby="bookings-title">

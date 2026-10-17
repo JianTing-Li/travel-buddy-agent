@@ -1,5 +1,12 @@
 # Jian work log
 
+## 2026-10-17: ready to deploy (branch feature/polish-travel-buddy)
+- Two new env vars (CLAUDE.md updated; Cheich to confirm): `ALLOWED_ORIGINS` (the frontend address for CORS; default the Vite dev server) and `DEMO_ACCESS_CODE` (when set, `POST /sessions` needs it in `X-Access-Code`; wrong or missing gives 403). `.env.example` lists all five names.
+- Rate limits (`api/rate_limit.py`, in memory): 20 new sessions per address per hour, 20 messages per address per minute, 80 messages per session; 429 with a plain message. Tests can pass `limits=None`.
+- Frontend: an "Enter the access code" screen when the server asks for one (kept for the browser tab); rate-limit messages shown as they come.
+- `render.yaml` (one worker, `main:app`, `--proxy-headers` so limits see the real address), `.python-version` 3.14 (Render's default), and `docs/deploy.md`: Render first, then Vercel with `VITE_API_URL`, then `ALLOWED_ORIGINS` on Render.
+- Checked: 694 backend tests; the production start command boots, `/dev` routes are 404, CORS allows only the configured origin; in the browser: access code screen, wrong code, right code.
+
 ## 2026-10-17: receipt, reload, fresh data and demo mode (branch feature/polish-travel-buddy)
 - Confirming: the confirm card is replaced by the app's receipt in the chat ("You're rebooked. SW 210: leaves JFK at 11:00 AM on Oct 17, lands at LAX at 2:00 PM on Oct 17. Confirmation 7NXD97."); `ConfirmOut.receipt` carries it. Confirm only works 1 s after the card appears, so a click meant for something else can't book. Every turn after a rebooking tells the agent the trip is already rebooked.
 - Reload: the server keeps the conversation as the traveler saw it (`session.transcripts`: messages, cards, receipt; no tool calls or [App notice] lines) and `GET /bookings/{id}/chat` returns it; the page loads it when its in-memory chat is empty. `ChatIn.message_id` (reused on Try again) makes a retried message get the stored answer instead of a second turn.

@@ -47,7 +47,7 @@ The runner judges with code only, never with a second model.
 - **One itinerary per booking.** A group always stays together.
 - **Simulated support handoff.** No real staff follow up.
 - **Prompt-injection defense is best effort.** Code enforces the limits and the confirmation, so a planted instruction can't book anything. Tested with `claude-haiku-5-5` only.
-- **Not deployed.** Sessions live in memory; a public demo needs an access code and rate limits first (see [TASKS.md](TASKS.md)).
+- **Memory only.** Sessions live in memory, so run one backend process. To deploy (Render + Vercel, with an access code and rate limits), see [docs/deploy.md](docs/deploy.md).
 </details>
 
 <details>

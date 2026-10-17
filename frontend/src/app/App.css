@@ -357,3 +357,15 @@
   from { background-position: 100% 0; }
   to { background-position: -100% 0; }
 }
+
+/* access code screen for a private demo */
+.access { display: grid; gap: 8px; max-width: 460px; margin: 40px auto; padding: 24px; }
+.access-row { display: flex; gap: 8px; margin-top: 8px; }
+.access-input {
+  flex: 1;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+}

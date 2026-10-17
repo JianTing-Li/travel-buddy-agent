@@ -42,4 +42,6 @@ export interface BookingsApi {
   chatHistory(bookingId: string): Promise<ChatHistoryOut>
   confirm(bookingId: string, optionId: string): Promise<ConfirmOut>
   dev?: DevApi
+  /** A deployed demo may need an access code to start a session; the app sends it from then on. */
+  setAccessCode?(code: string): void
 }
