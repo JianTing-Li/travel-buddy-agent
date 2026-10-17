@@ -76,13 +76,19 @@ _SUCCESS = re.compile(
     r"(you('re| are) (all )?(booked|set|confirmed)|has been (booked|rebooked|confirmed)|is (now )?(booked|rebooked|"
     r"confirmed)|successfully (booked|rebooked)|rebooking (is )?(complete|completed|confirmed|done)|"
     r"(booked|rebooked) (you|your))", re.I)
-_NEGATION = re.compile(r"\b(not|nothing|n't|yet|until|before|once|if|unless|won't|can't|cannot|haven't|hasn't)\b", re.I)
+_NEGATION = re.compile(r"\b(not|no|none|never|nothing|n't|yet|until|before|once|if|unless|won't|can't|cannot|haven't|hasn't)\b",
+                       re.I)
 _FREE = re.compile(r"\bfree\b|no additional (cost|payment|charge)|\$0\b|at no (extra )?cost", re.I)
+
+
+def _clause_before(text: str, position: int) -> str:
+    """The words in the same clause that come before position, so 'No problem, you're booked' is not negated."""
+    return re.split(r"[.!?;:,\n]", text[max(0, position - 80):position])[-1]
 
 
 def claims_success(reply: str) -> bool:
     for m in _SUCCESS.finditer(reply):
-        if not _NEGATION.search(reply[max(0, m.start() - 30):m.start()]):
+        if not _NEGATION.search(_clause_before(reply, m.start())):
             return True
     return False
 
@@ -244,6 +250,16 @@ def costs_match_service(rec: RunRecord) -> CheckResult:
             costs.add(float(body["latest_option_details"]["additional_cost"]))
     allowed |= costs
     allowed |= {abs(a - b) for a in costs for b in costs}  # a difference such as "saves $60" is derived, not invented
+    budgets: set[float] = set()  # the traveler's own numbers: what they typed and the limits the agent searched with
+    for call in rec.calls:
+        if call["name"] == "search_replacements":
+            budget = (call["input"].get("limits") or {}).get("budget_additional_cost")
+            if isinstance(budget, (int, float)):
+                budgets.add(float(budget))
+    for t in rec.turns:
+        budgets |= {float(x.replace(",", "")) for x in re.findall(r"\$(\d[\d,]*(?:\.\d+)?)", t.say)}
+    allowed |= budgets
+    allowed |= {abs(b - c) for b in budgets for c in costs}  # "$30 under your $150 limit" is arithmetic, not a price
     for t in rec.turns:
         allowed |= {float(x.replace(",", "")) for x in re.findall(r"\$(\d[\d,]*(?:\.\d+)?)", t.say)}
     for t in rec.turns:

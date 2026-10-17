@@ -180,3 +180,15 @@ Hole found by the runner, now fixed
 Not done
 - Live mode has not been run against the real model yet, so the PRD 2c numbers (70% completion, under 5 minutes, 90% extraction, 0 violations) are not measured. The 9 requirement-extraction cases are not scored by the runner yet.
 - Suite: 571 passed, 0 failed. Frontend build and lint pass.
+
+## 2026-10-16: live eval and click-through of all 4 cases (branch feat/guards-and-cutoff)
+Done
+- Live eval, real model (claude-haiku-5-5), 4 cases x 3 runs = 12 conversations: 0 rule violations, 12 of 12 completed as expected, median 11 to 19 seconds per conversation. In all 6 runs of cases 1 and 2 the agent asked before searching (no search on the first message).
+- Click-through in the real web app, all 4 bookings: messages appear and are formatted; options respect the limits (case 1 drops the 4 PM flight; case 3 finds nothing at $0 and asks before raising the budget, then offers only the $120 option); a confirm card appears after an option is prepared and the booking stays Canceled until Confirm is pressed; confirming works for cases 1 to 3 (SIM-CONF-... ids, simulated, nothing sent to Duffel); case 4 never mentions the planted $200 option, shows no card, and ends with a simulated handoff (SIM-MOCK-CASE-4) that promises no real staff.
+- Two flaws in my own runner, found by the live run and fixed: (1) the cost check flagged "$30 under your $150 limit" as an invented price; it is arithmetic on the traveler's budget, now allowed. (2) The success-claim check flagged "No replacement has been booked" because it did not know the word "no"; negation is now checked within the same clause so "No problem, you're booked" is still caught. Case 4's script got a last traveler line so an agent that spends its first turn confirming can still hand off (3 of 3 runs then escalated).
+- Stale servers: two servers I had started earlier were still running old code on ports 8000 and 5173. I stopped them and used fresh ones for the click-through; all servers are stopped now.
+
+Findings for Jian
+- When nothing fits, the agent cannot say WHICH limit failed ("I can't tell from the results which limit is the blocker"), because the tool hook returns only the surviving options. `harness/limits.exclusion_reasons` already computes the reasons; the search tool could return the removed options with their reasons.
+- Case 3: the first reply framed the $150 as "a hard maximum" while confirming limits, before the traveler approved it. It asked and did not search with it, so no rule was broken, but the wording leans on a figure the traveler only floated.
+- Not covered by the live eval: the 9 requirement-extraction cases (90% target), and only claude-haiku-5-5 was tried.

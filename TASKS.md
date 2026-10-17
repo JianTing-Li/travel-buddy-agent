@@ -57,9 +57,9 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [ ] react-router: replace the small hash router (`frontend/src/app/route.ts`, URLs like `#/bookings/ID`) with react-router for clean URLs (`/bookings/ID`), more pages and "not found" handling. Needs a rewrite-all-to-index.html rule on the host (see Deployment). The swap is one file; worth it once the app has more than two screens
 
 ## Integration (Shared)
-- [ ] Happy path end to end (eval case 1)
-- [ ] Cases 2-4, no-options flow, failure and simulated handoff
-- [ ] Run all 4 evals; check against PRD 2c success metrics
+- [x] Happy path end to end (eval case 1): checked in the real app and by the live eval (3 of 3 runs)
+- [x] Cases 2-4, no-options flow, failure and simulated handoff: checked in the real app on all 4 bookings and by the live eval
+- [~] Run all 4 evals; check against PRD 2c success metrics. Live (claude-haiku-5-5, 12 conversations): 12 of 12 completed (target 70%), median 11 to 19 s per conversation (target under 5 minutes), 0 rule violations (target 0), 0 rebookings without explicit confirmation. Not measured: the 90% requirement-understanding target (the 9 extraction cases are not scored yet)
 - [ ] Frontend: chat and booking views (owner TBD)
 
 ## Open decisions
