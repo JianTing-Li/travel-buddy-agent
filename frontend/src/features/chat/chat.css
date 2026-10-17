@@ -1,6 +1,49 @@
 /* Chat styles. Owner: Cheich. Uses the shell's colour variables so light and dark mode both work. */
 .chat { display: grid; gap: 12px; }
 
+/* Header: Travel Buddy is an AI, and says so. */
+.chat-head { display: flex; align-items: center; gap: 10px; }
+.chat-head .card-title { margin: 0; }
+.chat-head .pill-ai { margin-left: auto; }
+.pill-ai {
+  background: linear-gradient(135deg, var(--ai-1), var(--ai-2));
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+.ai-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ai-1), var(--ai-2));
+  color: #fff;
+  font-size: 14px;
+}
+.ai-avatar--large { width: 36px; height: 36px; font-size: 17px; }
+.ai-avatar-space { flex: none; width: 28px; }
+.ai-avatar--thinking { animation: ai-pulse 1.6s ease-in-out infinite; }
+@keyframes ai-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 0 5px var(--ai-border); }
+}
+
+/* One turn from Travel Buddy: avatar, reply, and any option cards under it. */
+.chat-turn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  scroll-margin-top: 80px;
+  scroll-margin-bottom: 96px;
+}
+.chat-turn-body { display: grid; gap: 8px; min-width: 0; flex: 1; justify-items: start; }
+.chat-turn .chat-msg { max-width: min(100%, 680px); }
+
+/* New messages slide in gently. */
+.chat-msg--traveler,
+.chat-turn { animation: rise var(--dur) var(--ease-out) both; }
+
 /* The page scrolls, not the log: no scroll box inside a scrolling page. */
 .chat-log {
   display: grid;
@@ -22,8 +65,8 @@
 }
 .chat-msg--assistant {
   justify-self: start;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--ai-bg);
+  border: 1px solid var(--ai-border);
   border-top-left-radius: 4px;
 }
 .chat-msg--traveler {
@@ -50,7 +93,9 @@
 .chat-heading { font-weight: 600; }
 
 .chat-welcome { display: grid; gap: 8px; color: var(--text); }
-.chat-needs { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.chat-needs { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.chat-welcome > .muted, .chat-welcome > .chat-examples { margin-left: 36px; }
+@media (max-width: 480px) { .chat-welcome > .muted, .chat-welcome > .chat-examples { margin-left: 0; } }
 .chat-examples { max-width: 680px; }
 
 .chat-action { scroll-margin-bottom: 96px; }
@@ -70,13 +115,14 @@
 }
 .chat-chip:hover { background: var(--accent-bg); border-color: var(--accent); }
 
-.chat-typing { min-width: 64px; }
+.chat-typing { display: inline-flex; align-items: center; gap: 10px; min-width: 64px; }
+.chat-typing-text { font-size: 14px; color: var(--ai-text); }
 .chat-dots { display: inline-flex; gap: 5px; align-items: center; height: 1.2em; }
 .chat-dots i {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--text-2);
+  background: var(--ai-1);
   animation: chat-bounce 1.2s infinite ease-in-out;
 }
 .chat-dots i:nth-child(2) { animation-delay: 0.15s; }
@@ -118,6 +164,42 @@
 .chat-form .btn { min-height: 44px; }
 .chat-form .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* Option cards: from the code-checked search, under the reply that found them. */
+.option-cards { display: grid; gap: 8px; width: 100%; max-width: 680px; }
+.option-cards-title { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.option-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.option-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  animation: rise var(--dur-slow) var(--ease-out) both;
+  transition: border-color var(--dur) ease, box-shadow var(--dur) ease, opacity var(--dur) ease;
+}
+.option-card:hover { border-color: var(--accent); }
+.option-card--chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+.option-card:has(.btn:disabled):not(.option-card--chosen) { opacity: 0.6; }
+.option-card .btn:disabled { cursor: default; }
+.option-main { display: grid; gap: 2px; min-width: 0; }
+.option-times { font-size: 16px; }
+.option-times strong { font-size: 17px; }
+.option-arrow { margin: 0 6px; color: var(--text-3); }
+.option-cost { font-weight: 600; white-space: nowrap; }
+.option-cost--free { color: var(--success-text); }
+.option-excluded { font-size: 14px; color: var(--text-2); }
+.option-excluded summary { cursor: pointer; width: fit-content; }
+.option-excluded ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.option-why { color: var(--text-3); }
+
+@media (max-width: 520px) {
+  .option-card { grid-template-columns: minmax(0, 1fr) auto; }
+  .option-card .btn { grid-column: 1 / -1; }
+}
+
 /* A message that got no answer: an app notice, not a reply from Travel Buddy. */
 .chat-problem {
   display: grid;
@@ -148,4 +230,5 @@
 
 @media (max-width: 480px) {
   .chat-msg { max-width: 94%; }
+  .ai-avatar-space, .chat-turn > .ai-avatar { display: none; }
 }

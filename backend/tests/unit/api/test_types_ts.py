@@ -23,7 +23,7 @@ def ts_interface_fields(name: str) -> set[str]:
 CONTRACT = ["Limits", "FlightDetails", "Option", "Itinerary", "Passenger", "Disruption", "TripContext",
             "ValidationResult", "Handoff"]
 API = ["SessionCreate", "SessionOut", "BookingSummary", "BookingDetail", "ErrorOut", "ChatIn", "ConfirmCard",
-       "ChatOut", "ConfirmIn", "ConfirmOut", "ChangeCheckOut", "DevBookingCreate", "DevBookingOut",
+       "ChatOut", "ExcludedOption", "SearchResults", "ConfirmIn", "ConfirmOut", "ChangeCheckOut", "DevBookingCreate", "DevBookingOut",
        "DevDisruptIn", "DevFaultsIn", "DevFaultsOut", "DevDuffelBookingIn", "DevResetOut"]
 
 

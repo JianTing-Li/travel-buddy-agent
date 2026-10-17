@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..contract.models import Option, TripContext
+from ..contract.models import Limits, Option, TripContext
 from ..services.airline_change import AirlineChange
 
 
@@ -67,10 +67,28 @@ class ConfirmCard(BaseModel):
     notice: str = "Simulated rebooking. No real ticket is issued."
 
 
+class ExcludedOption(BaseModel):
+    """An option the limits filter removed: typed facts and code-written reasons only, never source free text."""
+    option_id: str
+    arrives: str
+    additional_cost: float
+    currency: str
+    connections: int
+    reasons: list[str]
+
+
+class SearchResults(BaseModel):
+    """A search checked by code against the traveler's limits, for the app to show as option cards."""
+    options: list[Option]  # within every limit
+    excluded: list[ExcludedOption]  # removed, with the limit each one breaks
+    limits: Limits  # what they were checked against
+
+
 class ChatOut(BaseModel):
     reply: str
     stopped_reason: Literal["reply", "step_limit", "error"]
     confirm_card: ConfirmCard | None
+    search: SearchResults | None = None  # only when this turn ran a checked search
 
 
 class ConfirmIn(BaseModel):

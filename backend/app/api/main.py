@@ -45,6 +45,7 @@ from .schemas import (
     DevFaultsOut,
     DevResetOut,
     ErrorOut,
+    SearchResults,
     SessionCreate,
     SessionOut,
 )
@@ -244,6 +245,7 @@ def create_app(
         client, model_name = model_client_and_name()
         booking_id = body.booking_id
         with session.lock:
+            session.searched.pop(booking_id, None)  # cards come only from a search in THIS turn
             notices = session.notices.pop(booking_id, [])
             user_message = "\n".join([*notices, "", body.message]) if notices else body.message
             result = run_turn(
@@ -254,8 +256,9 @@ def create_app(
                 session.notices[booking_id] = notices  # the model never saw them; keep them for the next try
             else:
                 session.histories[booking_id] = result.history
+            searched = session.searched.get(booking_id) if result.stopped_reason != "error" else None
             return ChatOut(reply=result.reply, stopped_reason=result.stopped_reason,
-                           confirm_card=confirm_card(session, booking_id))
+                           confirm_card=confirm_card(session, booking_id), search=_search_results(searched))
 
     @app.post("/confirm", response_model=ConfirmOut, responses={**errors, 409: {"model": ConfirmOut},
                                                               202: {"model": ConfirmOut}})
@@ -282,6 +285,16 @@ def create_app(
     if dev:
         add_dev_routes(app, SessionDep, BookingDep, get_duffel_client)
     return app
+
+
+def _search_results(searched: dict[str, Any] | None) -> SearchResults | None:
+    """Option cards are a bonus on top of the reply: data that doesn't fit the schema is left out, never an error."""
+    if not searched:
+        return None
+    try:
+        return SearchResults.model_validate(searched)
+    except ValueError:
+        return None
 
 
 def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_client: Any) -> None:

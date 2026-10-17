@@ -7,12 +7,13 @@ import { ChatSlot } from '../../app/ChatSlot.tsx'
 import type { Conversation } from '../../app/conversations.ts'
 import type { BookingsApi } from '../../app/dataSource.ts'
 import { listHref } from '../../app/route.ts'
-import type { BookingDetail as BookingDetailData, BookingSummary, ChatSituation } from '../../app/types.ts'
+import type { BookingDetail as BookingDetailData, BookingSummary, ChatSituation, Option } from '../../app/types.ts'
 import { ApiError, OFFLINE, TIMED_OUT } from '../../app/httpApi.ts'
 import { EMPTY_CONVERSATION } from '../../app/conversations.ts'
 import { DevBookingPanel } from '../dev/DevPanel.tsx'
 import { ConfirmCard, type ConfirmProblem } from './ConfirmCard.tsx'
 import { FlightCard } from './FlightCard.tsx'
+import { flightLabel, formatTime } from './format.ts'
 
 /** What the traveler sees when a message gets no answer, by cause. Never shown as if Travel Buddy said it. */
 const CANT_REACH = "Can't reach Travel Buddy. Check your connection, then try again."
@@ -85,7 +86,9 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
         if (out.stopped_reason === 'error') throw new ApiError(503, out.reply)
         setUnanswered(null)
         update(bookingId, (c) => ({
-          ...c, messages: [...c.messages, { role: 'assistant', text: out.reply }], card: out.confirm_card,
+          ...c,
+          messages: [...c.messages, { role: 'assistant', text: out.reply, search: out.search ?? null }],
+          card: out.confirm_card,
         }))
       } catch (e) {
         const status = e instanceof ApiError ? e.status : null
@@ -98,6 +101,18 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
     [api, bookingId, update],
   )
   const send = useCallback((text: string) => ask(text, false), [ask])
+
+  /** A card was chosen: mark it, and tell Travel Buddy in words the traveler can read back. */
+  const choose = useCallback(
+    (messageIndex: number, option: Option) => {
+      update(bookingId, (c) => ({
+        ...c, messages: c.messages.map((m, i) => (i === messageIndex ? { ...m, chosen: option.option_id } : m)),
+      }))
+      const d = option.flight_details
+      void ask(`I'll take ${flightLabel(d.airline, d.flight)}, leaving ${d.origin} at ${formatTime(d.departs)}.`, false)
+    },
+    [ask, bookingId, update],
+  )
 
   const confirm = useCallback(
     async (optionId: string): Promise<ConfirmProblem | null> => {
@@ -184,6 +199,7 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
         messages={messages}
         sending={sending}
         onSend={send}
+        onChoose={choose}
         action={action}
         situation={situationOf(detail.summary)}
         travelers={detail.summary.passenger_count}

@@ -96,7 +96,8 @@ def test_chat_is_unavailable_when_the_server_has_no_model_configured(monkeypatch
 def test_a_plain_reply_has_no_confirm_card_and_the_model_gets_app_context():
     client, model, session_id = make(resp(text("When do you need to arrive?")))
     body = chat(client, session_id, "My flight was canceled").json()
-    assert body == {"reply": "When do you need to arrive?", "stopped_reason": "reply", "confirm_card": None}
+    assert body == {"reply": "When do you need to arrive?", "stopped_reason": "reply", "confirm_card": None,
+                    "search": None}
     request = model.requests[0]
     assert "opened booking MOCK-CASE-1" in request["system"] and "Travel Buddy" in request["system"]
     assert request["messages"][-1] == {"role": "user", "content": "My flight was canceled"}
@@ -142,6 +143,17 @@ def test_an_agent_told_to_skip_the_rules_cannot_prepare_before_a_checked_search(
     assert client.app.state.sessions.get(session_id).prepared == {}
     assert confirm(client, session_id).status_code == 409
     assert client.get("/bookings/MOCK-CASE-1", headers=auth(session_id)).json()["confirmation"] is None
+
+
+def test_a_turn_with_a_checked_search_returns_the_options_for_cards_and_the_removed_ones_with_reasons():
+    client, _, session_id = make(*PREPARE_FLOW, resp(text("Anything else?")))
+    search = chat(client, session_id, "Find me something").json()["search"]
+    assert [o["option_id"] for o in search["options"]] == ["opt-1a"]  # the limits fit opt-1a exactly
+    removed = {e["option_id"]: e["reasons"] for e in search["excluded"]}
+    assert "opt-1c" in removed and "arrives after the arrival deadline" in removed["opt-1c"]
+    assert search["limits"]["budget_additional_cost"] == 0
+    assert "extras" not in str(search["excluded"])  # removed options carry typed facts only
+    assert chat(client, session_id, "thanks").json()["search"] is None  # only the turn that searched
 
 
 def test_explicit_confirm_completes_the_simulated_rebooking_and_the_next_turn_hears_about_it():

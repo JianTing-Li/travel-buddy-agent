@@ -192,6 +192,24 @@ export interface ChatOut {
   reply: string;
   stopped_reason: StoppedReason;
   confirm_card: ConfirmCard | null;
+  /** Only when this turn ran a search checked by code: shown as option cards. */
+  search?: SearchResults | null;
+}
+
+/** An option the limits filter removed: typed facts and code-written reasons only. */
+export interface ExcludedOption {
+  option_id: string;
+  arrives: LocalTime;
+  additional_cost: number;
+  currency: string;
+  connections: number;
+  reasons: string[];
+}
+
+export interface SearchResults {
+  options: Option[];
+  excluded: ExcludedOption[];
+  limits: Limits;
 }
 
 export interface ConfirmIn {
@@ -268,6 +286,10 @@ export interface DevFaultsOut {
 export interface ChatMessage {
   role: "traveler" | "assistant";
   text: string;
+  /** Options found in this turn, shown as cards under the reply. */
+  search?: SearchResults | null;
+  /** The option the traveler picked from those cards. */
+  chosen?: string;
 }
 
 /**
@@ -286,6 +308,8 @@ export interface ChatSlotProps {
   situation: ChatSituation;
   /** How many people are on the booking. */
   travelers: number;
+  /** The traveler picked an option card under message `messageIndex`. */
+  onChoose?: (messageIndex: number, option: Option) => void;
   /** The last message didn't get an answer: what went wrong, and a way to send it again. */
   problem?: ChatProblem | null;
 }

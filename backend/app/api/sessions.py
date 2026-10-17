@@ -51,6 +51,7 @@ class Session:
     duffel: DuffelService | None = None  # this session's Duffel TEST bookings; None when Duffel isn't configured
     histories: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # booking_id -> chat history
     prepared: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> latest prepare_rebooking result
+    searched: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> last checked search, for cards
     notices: dict[str, list[str]] = field(default_factory=dict)  # booking_id -> app notices for the next chat turn
     shown_changes: dict[str, set[str]] = field(default_factory=dict)  # booking_id -> change ids already shown
     scenario_names: list[str] = field(default_factory=list)  # the mock scenarios this session started with
@@ -97,7 +98,7 @@ class Session:
         The caller holds the session lock and has checked it is a mock booking."""
         self.service.clear_disruption(booking_id)
         self.gate.forget(booking_id)
-        for per_booking in (self.histories, self.prepared, self.notices, self.shown_changes):
+        for per_booking in (self.histories, self.prepared, self.searched, self.notices, self.shown_changes):
             per_booking.pop(booking_id, None)
 
     def reset(self) -> None:
@@ -107,6 +108,7 @@ class Session:
         parts = _build(self.scenario_names, self.duffel_client, self.starters)
         self.service, self.toolset, self.gate, self.tools = parts.service, parts.toolset, parts.gate, parts.tools
         self.allowed_ids, self.duffel, self.prepared = parts.allowed_ids, parts.duffel, parts.prepared
+        self.searched = parts.searched
         self.histories, self.notices, self.shown_changes = {}, {}, {}
 
 
@@ -119,6 +121,7 @@ class _Parts:
     allowed_ids: set[str]
     duffel: DuffelService | None
     prepared: dict[str, dict[str, Any]]
+    searched: dict[str, dict[str, Any]]
 
 
 def _build(names: list[str], client: DuffelClient | None, starters: bool = False) -> _Parts:
@@ -140,8 +143,19 @@ def _build(names: list[str], client: DuffelClient | None, starters: bool = False
         prepared[booking_id] = result  # what the confirm card shows comes from this, not from the model
         return result
 
-    tools = {**gate_tools, "prepare_rebooking": prepare_rebooking}
-    return _Parts(service, toolset, gate, tools, allowed, duffel, prepared)
+    searched: dict[str, dict[str, Any]] = {}
+
+    def search_replacements(**kwargs: Any) -> Any:
+        result = gate_tools["search_replacements"](**kwargs)
+        if isinstance(result, dict) and result.get("limits_checked_by_code") is True and kwargs.get("limits"):
+            # what the option cards show comes from this code-checked result, not from the model's reply
+            searched[kwargs["booking_id"]] = {"options": result.get("options", []),
+                                              "excluded": result.get("excluded_by_limits", []),
+                                              "limits": kwargs["limits"]}
+        return result
+
+    tools = {**gate_tools, "search_replacements": search_replacements, "prepare_rebooking": prepare_rebooking}
+    return _Parts(service, toolset, gate, tools, allowed, duffel, prepared, searched)
 
 
 class SessionStore:
@@ -167,7 +181,8 @@ class SessionStore:
         starters = scenarios is None  # a session asking for specific scenarios gets exactly those
         p = _build(names, client, starters)
         session = Session(secrets.token_urlsafe(32), p.service, p.toolset, p.gate, p.tools, p.allowed_ids, p.duffel,
-                          prepared=p.prepared, scenario_names=list(names), starters=starters, duffel_client=client)
+                          prepared=p.prepared, searched=p.searched, scenario_names=list(names), starters=starters,
+                          duffel_client=client)
         with self._lock:
             self._expire()
             while len(self._sessions) >= self._max_sessions:

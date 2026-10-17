@@ -1,5 +1,12 @@
 # Jian work log
 
+## 2026-10-17: option cards and the AI look (branch feature/polish-travel-buddy)
+- API: `ChatOut.search` (`SearchResults`: options, excluded with reasons, limits) is set only when the turn ran a search that code checked. It is recorded by a wrapper around the gate's search in `api/sessions.py` (`session.searched`), so cards show code-checked data, never the model's text. Removed options carry typed facts and code reasons only (the gate's `excluded_by_limits`), no source free text. `types.ts` mirrors `SearchResults` and `ExcludedOption`; the drift test covers them.
+- Chat (Cheich's folder, with his OK): `OptionCards.tsx` shows the fitting options (times with airports, flight, duration, stops, extra cost) with Choose, and a collapsed "didn't fit" list with plain reasons ("lands after your 3:00 PM deadline"). Choosing sends "I'll take Mock Air 210, leaving JFK at 11:00 AM." and marks the card; only the newest cards can be chosen.
+- AI look: Travel Buddy has its own violet-blue color (`--ai-*` tokens, light and dark), an avatar where it starts speaking, an "AI" label in the chat header, and a thinking state with text. The welcome is Travel Buddy's first bubble.
+- Checked: 624 backend tests, frontend build and lint; live (real model): Case 1 search showed 2 cards and 1 removed, Choose led to the confirm card; phone width has no sideways scroll.
+- Still open for the prompt phase: the agent's text repeats every option field the cards already show.
+
 ## 2026-10-17: errors, loading, dev panel and on-time bookings (branch feature/polish-travel-buddy)
 - Chat errors are app notices, not Travel Buddy bubbles: "Can't reach Travel Buddy" (no answer), "assistant isn't available" (503 or a failed model turn), "taking too long" (browser time limit). Try again resends the same message without repeating it; after two failures the notice points to the airline with the booking ref. The model client now has a 45 s timeout and one retry (`api/main.py`).
 - Booking page: "Booking not found" only for a 404; other failures say "Couldn't load this booking" with Try again. Skeletons replace the loading text on both pages.
