@@ -2,7 +2,7 @@
 
 ## 2026-10-17: dev tools on the public demo (branch feature/updates)
 - The live demo shows a "Dev tools" switch so visitors can simulate delays and add bookings: Render runs `dev_app`, Vercel sets `VITE_DEV_PANEL=true`. No access code (Jian's call).
-- The switch stands out (accent pill, wrench, "Simulate delays, add bookings", a gentle pulse until first used) and starts off on the deployed build, on while developing; the choice is remembered per browser.
+- The switch is a small outlined pill with a wrench, "Dev tools" and a toggle (a hover tooltip explains it). It starts off on the deployed build, on while developing; the choice is remembered per browser.
 - Dev endpoints are rate limited per address: 60 actions per hour, and 3 Duffel test orders per hour. They only touch the caller's own session.
 - Note: while writing the test for the Duffel limit, one run created a real order on the Duffel TEST account (the local .env token was picked up). The test now switches Duffel off; no unit test reaches the network.
 - Checked: 695 backend tests; a production build with `VITE_DEV_PANEL=true` shows the switch, off and pulsing.

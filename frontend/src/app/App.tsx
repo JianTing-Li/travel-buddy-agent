@@ -41,19 +41,9 @@ function initialDevTools(): boolean {
   }
 }
 
-/** Whether this browser has ever used the switch; until then it pulses gently to be noticed. */
-function switchSeen(): boolean {
-  try {
-    return window.localStorage.getItem(DEV_TOOLS_KEY) !== null
-  } catch {
-    return true
-  }
-}
-
 function App() {
   const [baseApi] = useState<BookingsApi>(createApi)
   const [devTools, setDevTools] = useState<boolean>(initialDevTools)
-  const [seen, setSeen] = useState<boolean>(switchSeen)
   // With the dev tools off, the screens see no dev API, so the test tools and source labels disappear.
   const api = useMemo(() => (baseApi.dev && !devTools ? { ...baseApi, dev: undefined } : baseApi), [baseApi, devTools])
   const [theme, setTheme] = useState<Theme>(initialTheme)
@@ -69,7 +59,6 @@ function App() {
   }
 
   const toggleDevTools = () => {
-    setSeen(true)
     setDevTools((on) => {
       try {
         window.localStorage.setItem(DEV_TOOLS_KEY, on ? 'off' : 'on')
@@ -100,18 +89,15 @@ function App() {
           <div className="header-actions">
             {baseApi.dev && (
               <button
-                className={`switch${seen ? '' : ' switch--new'}`}
+                className="switch"
                 type="button"
                 role="switch"
                 aria-checked={devTools}
-                aria-describedby="dev-tools-hint"
+                title="Simulate delays and add test bookings"
                 onClick={toggleDevTools}
               >
                 <span className="switch-icon" aria-hidden="true">🛠</span>
-                <span className="switch-label">
-                  Dev tools
-                  <span className="switch-hint" id="dev-tools-hint">Simulate delays, add bookings</span>
-                </span>
+                Dev tools
                 <span className="switch-track" aria-hidden="true"><span className="switch-knob" /></span>
               </button>
             )}

@@ -84,25 +84,23 @@
   font-size: 13px;
 }
 
-/* the dev tools switch in the header (dev builds and the public demo): made to be noticed */
+/* the dev tools switch in the header (dev builds and the public demo) */
 .switch {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 5px 8px 5px 12px;
-  border: 1.5px solid var(--accent);
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
-  background: var(--accent-bg);
-  color: var(--accent-text);
+  background: var(--surface);
+  color: var(--text-2);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: background-color var(--dur) ease, box-shadow var(--dur) ease;
 }
-.switch:hover { box-shadow: 0 0 0 3px var(--accent-bg); }
-.switch-icon { font-size: 15px; line-height: 1; }
-.switch-label { display: grid; line-height: 1.15; text-align: left; }
-.switch-hint { font-size: 11px; font-weight: 500; color: var(--text-2); }
+.switch:hover { border-color: var(--accent); }
+.switch-icon { font-size: 14px; line-height: 1; }
 .switch-track {
   position: relative;
   width: 34px;
@@ -124,15 +122,6 @@
 }
 .switch[aria-checked='true'] .switch-track { background: var(--accent); }
 .switch[aria-checked='true'] .switch-knob { transform: translateX(14px); }
-/* a gentle pulse until this browser first uses the switch */
-.switch--new { animation: switch-pulse 2s ease-in-out infinite; }
-@keyframes switch-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 transparent; }
-  50% { box-shadow: 0 0 0 6px var(--accent-bg); }
-}
-@media (max-width: 520px) {
-  .switch-hint { display: none; }
-}
 
 /* pills */
 .pill {
