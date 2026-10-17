@@ -14,7 +14,7 @@ const SITUATIONS: { value: DevSituation; label: string }[] = [
   { value: 'on time', label: 'On time' },
   { value: 'canceled', label: 'Canceled by the airline' },
   { value: 'delayed', label: 'Delayed' },
-  { value: 'missed', label: 'Missed by the traveler' },
+  { value: 'missed', label: 'Missed flight' },
   { value: 'random', label: 'Random (canceled or missed)' },
 ]
 const CASES = [

@@ -78,7 +78,7 @@ export function BookingsList({ api, onReset }: { api: BookingsApi; onReset: () =
               {b.airline ? ` · ${b.airline}` : ''} · {b.passenger_count} {b.passenger_count === 1 ? 'traveler' : 'travelers'}
             </p>
             <div className="booking-foot">
-              <span className="small">Ref {b.booking_id}</span>
+              <span className="small">Booking ref {b.booking_reference ?? b.booking_id}</span>
               <span className="booking-action">{actionLabel(b)} →</span>
             </div>
           </a>

@@ -31,7 +31,8 @@ class BookingSummary(BaseModel):
     disruption_type: str
     data_source: Literal["duffel", "mock"]
     rebooked: bool
-    airline: str | None = None  # the carrier or flight name shown on booking cards
+    airline: str | None = None  # the carrier and flight shown on booking cards, e.g. "Skyway Air SW 100"
+    booking_reference: str | None = None  # the record locator travelers know (e.g. "K7QX2M"), when there is one
 
 
 class BookingDetail(BaseModel):

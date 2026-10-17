@@ -41,7 +41,7 @@ function option(
   return {
     option_id: id,
     flight_details: {
-      airline: 'Mock Air (SIMULATED)',
+      airline: 'Skyway Air',
       flight,
       origin: 'JFK',
       destination: 'LAX',
@@ -72,45 +72,45 @@ const SAMPLES: Sample[] = [
     summary: {
       booking_id: 'MOCK-CASE-1', origin: 'JFK', destination: 'LAX', departs: dateAt(0, '08:00', '-04:00'),
       passenger_count: 1, status: 'canceled', disruption_type: 'airline cancellation', data_source: 'mock',
-      rebooked: false, airline: 'Mock Air 100',
+      rebooked: false, airline: 'Skyway Air SW 100',
     },
     passengers: 1,
-    recommended: option('opt-1a', 'Mock Air 210', 0, '11:00', '14:00', '6h 0m', 0),
+    recommended: option('opt-1a', 'SW 210', 0, '11:00', '14:00', '6h 0m', 0),
     reply:
-      'The best fit is Mock Air 210: a nonstop that lands at 2:00 PM Pacific, before your 3 PM deadline, at no additional cost. ' +
+      'The best fit is SW 210: a nonstop that lands at 2:00 PM Pacific, before your 3 PM deadline, at no additional cost. ' +
       'The 1:00 PM arrival with one connection also fits, but you prefer nonstop. Review the details below and confirm if you want it.',
   },
   {
     summary: {
       booking_id: 'MOCK-CASE-2', origin: 'JFK', destination: 'LAX', departs: dateAt(0, '08:00', '-04:00'),
       passenger_count: 1, status: 'missed by traveler', disruption_type: 'missed flight', data_source: 'mock',
-      rebooked: false, airline: 'Mock Air 100',
+      rebooked: false, airline: 'Skyway Air SW 100',
     },
     passengers: 1,
-    recommended: option('opt-2a', 'Mock Air 250', 0, '14:00', '17:00', '6h 0m', 80),
+    recommended: option('opt-2a', 'SW 250', 0, '14:00', '17:00', '6h 0m', 80),
     reply:
-      'Your booking allows two replacements and none is free. Mock Air 250 lands at 5:00 PM for $80 extra; the other lands at 3:00 PM ' +
+      'Your booking allows two replacements and none is free. SW 250 lands at 5:00 PM for $80 extra; the other lands at 3:00 PM ' +
       'for $140 extra. Paying $60 less means arriving two hours later. I can’t promise a reimbursement.',
   },
   {
     summary: {
       booking_id: 'MOCK-CASE-3', origin: 'JFK', destination: 'LAX', departs: dateAt(1, '08:00', '-04:00'),
       passenger_count: 3, status: 'canceled', disruption_type: 'airline cancellation', data_source: 'mock',
-      rebooked: false, airline: 'Mock Air 100',
+      rebooked: false, airline: 'Skyway Air SW 100',
     },
     passengers: 3,
-    recommended: option('opt-3b', 'Mock Air 520', 1, '11:00', '14:00', '6h 0m', 120, {
+    recommended: option('opt-3b', 'SW 520', 1, '11:00', '14:00', '6h 0m', 120, {
       cost_applies_to: 'all three travelers',
     }),
     reply:
-      'No free option lands before 3 PM, so with your approved limit of $150 the best fit is Mock Air 520: a nonstop landing at 2:00 PM ' +
+      'No free option lands before 3 PM, so with your approved limit of $150 the best fit is SW 520: a nonstop landing at 2:00 PM ' +
       'for $120 extra for all three of you. Everyone stays together on the same flight.',
   },
   {
     summary: {
       booking_id: 'MOCK-CASE-4', origin: 'JFK', destination: 'LAX', departs: dateAt(0, '08:00', '-04:00'),
       passenger_count: 1, status: 'canceled', disruption_type: 'airline cancellation', data_source: 'mock',
-      rebooked: false, airline: 'Mock Air 100',
+      rebooked: false, airline: 'Skyway Air SW 100',
     },
     passengers: 1,
     recommended: null,
@@ -153,7 +153,7 @@ export function createFixtureApi(): BookingsApi {
         summary: { ...s },
         trip: {
           original_itinerary: {
-            booking_id: id, flight: 'Mock Air 100', airline: s.airline, origin: s.origin, destination: s.destination,
+            booking_id: id, flight: 'SW 100', airline: s.airline, origin: s.origin, destination: s.destination,
             departs: s.departs, arrives: null, status: s.status as BookingStatus, booking_reference: null,
           },
           passengers: Array.from({ length: entry.sample.passengers }, (_, i) => ({ passenger_id: `${id}-P${i + 1}`, type: 'adult' })),
@@ -211,7 +211,7 @@ export function createFixtureApi(): BookingsApi {
         return wait({ status: 'confirmed', reason: null, confirmation: entry.confirmation, repeat: true })
       }
       entry.confirmation = {
-        confirmation_id: `SIM-CONF-${id}-${optionId}`, simulated: true, data_source: 'mock',
+        confirmation_id: 'C4TQ9R', simulated: true, data_source: 'mock',
         note: 'SIMULATED rebooking. No real airline ticket was created.', booking_id: id, option_id: optionId,
         additional_cost: option.additional_cost, currency: option.currency, updated_itinerary: option.flight_details,
       }

@@ -127,8 +127,10 @@ export interface BookingSummary {
   disruption_type: string;
   data_source: DataSource;
   rebooked: boolean;
-  /** Carrier or flight name for booking cards, e.g. "Mock Air 100" or "Duffel Airways". */
+  /** Carrier and flight for booking cards, e.g. "Skyway Air SW 100" or "Duffel Airways ZZ5624". */
   airline: string | null;
+  /** The record locator travelers know, e.g. "K7QX2M"; the booking id is only for the app. */
+  booking_reference?: string | null;
 }
 
 export interface BookingDetail {

@@ -6,6 +6,7 @@ replacement flight is about to leave, so the options are always in the future (s
 is always in the past. Everything produced here is simulated and
 tagged data_source="mock". The contract models are used unchanged.
 """
+import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
@@ -21,7 +22,7 @@ from . import provisional
 SCENARIOS_DIR = Path(__file__).resolve().parents[3] / "data" / "mock" / "scenarios"
 # A replacement leaving sooner than this can't really be caught, so the data moves to the next day.
 MIN_LEAD = timedelta(minutes=60)
-MOCK_AIRLINE = "Mock Air"  # simulated data is marked by each option's simulated flag and data_source, not its name
+MOCK_AIRLINE = "Skyway Air"  # fictional; the data is marked simulated by its simulated flag and data_source
 
 
 class ScenarioError(Exception):
@@ -103,6 +104,13 @@ def _resolve(local: _LocalTime, today: date) -> str:
     return _moment(local, today).isoformat(timespec="minutes")
 
 
+def booking_reference(booking_id: str) -> str:
+    """A six-character record locator like airlines print (e.g. "K7QX2M"), stable for the same booking id."""
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I, as on real tickets
+    value = int.from_bytes(hashlib.sha256(booking_id.encode()).digest()[:8], "big")
+    return "".join(alphabet[(value >> (5 * i)) % len(alphabet)] for i in range(6))
+
+
 def base_day(first_departure: Any, now: datetime, tz: str) -> date:
     """Today at the departure airport, or the next day on which the first replacement still leaves at least
     MIN_LEAD from now. `first_departure(day)` gives that flight's departure for a candidate day."""
@@ -150,7 +158,9 @@ def load_scenario(name: str, today: date | None = None, directory: Path = SCENAR
     trip = TripContext(
         original_itinerary={
             "booking_id": data.booking_id,
+            "airline": MOCK_AIRLINE,
             "flight": itinerary.flight,
+            "booking_reference": booking_reference(data.booking_id),
             "origin": itinerary.origin,
             "destination": itinerary.destination,
             "departs": departs,

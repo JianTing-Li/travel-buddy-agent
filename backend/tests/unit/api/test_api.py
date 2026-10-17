@@ -60,7 +60,8 @@ def test_bookings_list_has_summaries(client):
     first = bookings[0]
     assert first["origin"] == "JFK" and first["destination"] == "LAX"
     assert first["status"] == "canceled" and first["data_source"] == "mock" and first["rebooked"] is False
-    assert first["airline"] == "Mock Air 100"
+    assert first["airline"] == "Skyway Air SW 100"
+    assert len(first["booking_reference"]) == 6 and first["booking_reference"].isalnum()
     assert bookings[2]["passenger_count"] == 3
     assert "passengers" not in first  # the list carries no passenger details
 

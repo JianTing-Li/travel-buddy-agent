@@ -245,7 +245,8 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
         problem={unanswered && {
           message: unanswered.message,
           fallback: unanswered.failures >= 2
-            ? `Still not working? Contact your airline and give them booking ref ${detail.summary.booking_id}.`
+            ? `Still not working? Contact your airline and give them booking ref ${
+              detail.summary.booking_reference ?? detail.summary.booking_id}.`
             : undefined,
           retrying: sending,
           onRetry: () => void ask(unanswered.text, unanswered.id),

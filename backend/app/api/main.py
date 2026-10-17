@@ -127,7 +127,8 @@ def _summary(session: Session, booking_id: str) -> BookingSummary:
         disruption_type=trip.disruption_details.type,
         data_source=trip.data_source,
         rebooked=rebooked,
-        airline=itinerary.airline or itinerary.flight,
+        airline=" ".join(part for part in (itinerary.airline, itinerary.flight) if part) or None,
+        booking_reference=itinerary.booking_reference,
     )
 
 

@@ -29,7 +29,7 @@ from ..errors import (
 )
 from ..validation import diff_options, local_time_text, validate_option
 from . import provisional
-from .scenarios import MIN_LEAD, Scenario, load_scenario, scenario_names
+from .scenarios import MIN_LEAD, Scenario, booking_reference, load_scenario, scenario_names
 
 DUFFEL_ID_PREFIXES = ("ord_", "off_", "orq_", "oco_", "ocr_", "ocg_", "aic_", "sli_", "pas_")
 SIMULATED_NOTE = "SIMULATED rebooking. No real airline ticket was created and nothing was sent to Duffel."
@@ -302,7 +302,7 @@ class MockService:
                 booking.faults_used.add("uncertain_completion")
                 raise RuntimeError("Simulated connection drop: the result of the rebooking is unknown.")
             booking.confirmation = {
-                "confirmation_id": f"SIM-CONF-{booking_id}-{option_id}",
+                "confirmation_id": booking_reference(f"{booking_id}/{option_id}"),  # looks like a ticket code
                 "simulated": True,
                 "data_source": "mock",
                 "note": SIMULATED_NOTE,

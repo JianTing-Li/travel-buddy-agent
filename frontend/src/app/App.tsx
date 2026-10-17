@@ -1,5 +1,5 @@
 /** App shell: header, theme toggle, routing between the bookings list and one booking. Owner: Jian. */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { BookingDetail } from '../features/booking/BookingDetail.tsx'
 import { BookingsList } from '../features/booking/BookingsList.tsx'
@@ -27,8 +27,22 @@ function createApi(): BookingsApi {
   return import.meta.env.VITE_USE_SAMPLE_DATA === 'true' ? createFixtureApi() : createHttpApi()
 }
 
+/** Dev builds can hide the test tools for a demo; the choice is remembered in this browser. */
+const DEV_TOOLS_KEY = 'travel-buddy-dev-tools'
+
+function initialDevTools(): boolean {
+  try {
+    return window.localStorage.getItem(DEV_TOOLS_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
 function App() {
-  const [api] = useState<BookingsApi>(createApi)
+  const [baseApi] = useState<BookingsApi>(createApi)
+  const [devTools, setDevTools] = useState<boolean>(initialDevTools)
+  // With the dev tools off, the screens see no dev API, so every test tool and test label disappears.
+  const api = useMemo(() => (baseApi.dev && !devTools ? { ...baseApi, dev: undefined } : baseApi), [baseApi, devTools])
   const [theme, setTheme] = useState<Theme>(initialTheme)
   const route = parseHash(useHash())
   const conversations = useConversations()
@@ -39,6 +53,17 @@ function App() {
     root.classList.add('theme-switching')
     setTheme(next)
     window.setTimeout(() => root.classList.remove('theme-switching'), 400)
+  }
+
+  const toggleDevTools = () => {
+    setDevTools((on) => {
+      try {
+        window.localStorage.setItem(DEV_TOOLS_KEY, on ? 'off' : 'on')
+      } catch {
+        // not saving the choice is fine
+      }
+      return !on
+    })
   }
 
   useEffect(() => {
@@ -59,7 +84,14 @@ function App() {
             Travel Buddy
           </a>
           <div className="header-actions">
-            <span className="pill pill-sim">Simulated environment</span>
+            {baseApi.dev && (
+              <button className="switch" type="button" role="switch" aria-checked={devTools} onClick={toggleDevTools}>
+                <span className="switch-track" aria-hidden="true"><span className="switch-knob" /></span>
+                Dev tools
+              </button>
+            )}
+            {/* Shown unless a dev build is in demo mode (dev tools off), where it would spoil the realism. */}
+            {(!baseApi.dev || devTools) && <span className="pill pill-sim">Simulated environment</span>}
             <button
               className="btn btn-small"
               type="button"

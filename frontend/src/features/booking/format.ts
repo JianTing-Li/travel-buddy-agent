@@ -36,7 +36,7 @@ export function formatDate(iso: unknown): string {
   return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][weekday]}, ${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}`
 }
 
-/** "Mock Air 210" rather than "Mock Air · Mock Air 210" when the flight already names the airline. */
+/** "Skyway Air · SW 210", or just the flight when it already names the airline. */
 export function flightLabel(airline: string | null | undefined, flight: string | null | undefined): string {
   if (airline && flight) return flight.startsWith(airline) ? flight : `${airline} · ${flight}`
   return airline || flight || 'Flight'

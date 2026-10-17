@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 from ...contract.models import Option, TripContext
 from . import provisional
-from .scenarios import MOCK_AIRLINE, Scenario, base_day, load_scenario
+from .scenarios import MOCK_AIRLINE, Scenario, base_day, booking_reference, load_scenario
 
 AIRPORT_ZONES = {
     "JFK": "America/New_York", "BOS": "America/New_York", "MIA": "America/New_York",
@@ -45,6 +45,7 @@ def _renamed(base: Scenario, booking_id: str, seed: int) -> Scenario:
     """The same scenario under a new booking id, so several copies can live in one session."""
     trip = base.trip.model_copy(deep=True)
     trip.original_itinerary.booking_id = booking_id
+    trip.original_itinerary.booking_reference = booking_reference(booking_id)
     return Scenario(f"{base.scenario_id}-g{seed}", booking_id, base.passenger_count, trip, base.options)
 
 
@@ -127,7 +128,7 @@ def _generate(seed: int, today: date, situation: str, booking_id: str | None) ->
         arrives = (leaves + timedelta(minutes=minutes)).astimezone(destination_zone)
         cost = 0.0 if position == free else float(next(paid))
         details = {
-            "airline": MOCK_AIRLINE, "flight": f"Mock Air {rng.randint(200, 899)}", "origin": origin,
+            "airline": MOCK_AIRLINE, "flight": f"SW {rng.randint(200, 899)}", "origin": origin,
             "destination": destination, "departs": _iso(leaves), "arrives": _iso(arrives),
             "duration": _duration(minutes), "connections": connections, "simulated": True,
         }
@@ -141,7 +142,8 @@ def _generate(seed: int, today: date, situation: str, booking_id: str | None) ->
 
     trip = TripContext(
         original_itinerary={
-            "booking_id": booking_id, "flight": f"Mock Air {rng.randint(100, 199)}", "origin": origin,
+            "booking_id": booking_id, "booking_reference": booking_reference(booking_id), "airline": MOCK_AIRLINE,
+            "flight": f"SW {rng.randint(100, 199)}", "origin": origin,
             "destination": destination, "departs": _iso(departs),
             "arrives": _iso((departs + timedelta(minutes=block)).astimezone(destination_zone)), "status": status,
         },

@@ -112,11 +112,11 @@ def test_complete_returns_a_labeled_simulated_confirmation(service):
     service.search_replacements("MOCK-CASE-2")
     service.prepare_rebooking("MOCK-CASE-2", "opt-2b")
     confirmation = service.complete_rebooking("MOCK-CASE-2", "opt-2b")
-    assert confirmation["confirmation_id"] == "SIM-CONF-MOCK-CASE-2-opt-2b"
+    assert confirmation["confirmation_id"] == "74KCJG"  # a ticket-style code, stable for the booking and option
     assert confirmation["simulated"] is True and confirmation["data_source"] == "mock"
     assert "No real airline ticket" in confirmation["note"]
     assert confirmation["additional_cost"] == 140 and confirmation["currency"] == "USD"
-    assert confirmation["updated_itinerary"]["flight"] == "Mock Air 270"
+    assert confirmation["updated_itinerary"]["flight"] == "SW 270"
     assert service.get_confirmation("MOCK-CASE-2") == confirmation
 
 

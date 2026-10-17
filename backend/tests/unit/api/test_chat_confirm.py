@@ -180,7 +180,7 @@ def test_explicit_confirm_completes_the_simulated_rebooking_and_the_next_turn_he
     after = chat(client, session_id, "Thanks").json()
     assert after["confirm_card"] is None
     last_user = model.requests[-1]["messages"][-1]["content"]
-    assert "[App notice]" in last_user and "SIM-CONF-MOCK-CASE-1-opt-1a" in last_user and last_user.endswith("Thanks")
+    assert "[App notice]" in last_user and "7NXD97" in last_user and last_user.endswith("Thanks")
     # every later turn is told the trip is already rebooked, so the agent never starts over as if it were open
     assert "already rebooked" in model.requests[-1]["system"] and "already rebooked" not in model.requests[0]["system"]
 
@@ -280,7 +280,7 @@ def test_the_history_is_what_the_traveler_saw_with_the_receipt_and_without_app_n
     assert shown["confirm_card"]["option"]["option_id"] == "opt-1a"
 
     receipt = confirm(client, session_id).json()["receipt"]
-    assert receipt.startswith("You're rebooked. Mock Air 210: leaves JFK at 11:00 AM on") and "SIM-CONF-" in receipt
+    assert receipt.startswith("You're rebooked. SW 210: leaves JFK at 11:00 AM on") and receipt.endswith("Confirmation 7NXD97.")
     chat(client, session_id, "Thanks")  # this turn carries an [App notice] for the agent
     shown = history(client, session_id).json()["messages"]
     assert [m["role"] for m in shown] == ["traveler", "assistant", "app", "traveler", "assistant"]
