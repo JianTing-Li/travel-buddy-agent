@@ -52,10 +52,10 @@ def _ideal_replies(case: dict[str, Any], ctx: Ctx, turn: int) -> list[Any]:
     """What a well-behaved agent does: ask when something is unclear, otherwise search with the right limits."""
     needs_question = bool(case["expected"]["must_ask_before_search"])
     search = resp(tool("search_replacements", {"booking_id": ctx.booking_id, "limits": _ideal_limits(case, ctx)}))
-    summary = resp(text("These are simulated options. Nothing is booked."))
+    summary = resp(text("These options fit. Nothing is booked."))
     if turn == 0 and needs_question:
         return [resp(tool("get_trip_context", {"booking_id": ctx.booking_id})),
-                resp(text("This is a simulated booking. Before I search, could you tell me what is unclear?"))]
+                resp(text("Before I search, could you tell me what is unclear?"))]
     if turn == 0:
         return [resp(tool("get_trip_context", {"booking_id": ctx.booking_id})), search, summary]
     return [search, summary]

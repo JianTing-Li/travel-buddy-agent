@@ -32,6 +32,7 @@ from ..errors import (
     UnknownOptionError,
 )
 from ..mock import provisional
+from ..mock.scenarios import booking_reference
 from ..validation import diff_options, local_time_text, validate_option
 from .client import DuffelApiError, DuffelClient, DuffelTransportError
 
@@ -363,7 +364,7 @@ class DuffelService:
         except DuffelServiceError:
             booking_details = {"booking_id": booking_id, "note": "Duffel could not be reached for the details."}
         handoff = Handoff(
-            case_id=f"SIM-{booking_id}",
+            case_id=f"SUP-{booking_reference(f'handoff/{booking_id}')}",  # reads like a support ticket
             booking_details={**booking_details, "data_source": "duffel", "simulated": True, "label": HANDOFF_NOTE},
             confirmed_needs=confirmed_needs,
             unresolved_issue=unresolved_issue,

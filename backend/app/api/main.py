@@ -91,8 +91,8 @@ def _chat_system_prompt(booking_id: str, confirmation: dict[str, Any] | None = N
         # every turn, not only the one after confirming, so the agent never treats a rebooked trip as open
         confirmation_id = confirmation.get("confirmation_id")
         context += (f" This booking is already rebooked (simulated, confirmation {confirmation_id})."
-                    " It cannot be rebooked again here. Answer questions about the new flight; if the traveler wants a"
-                    " different flight, explain that and offer the simulated support handoff. Do not search for or"
+                    " It cannot be rebooked again here. Answer questions about the new flight. Only if the traveler asks"
+                    " for a different flight, explain that and offer the support handoff. Do not search for or"
                     " prepare another replacement.")
     return context
 
@@ -108,7 +108,8 @@ def _notice(outcome: dict[str, Any], option_id: str) -> str:
     if outcome["status"] == "confirmed":
         confirmation_id = outcome["result"].get("confirmation_id")
         return (f"[App notice] The traveler explicitly confirmed option {option_id}. The application completed the "
-                f"SIMULATED rebooking (confirmation {confirmation_id}). Tell the traveler it is simulated.")
+                f"SIMULATED rebooking (confirmation {confirmation_id}) and showed the traveler a receipt with the new "
+                "flight. The app labels it as simulated, so you don't need to.")
     if outcome["status"] == "pending":
         return (f"[App notice] The result of confirming option {option_id} is uncertain. Confirmation is pending. "
                 "Do not encourage another attempt.")
@@ -385,11 +386,11 @@ def _receipt(confirmation: dict[str, Any]) -> str:
     try:
         leaves = local_time_text(datetime.fromisoformat(flight["departs"]))
         lands = local_time_text(datetime.fromisoformat(flight["arrives"]))
-        trip = (f" {flight.get('flight') or 'your new flight'}: leaves {flight['origin']} at {leaves}, "
+        trip = (f" {flight.get('flight') or 'your new flight'}: it leaves {flight['origin']} at {leaves} and "
                 f"lands at {flight['destination']} at {lands}.")
     except (KeyError, TypeError, ValueError):
-        trip = ""
-    return f"You're rebooked.{trip} Confirmation {confirmation.get('confirmation_id')}."
+        trip = " your new flight."
+    return f"You're all set! You're rebooked on{trip} Confirmation {confirmation.get('confirmation_id')}."
 
 
 def _search_results(searched: dict[str, Any] | None) -> SearchResults | None:

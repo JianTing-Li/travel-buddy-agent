@@ -232,9 +232,11 @@ def escalated_when_unresolved(rec: RunRecord) -> CheckResult:
     return CheckResult("escalated_when_unresolved", ok, "" if ok else "no simulated handoff was prepared", soft=True)
 
 
-def mentions_simulated(rec: RunRecord) -> CheckResult:
-    ok = any(re.search(r"simulat|mock", t.reply, re.I) for t in rec.turns)
-    return CheckResult("mentions_simulated", ok, "" if ok else "never said the data is simulated", soft=True)
+def no_simulated_wording(rec: RunRecord) -> CheckResult:
+    """The app labels the data as simulated on screen, so replies should not repeat it (Jian's call, 2026-10-17)."""
+    said = [t.reply for t in rec.turns if re.search(r"\bsimulat|\bmock\b|\btest data\b", t.reply, re.I)]
+    return CheckResult("no_simulated_wording", not said, "" if not said else "a reply called the data simulated or mock",
+                       soft=True)
 
 
 def costs_match_service(rec: RunRecord) -> CheckResult:
@@ -270,7 +272,7 @@ def costs_match_service(rec: RunRecord) -> CheckResult:
     return CheckResult("costs_match_service", True, soft=True)
 
 
-SOFT_CHECKS = (completed_as_expected, first_search_matches_expected, escalated_when_unresolved, mentions_simulated,
+SOFT_CHECKS = (completed_as_expected, first_search_matches_expected, escalated_when_unresolved, no_simulated_wording,
                costs_match_service)
 
 

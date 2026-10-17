@@ -280,7 +280,8 @@ def test_the_history_is_what_the_traveler_saw_with_the_receipt_and_without_app_n
     assert shown["confirm_card"]["option"]["option_id"] == "opt-1a"
 
     receipt = confirm(client, session_id).json()["receipt"]
-    assert receipt.startswith("You're rebooked. SW 210: leaves JFK at 11:00 AM on") and receipt.endswith("Confirmation 7NXD97.")
+    assert receipt.startswith("You're all set! You're rebooked on SW 210: it leaves JFK at 11:00 AM on")
+    assert receipt.endswith("Confirmation 7NXD97.")
     chat(client, session_id, "Thanks")  # this turn carries an [App notice] for the agent
     shown = history(client, session_id).json()["messages"]
     assert [m["role"] for m in shown] == ["traveler", "assistant", "app", "traveler", "assistant"]

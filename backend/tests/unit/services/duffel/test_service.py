@@ -368,5 +368,6 @@ def test_airline_changes_are_read_from_the_order(client, service):
 def test_escalation_is_a_simulated_handoff(service):
     needs = Limits(budget_additional_cost=0, currency="USD", arrive_by="2026-10-15T15:00-07:00", max_connections=1, passenger_count=1)
     handoff = service.escalate_to_support(ORDER, "No option fits.", needs)
-    assert handoff.case_id == f"SIM-{ORDER}" and handoff.booking_details["simulated"] is True
+    assert handoff.case_id.startswith("SUP-") and len(handoff.case_id) == 10  # a ticket-style reference, no order id
+    assert handoff.booking_details["simulated"] is True
     assert handoff.booking_details["data_source"] == "duffel" and "SIMULATED" in handoff.booking_details["label"]
