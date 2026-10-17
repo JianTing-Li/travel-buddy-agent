@@ -2,6 +2,8 @@
 
 **An AI agent that rebooks travelers after a canceled, delayed or missed flight, and can't book anything the traveler didn't confirm.**
 
+**[Try the live demo →](https://travel-buddy-agent-delta.vercel.app)** Open a canceled booking and tell Travel Buddy what you need. The first visit can take up to a minute while the free server wakes up.
+
 ![Travel Buddy: the traveler's limits in plain words, flight options as cards with a recommended pick, and a rebooking receipt](docs/images/booking-page.jpg)
 
 - **AI with guardrails in code.** Claude understands the traveler and explains the options. Application code enforces their limits, the price and the final Confirm button. The model has no tool that can book.
