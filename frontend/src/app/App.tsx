@@ -103,7 +103,7 @@ function App() {
               </button>
             )}
             {/* Always shown, also in demo mode: nobody should mistake this for a real airline system. */}
-            <span className="pill pill-sim">Simulated environment</span>
+            <span className="pill pill-sim">Simulated</span>
             <button
               className="btn btn-small"
               type="button"
@@ -124,7 +124,7 @@ function App() {
             update={conversations.update}
           /> : <BookingsList api={api} onReset={conversations.clear} />}
       </main>
-      {/* The header's "Simulated environment" badge says it for the whole app; the footer only helps developers. */}
+      {/* The header's "Simulated" badge says it for the whole app; the footer only helps developers. */}
       {(api.kind === 'sample' || api.dev) && <footer className="footer">{api.label}</footer>}
     </>
   )
