@@ -4,6 +4,8 @@ from typing import Any
 
 import anthropic
 
+DEFAULT_MAX_TOKENS = 4096
+
 
 @dataclass
 class ToolCall:
@@ -19,6 +21,7 @@ class Decision:
     tool_calls: list[ToolCall] = field(default_factory=list)
     assistant_content: list[dict[str, Any]] = field(default_factory=list)  # blocks to add to history
     error: str = ""
+    truncated: bool = False  # text reply was cut off by the token limit
 
 
 def decide(
@@ -27,7 +30,7 @@ def decide(
     system: str,
     messages: list[dict[str, Any]],
     tools: list[dict[str, Any]],
-    max_tokens: int = 1024,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
 ) -> Decision:
     """Call the model once. Returns tool calls, a text reply, or an error. Never raises on API or output problems."""
     try:
@@ -74,4 +77,5 @@ def decide(
     text = "\n".join(text_parts).strip()
     if not text:
         return Decision(kind="error", error="Model returned no text and no tool call")
-    return Decision(kind="text", text=text, assistant_content=content)
+    cut_off = getattr(response, "stop_reason", None) == "max_tokens"
+    return Decision(kind="text", text=text, assistant_content=content, truncated=cut_off)

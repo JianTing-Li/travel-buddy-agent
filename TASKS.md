@@ -11,13 +11,13 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 ## Cheich: agent and harness
 - [x] System Prompt v0 from PRD 3b (agent/prompts/)
 - [x] Tool-use loop with Claude (agent/loop.py), tested with stub tools (agent/stub_tools.py)
-- [ ] Requirement extraction: required limits vs preferences, clarifying questions (agent/decide.py)
-- [ ] Limits filter: budget, arrival window, connections, passenger count (harness/limits.py)
-- [ ] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py)
-- [ ] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
-- [ ] Unit tests for harness
-- [x] Eval cases 1-4 from PRD 3d, expected behavior written first (tests/evals/cases/), written as JSON; no runner yet
-- [ ] Automated checks: unknown eligibility, wrong cost/currency, unavailable option, changed details, tool failure, duplicates, other traveler's booking, mock/Duffel mixing
+- [x] Requirement extraction: required limits vs preferences, clarifying questions. Code rule (harness/requirements.py, enforced in agent/loop.py) refuses a search unless all five required limits are present and valid; prompt v1 adds the ask-first and floated-budget rules; scored by tests/evals/requirements_suite.py on 9 cases: 25 of 27 live runs correct (93%), PRD target 90% met
+- [x] Limits filter: budget, arrive_by, connections (harness/limits.py), plugged into the live session tools (api/sessions.py, one line) and tested with the 4 PRD scenarios; a search without complete limits is now refused by the requirement check
+- [x] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py), mock completer for now
+- [x] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
+- [x] Unit tests for harness: 99% line and branch coverage of harness/ and agent/ (measured with coverage, installed locally only); every safety rule has tests
+- [x] Eval cases 1-4 from PRD 3d (tests/evals/cases/) and the eval runner (tests/evals/runner.py): scripted mode is free and repeatable and tests the code around the model; live mode uses the real model, you choose --runs N. Judged by code only. Live results against the PRD 2c metrics are not collected yet
+- [x] Automated checks: unknown eligibility, wrong cost/currency, unavailable option, changed details, tool failure, duplicates, other traveler's booking, mock/Duffel mixing. Mine: tests/unit/harness/test_safety_checks.py, test_gate_limits.py and the runner's bad-agent tests; changed details, duplicates, other booking and mock/Duffel mixing are also covered by Jian's gate tests
 
 ## Jian: tools, services and API
 - [x] Find what Duffel's test API supports; record in docs/duffel-notes.md
@@ -43,7 +43,7 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [x] Wire the shell to the real API once the chat/confirm and dev/booking endpoints exist
 - [x] UI polish from a design review: booking cards with city names, time, airline and action; recovery workspace layout; conversation and airline-change banners kept across navigation; "Checking your rebooking" state for uncertain confirmations; plain-language footer
 - [ ] Structured comparison: up to three flight cards from validated tool results with a reason derived from code facts (needs an API addition and Cheich's limits filter), editable requirement chips fed by the agent's confirmed limits, progress stepper, no-options screen. Not a requirements form: the PRD has the agent capture needs from everyday language
-- [ ] Cheich's chat plugs into the chat slot
+- [x] Cheich's chat plugs into the chat slot (features/chat: messages, thinking indicator, example prompts, safe formatting; checked in the browser, light and dark, phone width)
 
 ## Deployment (later, after the demo; proposed)
 - [ ] Decide hosting (Vercel alone is not enough for this project; it needs two services): backend on a long-running host (Render, Railway or Fly) with ONE worker (`--workers 1`), frontend on Vercel or Netlify. Sessions, chat history, the confirmation gate and mock state live in memory, so serverless functions or several workers would lose them between requests. The alternative is moving that state to Redis or a database (a feature of its own, not in the PRD)
@@ -57,9 +57,9 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 - [ ] react-router: replace the small hash router (`frontend/src/app/route.ts`, URLs like `#/bookings/ID`) with react-router for clean URLs (`/bookings/ID`), more pages and "not found" handling. Needs a rewrite-all-to-index.html rule on the host (see Deployment). The swap is one file; worth it once the app has more than two screens
 
 ## Integration (Shared)
-- [ ] Happy path end to end (eval case 1)
-- [ ] Cases 2-4, no-options flow, failure and simulated handoff
-- [ ] Run all 4 evals; check against PRD 2c success metrics
+- [x] Happy path end to end (eval case 1): checked in the real app and by the live eval (3 of 3 runs)
+- [x] Cases 2-4, no-options flow, failure and simulated handoff: checked in the real app on all 4 bookings and by the live eval
+- [x] Run all 4 evals; check against PRD 2c success metrics. Final live run (claude-haiku-5-5, 12 conversations): 12 of 12 completed (target 70%), median 13 to 24 s per conversation (target under 5 minutes), 0 rule violations (target 0), 0 rebookings without explicit confirmation, shown costs match the service. Requirement understanding 93% (target 90%). One model only; one partial slip recorded in docs/work-log/cheich.md
 - [ ] Frontend: chat and booking views (owner TBD)
 
 ## Open decisions

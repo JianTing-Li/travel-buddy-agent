@@ -1,16 +1,12 @@
 /**
- * EMPTY slot where the chat goes. Owner: Jian.
+ * Where the chat goes. Owner: Jian.
  *
- * Cheich builds the chat in features/chat. It receives ChatSlotProps (see types.ts) and replaces this component's
- * body; the shell does not change. Nothing here sends or shows messages.
+ * Cheich builds the chat in features/chat. It receives ChatSlotProps (see types.ts); this component only hands the
+ * props over, so the shell does not change.
  */
+import { ChatPanel } from '../features/chat/ChatPanel.tsx'
 import type { ChatSlotProps } from './types.ts'
 
-export function ChatSlot({ bookingId }: ChatSlotProps) {
-  return (
-    <section className="card slot" aria-label={`Chat slot for booking ${bookingId}`}>
-      <h2 className="card-title">Chat with Travel Buddy</h2>
-      <p className="muted">The chat goes here.</p>
-    </section>
-  )
+export function ChatSlot(props: ChatSlotProps) {
+  return <ChatPanel {...props} />
 }

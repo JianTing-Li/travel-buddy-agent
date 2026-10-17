@@ -48,12 +48,12 @@ def test_changed_details_require_new_confirmation():
     gate, tools, calls = make()
     tools["prepare_rebooking"](B, OPT)
     gate._tools["prepare_rebooking"] = lambda booking_id, option_id: {
-        "latest_option_details": {"option_id": OPT, "additional_cost": 50, "data_source": "mock"},
+        "latest_option_details": {"option_id": OPT, "eligibility": "eligible", "additional_cost": 50, "currency": "USD", "data_source": "mock"},
         "validation_result": "valid", "changes_to_review": ["price changed"]}
     gate._prepare = gate._tools["prepare_rebooking"]
     assert gate.confirm(B, OPT)["status"] == "rejected" and calls == []
     gate._prepare = lambda booking_id, option_id: {
-        "latest_option_details": {"option_id": OPT, "additional_cost": 50, "data_source": "mock"},
+        "latest_option_details": {"option_id": OPT, "eligibility": "eligible", "additional_cost": 50, "currency": "USD", "data_source": "mock"},
         "validation_result": "valid", "changes_to_review": []}
     assert gate.confirm(B, OPT)["status"] == "confirmed"  # traveler saw the new details and confirmed again
 
@@ -77,3 +77,48 @@ def test_mock_completer_rejects_non_mock_option():
     gate = ConfirmationGate(src.tools, src.complete_rebooking, "mock")
     gate._prepared[B] = (OPT, "x", "duffel")
     assert gate.confirm(B, OPT)["status"] == "rejected"
+
+
+def _changed(cost, changes):
+    return lambda booking_id, option_id: {
+        "latest_option_details": {"option_id": OPT, "eligibility": "eligible", "additional_cost": cost,
+                                  "currency": "USD", "data_source": "mock"},
+        "validation_result": "valid", "changes_to_review": changes}
+
+
+def test_rejection_says_what_changed():
+    gate, tools, calls = make()
+    tools["prepare_rebooking"](B, OPT)
+    gate._prepare = _changed(50, ["additional cost changed from 0 to 50 USD"])
+    out = gate.confirm(B, OPT)
+    assert out["status"] == "rejected" and calls == []
+    assert "What changed: additional cost changed from 0 to 50 USD." in out["reason"]
+
+
+def test_rejection_without_change_list_has_no_empty_suffix():
+    gate, tools, _ = make()
+    tools["prepare_rebooking"](B, OPT)
+    gate._prepare = _changed(50, [])
+    assert "What changed" not in gate.confirm(B, OPT)["reason"]
+
+
+def test_unavailable_option_rejection_includes_changes():
+    gate, tools, _ = make()
+    tools["prepare_rebooking"](B, OPT)
+    gate._prepare = lambda booking_id, option_id: {
+        "latest_option_details": {"option_id": OPT}, "validation_result": "unavailable",
+        "changes_to_review": ["option is no longer available"]}
+    out = gate.confirm(B, OPT)
+    assert out["status"] == "rejected" and "no longer available" in out["reason"]
+
+
+def test_a_recheck_that_blows_up_rejects_and_books_nothing():
+    gate, tools, calls = make()
+    tools["prepare_rebooking"](B, OPT)
+
+    def broken(booking_id, option_id):
+        raise TimeoutError("lost connection")
+
+    gate._prepare = broken
+    out = gate.confirm(B, OPT)
+    assert out["status"] == "rejected" and "Could not re-check" in out["reason"] and calls == []
