@@ -15,13 +15,32 @@ from ..harness.confirmation import ConfirmationGate
 from ..harness.limits import limits_filter
 from ..services.duffel.client import DuffelClient
 from ..services.duffel.service import DuffelService
+from ..services.mock.generator import generate_scenario
 from ..services.mock.mock_service import MockService
-from ..services.mock.scenarios import Scenario, scenario_names
+from ..services.mock.scenarios import Scenario, load_scenario, scenario_names
 from ..tools.registry import ToolSet, build_tools
 
 SESSION_IDLE_SECONDS = 12 * 60 * 60
 MAX_SESSIONS = 200
 MAX_BOOKINGS_PER_SESSION = 50
+# A display-only tool: the agent says which checked option it recommends, so the app can mark that card.
+# It books nothing and changes nothing the gate checks.
+RECOMMEND_SCHEMA: dict[str, Any] = {
+    "name": "recommend_option",
+    "description": (
+        "After a search, mark the one option you recommend so the app highlights its card. It must be one of the "
+        "options the latest search returned as fitting the traveler's limits. This does not prepare or book anything."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {"booking_id": {"type": "string"}, "option_id": {"type": "string"}},
+        "required": ["booking_id", "option_id"],
+    },
+}
+
+# On-time bookings every default session starts with next to the PRD cases, so the list is not only disruptions.
+# (booking id, generator seed); the seed fixes the route, times and options.
+STARTER_ON_TIME = (("MOCK-ONTIME-1", 1), ("MOCK-ONTIME-2", 6))
 
 
 class UnknownScenarioError(ValueError):
@@ -47,9 +66,16 @@ class Session:
     duffel: DuffelService | None = None  # this session's Duffel TEST bookings; None when Duffel isn't configured
     histories: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # booking_id -> chat history
     prepared: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> latest prepare_rebooking result
+    searched: dict[str, dict[str, Any]] = field(default_factory=dict)  # booking_id -> last checked search, for cards
+    transcripts: dict[str, list[dict[str, Any]]] = field(default_factory=dict)  # booking_id -> what the traveler saw
+    # booking_id -> how to build that mock booking again with fresh dates (scenario files, starters, generated)
+    sources: dict[str, Callable[[], Scenario]] = field(default_factory=dict)
+    answered: dict[str, tuple[str, Any]] = field(default_factory=dict)  # booking_id -> (message_id, ChatOut)
+    turns: int = 0  # answered chat turns, for the per-session limit
     notices: dict[str, list[str]] = field(default_factory=dict)  # booking_id -> app notices for the next chat turn
     shown_changes: dict[str, set[str]] = field(default_factory=dict)  # booking_id -> change ids already shown
     scenario_names: list[str] = field(default_factory=list)  # the mock scenarios this session started with
+    starters: bool = False  # whether it also started with the on-time starter bookings
     duffel_client: DuffelClient | None = None  # kept so a reset can start a fresh Duffel service
     last_used: float = field(default_factory=time.monotonic)
     lock: threading.Lock = field(default_factory=threading.Lock)  # one request at a time per session
@@ -80,21 +106,47 @@ class Session:
         self.allowed_ids.add(booking_id)
         return booking_id
 
-    def add_booking(self, scenario: Scenario) -> str:
-        """Add a generated mock booking to this session and let its tools reach it."""
+    def add_booking(self, scenario: Scenario, source: Callable[[], Scenario] | None = None) -> str:
+        """Add a generated mock booking to this session and let its tools reach it. `source` rebuilds it later
+        with fresh dates."""
         self._check_room()
         booking_id = self.service.add_booking(scenario)
         self.allowed_ids.add(booking_id)
+        if source is not None:
+            self.sources[booking_id] = source
         return booking_id
+
+    def refresh_stale(self) -> None:
+        """Rebuild, with fresh dates, every mock booking nobody has used yet whose flights are about to leave, so a
+        session left open overnight never offers yesterday's flights. A booking in use keeps its dates."""
+        with self.lock:
+            for booking_id, source in self.sources.items():
+                if (booking_id in self.service.booking_ids() and not self.histories.get(booking_id)
+                        and self.service.needs_refresh(booking_id)):
+                    self.service.replace_booking(source())
+                    self.shown_changes.pop(booking_id, None)
+
+    def clear_disruption(self, booking_id: str) -> None:
+        """Put one mock booking back to normal (on time) and forget its chat, card, notices and gate state.
+        The caller holds the session lock and has checked it is a mock booking."""
+        source = self.sources.get(booking_id)
+        self.service.clear_disruption(booking_id, source() if source else None)
+        self.gate.forget(booking_id)
+        for per_booking in (self.histories, self.prepared, self.searched, self.notices, self.shown_changes,
+                            self.transcripts, self.answered):
+            per_booking.pop(booking_id, None)
 
     def reset(self) -> None:
         """Start this session over: its first mock bookings only, nothing generated, changed, faulted or rebooked,
         no chat history. Duffel test bookings leave the session (the orders stay on the Duffel test account).
         Other sessions are untouched. The caller holds the session lock."""
-        parts = _build(self.scenario_names, self.duffel_client)
+        parts = _build(self.scenario_names, self.duffel_client, self.starters)
         self.service, self.toolset, self.gate, self.tools = parts.service, parts.toolset, parts.gate, parts.tools
+        self.sources = parts.sources
         self.allowed_ids, self.duffel, self.prepared = parts.allowed_ids, parts.duffel, parts.prepared
+        self.searched = parts.searched
         self.histories, self.notices, self.shown_changes = {}, {}, {}
+        self.transcripts, self.answered = {}, {}
 
 
 @dataclass
@@ -106,15 +158,29 @@ class _Parts:
     allowed_ids: set[str]
     duffel: DuffelService | None
     prepared: dict[str, dict[str, Any]]
+    searched: dict[str, dict[str, Any]]
+    sources: dict[str, Callable[[], Scenario]]
 
 
-def _build(names: list[str], client: DuffelClient | None) -> _Parts:
+def _build(names: list[str], client: DuffelClient | None, starters: bool = False) -> _Parts:
     """Everything a session needs, wired together: services, tools, the confirmation gate."""
-    service = MockService(scenarios=list(dict.fromkeys(names)))
+    unique = list(dict.fromkeys(names))
+    service = MockService(scenarios=unique)
+    sources: dict[str, Callable[[], Scenario]] = {
+        booking_id: (lambda name=name: load_scenario(name))  # the service loads the files in this order
+        for name, booking_id in zip(unique, service.booking_ids())
+    }
+    if starters:
+        for booking_id, seed in STARTER_ON_TIME:
+            def starter(seed: int = seed, booking_id: str = booking_id) -> Scenario:
+                return generate_scenario(seed, situation="on time", booking_id=booking_id)
+            service.add_booking(starter())
+            sources[booking_id] = starter
     allowed = set(service.booking_ids())
     duffel = DuffelService(client) if client is not None else None
     toolset = build_tools(service, allowed_booking_ids=allowed, duffel=duffel, limits_filter=limits_filter)
-    gate = ConfirmationGate(toolset.tools, toolset.complete_rebooking, source="real")
+    # strict: nothing can be prepared or confirmed until a search checked by code has confirmed the traveler's limits
+    gate = ConfirmationGate(toolset.tools, toolset.complete_rebooking, source="real", require_checked_search=True)
     prepared: dict[str, dict[str, Any]] = {}
     gate_tools = gate.tools()
 
@@ -123,8 +189,30 @@ def _build(names: list[str], client: DuffelClient | None) -> _Parts:
         prepared[booking_id] = result  # what the confirm card shows comes from this, not from the model
         return result
 
-    tools = {**gate_tools, "prepare_rebooking": prepare_rebooking}
-    return _Parts(service, toolset, gate, tools, allowed, duffel, prepared)
+    searched: dict[str, dict[str, Any]] = {}
+
+    def search_replacements(**kwargs: Any) -> Any:
+        result = gate_tools["search_replacements"](**kwargs)
+        if isinstance(result, dict) and result.get("limits_checked_by_code") is True and kwargs.get("limits"):
+            # what the option cards show comes from this code-checked result, not from the model's reply
+            searched[kwargs["booking_id"]] = {"options": result.get("options", []),
+                                              "excluded": result.get("excluded_by_limits", []),
+                                              "limits": kwargs["limits"]}
+            # new results mean a new choice: an option prepared earlier no longer gets a confirm card
+            prepared.pop(kwargs["booking_id"], None)
+        return result
+
+    def recommend_option(booking_id: str, option_id: str) -> dict[str, Any]:
+        latest = searched.get(booking_id)
+        if not latest or option_id not in {o.get("option_id") for o in latest["options"]}:
+            raise ValueError("You can only recommend an option the latest search returned as fitting the limits.")
+        latest["recommended"] = option_id
+        return {"recommended": option_id,
+                "note": "The app highlights this option's card. Nothing was prepared. Now write your reply."}
+
+    tools = {**gate_tools, "search_replacements": search_replacements, "prepare_rebooking": prepare_rebooking,
+             "recommend_option": recommend_option}
+    return _Parts(service, toolset, gate, tools, allowed, duffel, prepared, searched, sources)
 
 
 class SessionStore:
@@ -147,9 +235,11 @@ class SessionStore:
         if unknown or not names:
             raise UnknownScenarioError(f"Unknown or empty scenarios. Choose from: {', '.join(known)}")
         client = self._duffel_client_factory() if self._duffel_client_factory else None
-        p = _build(names, client)
+        starters = scenarios is None  # a session asking for specific scenarios gets exactly those
+        p = _build(names, client, starters)
         session = Session(secrets.token_urlsafe(32), p.service, p.toolset, p.gate, p.tools, p.allowed_ids, p.duffel,
-                          prepared=p.prepared, scenario_names=list(names), duffel_client=client)
+                          prepared=p.prepared, searched=p.searched, sources=p.sources, scenario_names=list(names),
+                          starters=starters, duffel_client=client)
         with self._lock:
             self._expire()
             while len(self._sessions) >= self._max_sessions:

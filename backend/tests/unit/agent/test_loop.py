@@ -126,3 +126,48 @@ def test_normal_reply_is_not_marked_truncated_and_default_limit_is_4096():
     from backend.app.agent.decide import DEFAULT_MAX_TOKENS, decide
     d = decide(FakeClient(resp(text("hi"))), "m", "s", [], [])
     assert d.kind == "text" and d.truncated is False and DEFAULT_MAX_TOKENS == 4096
+
+
+def test_a_reply_written_next_to_a_last_tool_call_is_the_answer_when_nothing_follows():
+    # The model wrote its reply alongside a final bookkeeping tool call, then returned nothing after the result.
+    from types import SimpleNamespace as NS
+
+    from backend.app.agent.loop import run_turn
+
+    class Model:
+        def __init__(self):
+            self.items = [
+                NS(content=[NS(type="text", text="I recommend the 11 AM nonstop."),
+                            NS(type="tool_use", id="t1", name="note", input={})], stop_reason="tool_use"),
+                NS(content=[], stop_reason="end_turn"),
+            ]
+            self.messages = NS(create=lambda **kwargs: self.items.pop(0))
+
+    result = run_turn(Model(), "m", "system", [], "hi", {"note": lambda: {"ok": True}}, [])
+    assert result.stopped_reason == "reply" and result.reply == "I recommend the 11 AM nonstop."
+    assert result.history[-1] == {"role": "assistant", "content": [{"type": "text", "text": result.reply}]}
+
+
+def test_an_empty_response_with_nothing_said_before_is_still_an_error():
+    from types import SimpleNamespace as NS
+
+    from backend.app.agent.loop import run_turn
+
+    model = NS(messages=NS(create=lambda **kwargs: NS(content=[], stop_reason="end_turn")))
+    assert run_turn(model, "m", "system", [], "hi", {}, []).stopped_reason == "error"
+
+
+def test_text_written_next_to_a_display_only_call_starts_the_reply():
+    from types import SimpleNamespace as NS
+
+    from backend.app.agent.loop import run_turn
+
+    items = [
+        NS(content=[NS(type="text", text="I recommend the 11 AM nonstop."),
+                    NS(type="tool_use", id="t1", name="recommend_option", input={})], stop_reason="tool_use"),
+        NS(content=[NS(type="text", text="Which one would you like?")], stop_reason="end_turn"),
+    ]
+    model = NS(messages=NS(create=lambda **kwargs: items.pop(0)))
+    tools = {"recommend_option": lambda: {"ok": True}}
+    result = run_turn(model, "m", "system", [], "hi", tools, [], display_tools=frozenset({"recommend_option"}))
+    assert result.reply == "I recommend the 11 AM nonstop.\n\nWhich one would you like?"

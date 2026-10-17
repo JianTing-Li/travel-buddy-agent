@@ -1,12 +1,15 @@
 """Loads the MOCK scenario files in data/mock/scenarios/ into contract models. Owner: Jian.
 
-Scenario times are local wall-clock times with a day offset from "today", so the data never goes stale.
-They are resolved to ISO timestamps with a UTC offset when loaded. Everything produced here is simulated and
+Scenario times are local wall-clock times with a day offset from a base day, resolved to ISO timestamps with a
+UTC offset when loaded. The base day is today at the departure airport, or a later day once today's first
+replacement flight is about to leave, so the options are always in the future (see `base_day`). A missed flight
+is always in the past. Everything produced here is simulated and
 tagged data_source="mock". The contract models are used unchanged.
 """
+import hashlib
 import json
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -17,7 +20,9 @@ from ...contract.models import Option, TripContext
 from . import provisional
 
 SCENARIOS_DIR = Path(__file__).resolve().parents[3] / "data" / "mock" / "scenarios"
-MOCK_AIRLINE = "Mock Air (SIMULATED)"
+# A replacement leaving sooner than this can't really be caught, so the data moves to the next day.
+MIN_LEAD = timedelta(minutes=60)
+MOCK_AIRLINE = "Skyway Air"  # fictional; the data is marked simulated by its simulated flag and data_source
 
 
 class ScenarioError(Exception):
@@ -86,18 +91,44 @@ def scenario_names(directory: Path = SCENARIOS_DIR) -> list[str]:
     return sorted(p.stem for p in directory.glob("*.json"))
 
 
-def _resolve(local: _LocalTime, today: date) -> str:
+def _moment(local: _LocalTime, today: date) -> datetime:
     try:
         zone = ZoneInfo(local.tz)
         hour, minute = (int(part) for part in local.time.split(":"))
-        moment = datetime.combine(today + timedelta(days=local.day_offset), time(hour, minute), tzinfo=zone)
+        return datetime.combine(today + timedelta(days=local.day_offset), time(hour, minute), tzinfo=zone)
     except (ValueError, KeyError) as exc:  # ZoneInfoNotFoundError is a KeyError
         raise ScenarioError(f"Bad local time {local.model_dump()}: {exc}") from exc
-    return moment.isoformat(timespec="minutes")
 
 
-def load_scenario(name: str, today: date | None = None, directory: Path = SCENARIOS_DIR) -> Scenario:
-    """Load one scenario. `today` fixes the date for tests; it defaults to the current date."""
+def _resolve(local: _LocalTime, today: date) -> str:
+    return _moment(local, today).isoformat(timespec="minutes")
+
+
+def booking_reference(booking_id: str) -> str:
+    """A six-character record locator like airlines print (e.g. "K7QX2M"), stable for the same booking id."""
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I, as on real tickets
+    value = int.from_bytes(hashlib.sha256(booking_id.encode()).digest()[:8], "big")
+    return "".join(alphabet[(value >> (5 * i)) % len(alphabet)] for i in range(6))
+
+
+def base_day(first_departure: Any, now: datetime, tz: str) -> date:
+    """Today at the departure airport, or the next day on which the first replacement still leaves at least
+    MIN_LEAD from now. `first_departure(day)` gives that flight's departure for a candidate day."""
+    try:
+        day = now.astimezone(ZoneInfo(tz)).date()
+    except (ValueError, KeyError) as exc:  # ZoneInfoNotFoundError is a KeyError
+        raise ScenarioError(f"Bad local time zone {tz!r}: {exc}") from exc
+    for _ in range(3):
+        if first_departure(day) >= now + MIN_LEAD:
+            return day
+        day += timedelta(days=1)
+    return day
+
+
+def load_scenario(name: str, today: date | None = None, directory: Path = SCENARIOS_DIR,
+                  now: datetime | None = None) -> Scenario:
+    """Load one scenario. `today` fixes the base day for tests; without it the base day follows `now` (default:
+    the current time) so every replacement is still in the future."""
     path = directory / f"{name}.json"
     if not path.is_file():
         raise ScenarioError(f"Unknown scenario '{name}'. Choose from: {', '.join(scenario_names(directory))}")
@@ -113,15 +144,26 @@ def load_scenario(name: str, today: date | None = None, directory: Path = SCENAR
     if len(ids) != len(set(ids)):
         raise ScenarioError(f"Scenario '{name}' repeats an option_id")
 
-    today = today or date.today()
+    live = today is None  # a fixed `today` (tests) means fixed data: no moving to the next day
+    now = now or datetime.now(timezone.utc)
+    if live:
+        first = data.options[0].departs if data.options else data.original_itinerary.departs
+        today = base_day(lambda day: min((_moment(o.departs, day) for o in data.options),
+                                         default=_moment(data.original_itinerary.departs, day)),
+                         now, first.tz)
     itinerary = data.original_itinerary
+    departs = _resolve(itinerary.departs, today)
+    if live and data.disruption.status == "missed by traveler" and datetime.fromisoformat(departs) > now:
+        departs = _resolve(itinerary.departs, today - timedelta(days=1))  # a missed flight has already left
     trip = TripContext(
         original_itinerary={
             "booking_id": data.booking_id,
+            "airline": MOCK_AIRLINE,
             "flight": itinerary.flight,
+            "booking_reference": booking_reference(data.booking_id),
             "origin": itinerary.origin,
             "destination": itinerary.destination,
-            "departs": _resolve(itinerary.departs, today),
+            "departs": departs,
             "status": data.disruption.status,
         },
         passengers=[{"passenger_id": f"{data.booking_id}-P{i + 1}", "type": "adult"} for i in range(data.passenger_count)],

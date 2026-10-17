@@ -1,0 +1,21 @@
+# Render Blueprint for the Travel Buddy API. Owner: Jian. See docs/deploy.md.
+# One worker on purpose: sessions, chat history and the confirmation gate live in memory.
+# Never start dev_app here: its /dev endpoints are test tools and must not be public.
+services:
+  - type: web
+    name: travel-buddy-api
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app.api.main:app --host 0.0.0.0 --port $PORT --workers 1 --no-access-log --proxy-headers --forwarded-allow-ips="*"
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DUFFEL_ACCESS_TOKEN  # a duffel_test_ token only
+        sync: false
+      - key: MODEL
+        value: claude-haiku-5-5
+      - key: ALLOWED_ORIGINS  # your Vercel address, e.g. https://travel-buddy.vercel.app
+        sync: false
+      - key: DEMO_ACCESS_CODE  # the code you give people you share the demo with
+        sync: false

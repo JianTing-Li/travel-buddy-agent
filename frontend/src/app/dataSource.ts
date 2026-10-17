@@ -4,6 +4,7 @@ import type {
   BookingDetail,
   BookingSummary,
   ChangeCheckOut,
+  ChatHistoryOut,
   ChatOut,
   ConfirmOut,
   DevBookingCreate,
@@ -20,6 +21,8 @@ export interface DevApi {
   /** Creates a real Duffel TEST order and adds it to the session. */
   createDuffelBooking(body: DevDuffelBookingIn): Promise<BookingSummary>
   disrupt(bookingId: string, body: DevDisruptIn): Promise<AirlineChange>
+  /** Puts a mock booking back to normal (on time) and starts its chat over. */
+  clearDisruption(bookingId: string): Promise<BookingSummary>
   setFaults(bookingId: string, faults: string[]): Promise<DevFaultsOut>
   /** Starts this session over with its first mock bookings. Other sessions are untouched. */
   reset(): Promise<DevResetOut>
@@ -33,7 +36,12 @@ export interface BookingsApi {
   getBooking(bookingId: string): Promise<BookingDetail>
   /** Looks for airline changes since the last check; each change is returned only once. */
   checkChanges(bookingId: string): Promise<ChangeCheckOut>
-  chat(bookingId: string, message: string): Promise<ChatOut>
+  /** messageId is reused when the same message is sent again, so the server answers it only once. */
+  chat(bookingId: string, message: string, messageId?: string): Promise<ChatOut>
+  /** The conversation so far as the traveler saw it (empty for a new one). */
+  chatHistory(bookingId: string): Promise<ChatHistoryOut>
   confirm(bookingId: string, optionId: string): Promise<ConfirmOut>
   dev?: DevApi
+  /** A deployed demo may need an access code to start a session; the app sends it from then on. */
+  setAccessCode?(code: string): void
 }

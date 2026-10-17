@@ -32,7 +32,7 @@ from ..errors import (
     UnknownOptionError,
 )
 from ..mock import provisional
-from ..validation import clock_text, diff_options, validate_option
+from ..validation import diff_options, local_time_text, validate_option
 from .client import DuffelApiError, DuffelClient, DuffelTransportError
 
 ORDER_PREFIX = "ord_"
@@ -188,8 +188,8 @@ class DuffelService:
             after = _segment_details((change.get("added") or [{}])[0])
             summary = "The airline changed this flight."
             if before["departs"] and after["departs"]:
-                summary = (f"The airline moved the departure from {clock_text(datetime.fromisoformat(before['departs']))} "
-                           f"to {clock_text(datetime.fromisoformat(after['departs']))}.")
+                summary = (f"The airline moved your departure from {local_time_text(datetime.fromisoformat(before['departs']))} "
+                           f"to {local_time_text(datetime.fromisoformat(after['departs']))}.")
             changes.append(AirlineChange(
                 change_id=change.get("id") or "", booking_id=booking_id, kind="delay", summary=summary,
                 detected_at=change.get("created_at") or self._now().isoformat(timespec="seconds"),

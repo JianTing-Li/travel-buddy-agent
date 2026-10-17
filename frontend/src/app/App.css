@@ -84,6 +84,40 @@
   font-size: 13px;
 }
 
+/* the dev tools switch in the header (dev builds only) */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font-size: 14px;
+  cursor: pointer;
+}
+.switch-track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background-color var(--dur) ease;
+}
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  transition: transform var(--dur) var(--ease-out);
+}
+.switch[aria-checked='true'] .switch-track { background: var(--accent); }
+.switch[aria-checked='true'] .switch-knob { transform: translateX(14px); }
+
 /* pills */
 .pill {
   display: inline-flex;
@@ -115,8 +149,10 @@
   color: var(--text);
   font-weight: 500;
   cursor: pointer;
+  transition: background-color var(--dur-fast) ease, opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
 }
 .btn:hover { background: var(--surface-2); }
+.btn:active:not(:disabled) { transform: scale(0.98); }
 .btn-primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .btn-primary:hover { background: var(--primary); opacity: 0.88; }
 .btn-small { min-height: 32px; padding: 4px 12px; font-size: 14px; }
@@ -149,7 +185,15 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
-.booking-card:hover { border-color: var(--accent); }
+.booking-card {
+  transition: border-color var(--dur) ease, box-shadow var(--dur) ease, transform var(--dur) var(--ease-out);
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+.booking-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 14px rgb(0 0 0 / 0.06); }
+.stack > .booking-card:nth-child(2) { animation-delay: 40ms; }
+.stack > .booking-card:nth-child(3) { animation-delay: 80ms; }
+.stack > .booking-card:nth-child(4) { animation-delay: 120ms; }
+.stack > .booking-card:nth-child(n + 5) { animation-delay: 160ms; }
 .booking-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .booking-route { font-size: 20px; font-weight: 600; }
 .booking-cities { font-size: 15px; color: var(--text-2); }
@@ -179,20 +223,66 @@
 .banner h2 { font-size: 16px; font-weight: 600; }
 .banner p { font-size: 14px; }
 
-.recovery-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-.recovery { padding: 20px; }
-.recovery-title { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
-.needs { margin: 12px 0; padding-left: 20px; display: grid; gap: 4px; }
+.booking-page { display: grid; gap: 16px; animation: rise var(--dur-slow) var(--ease-out) both; }
+.booking-page > .back { justify-self: start; margin-bottom: 0; }
 .notice { background: var(--surface-2); }
-.compact { padding: 14px; font-size: 14px; }
-.compact .card-title { font-size: 14px; color: var(--text-2); font-weight: 600; }
-.compact-route { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
 .pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* flight card: the trip, what happened, and the flight(s) */
+.flight-card { display: grid; gap: 14px; padding: 20px; }
+.flight-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.flight-status { padding: 12px 14px; border-radius: 10px; transition: background-color var(--dur-slow) ease, color var(--dur-slow) ease; }
+.flight-status--change { animation: rise var(--dur-slow) var(--ease-out) both, attention 1.2s ease-out 0.2s both; }
+.flight-status h2 { font-size: 16px; font-weight: 600; }
+.flight-status p { font-size: 14px; }
+.flight-status--danger { background: var(--danger-bg); color: var(--danger-text); }
+.flight-status--warn { background: var(--warn-bg); color: var(--warn-text); }
+.flight-status--success { background: var(--success-bg); color: var(--success-text); }
+.flight-status--neutral { background: var(--surface-2); color: var(--text); }
+.flight-row { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--border); transition: color var(--dur-slow) ease; }
+.flight-row--new { animation: rise var(--dur-slow) var(--ease-out) both; }
+.flight-row-label { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.flight-line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.flight-end { display: grid; gap: 1px; }
+.flight-end--arrive { text-align: right; }
+.flight-time { font-size: 22px; font-weight: 600; line-height: 1.2; }
+.flight-airport { font-size: 15px; font-weight: 600; }
+.flight-path { display: grid; gap: 4px; justify-items: center; text-align: center; }
+.flight-path-line {
+  position: relative;
+  width: 100%;
+  height: 2px;
+  background: var(--border-strong);
+}
+.flight-path-line::after {
+  content: '✈';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -54%);
+  padding: 0 6px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 14px;
+}
+.flight-row--replaced { color: var(--text-3); }
+.flight-row--replaced .flight-time { text-decoration: line-through; font-size: 18px; }
+.flight-row--replaced .flight-time--blank { text-decoration: none; }
+.flight-row--replaced .flight-airport { font-weight: 500; }
+.flight-ref { margin-top: -4px; }
+
+/* text for screen readers only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .pending { margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-text); }
 .pending h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 
@@ -200,9 +290,6 @@
 .facts { display: grid; gap: 4px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--text-2); }
 .facts strong { color: var(--text); font-weight: 600; }
 
-/* chat slot (empty; the chat component fills it) */
-.slot { display: grid; place-content: center; min-height: 200px; text-align: center; border-style: dashed; }
-.slot .card-title { margin-bottom: 4px; }
 
 /* confirm card */
 .confirm {
@@ -228,9 +315,10 @@
 .error-text { color: var(--danger-text); font-size: 14px; margin-top: 8px; }
 
 @media (max-width: 720px) {
-  .recovery-grid { grid-template-columns: minmax(0, 1fr); }
   .booking-meta { justify-content: flex-start; }
   .page-title { font-size: 21px; }
+  .flight-card { padding: 16px; }
+  .flight-time { font-size: 19px; }
 }
 
 /* dev panel (test tools, only when VITE_DEV_PANEL=true) */
@@ -250,4 +338,34 @@
 }
 .dev-faults { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--border); }
 .dev-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
-.dev-duffel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.dev-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.dev-message { margin-top: 10px; font-size: 14px; color: var(--success-text); animation: rise var(--dur) var(--ease-out) both; }
+
+/* loading placeholders in the shape of what is coming */
+.skeleton {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-line { height: 14px; }
+.skeleton-title { height: 26px; width: 55%; }
+.skeleton-block { height: 72px; }
+.skeleton-card { display: grid; gap: 10px; padding: 18px; min-height: 120px; }
+@keyframes shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+/* access code screen for a private demo */
+.access { display: grid; gap: 8px; max-width: 460px; margin: 40px auto; padding: 24px; }
+.access-row { display: flex; gap: 8px; margin-top: 8px; }
+.access-input {
+  flex: 1;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+}

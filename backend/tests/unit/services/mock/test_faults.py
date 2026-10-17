@@ -77,7 +77,7 @@ def test_changed_details_only_acts_after_the_traveler_has_seen_the_options(servi
     changed = service.prepare_rebooking("MOCK-CASE-2", "opt-2a")
     assert changed.validation_result == provisional.RESULT_CHANGED
     assert changed.latest_option_details.additional_cost == 80 + CHANGED_DETAILS_EXTRA_COST
-    assert "Additional cost changed from 80 USD to 95 USD." in changed.changes_to_review
+    assert "Extra cost changed from 80 USD to 95 USD." in changed.changes_to_review
     with pytest.raises(RebookingNotAllowedError):
         service.complete_rebooking("MOCK-CASE-2", "opt-2a")  # the changed option needs a new review first
     assert service.prepare_rebooking("MOCK-CASE-2", "opt-2a").validation_result == provisional.RESULT_VALID

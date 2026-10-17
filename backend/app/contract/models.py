@@ -102,7 +102,7 @@ class TripContext(BaseModel):
 class ValidationResult(BaseModel):
     latest_option_details: Option
     validation_result: ValidationOutcome
-    changes_to_review: list[str]  # plain sentences, e.g. "Additional cost changed from 80 USD to 95 USD."
+    changes_to_review: list[str]  # plain sentences, e.g. "Extra cost changed from 80 USD to 95 USD."
 
 
 class Handoff(BaseModel):

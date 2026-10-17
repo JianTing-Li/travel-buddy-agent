@@ -72,7 +72,7 @@ def test_prepare_reports_changed_details_once_then_accepts_the_new_version(servi
     tamper(service, "MOCK-CASE-2", "opt-2a", additional_cost=95.0)
     changed = service.prepare_rebooking("MOCK-CASE-2", "opt-2a")
     assert changed.validation_result == provisional.RESULT_CHANGED
-    assert changed.changes_to_review == ["Additional cost changed from 80 USD to 95 USD."]
+    assert changed.changes_to_review == ["Extra cost changed from 80 USD to 95 USD."]
     assert changed.latest_option_details.additional_cost == 95
     again = service.prepare_rebooking("MOCK-CASE-2", "opt-2a")  # the traveler has now seen the new version
     assert again.validation_result == provisional.RESULT_VALID
@@ -112,11 +112,11 @@ def test_complete_returns_a_labeled_simulated_confirmation(service):
     service.search_replacements("MOCK-CASE-2")
     service.prepare_rebooking("MOCK-CASE-2", "opt-2b")
     confirmation = service.complete_rebooking("MOCK-CASE-2", "opt-2b")
-    assert confirmation["confirmation_id"] == "SIM-CONF-MOCK-CASE-2-opt-2b"
+    assert confirmation["confirmation_id"] == "74KCJG"  # a ticket-style code, stable for the booking and option
     assert confirmation["simulated"] is True and confirmation["data_source"] == "mock"
     assert "No real airline ticket" in confirmation["note"]
     assert confirmation["additional_cost"] == 140 and confirmation["currency"] == "USD"
-    assert confirmation["updated_itinerary"]["flight"] == "Mock Air 270"
+    assert confirmation["updated_itinerary"]["flight"] == "SW 270"
     assert service.get_confirmation("MOCK-CASE-2") == confirmation
 
 

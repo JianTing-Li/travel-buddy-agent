@@ -8,6 +8,7 @@ Every call except POST /sessions and GET /health needs the X-Session-Id header f
 A session can only reach its own bookings; any other booking id gets the same 404 as an unknown one.
 Everything served today is simulated mock data.
 """
+from datetime import datetime
 from functools import lru_cache
 from typing import Annotated, Any
 
@@ -26,12 +27,16 @@ from ..services.duffel.test_orders import create_test_booking
 from ..services.errors import ServiceError
 from ..services.mock.generator import MAX_SEED, GeneratorError, generate_scenario
 from ..services.mock.mock_service import MockServiceError
+from ..services.validation import local_time_text
 from ..agent.loop import load_system_prompt, run_turn
+from .rate_limit import Limits, RateLimiter
 from .request_log import RedactedRequestLog, configure_logging
 from .schemas import (
     BookingDetail,
     BookingSummary,
     ChangeCheckOut,
+    ChatEntry,
+    ChatHistoryOut,
     ChatIn,
     ChatOut,
     ConfirmCard,
@@ -45,16 +50,27 @@ from .schemas import (
     DevFaultsOut,
     DevResetOut,
     ErrorOut,
+    SearchResults,
     SessionCreate,
     SessionOut,
 )
-from .sessions import DuffelNotConfiguredError, Session, SessionStore, TooManyBookingsError, UnknownScenarioError
+from .sessions import (
+    RECOMMEND_SCHEMA,
+    DuffelNotConfiguredError,
+    Session,
+    SessionStore,
+    TooManyBookingsError,
+    UnknownScenarioError,
+)
 
 DEV_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")  # Vite dev server
 SESSION_HEADER = "X-Session-Id"
+ACCESS_CODE_HEADER = "X-Access-Code"
+_FROM_CONFIG: Any = object()  # "read it from config", so tests can pass None to switch a setting off
 BOOKING_NOT_FOUND = "Booking not found."
 NOT_CONFIGURED = "The assistant isn't configured on the server."
 MAX_NOTICES = 5
+MODEL_TIMEOUT_SECONDS = 45.0
 
 
 @lru_cache(maxsize=1)
@@ -62,10 +78,22 @@ def _system_prompt() -> str:
     return load_system_prompt()
 
 
-def _chat_system_prompt(booking_id: str) -> str:
+def _chat_system_prompt(booking_id: str, confirmation: dict[str, Any] | None = None,
+                        travel_day: str | None = None) -> str:
     """The agent's prompt plus app-controlled context; the booking id never comes from the traveler's text."""
-    return (f"{_system_prompt()}\n\nApp context (written by the application, not the traveler): the traveler has "
-            f"opened booking {booking_id}. Use this booking_id when you call tools. All data is simulated.")
+    context = (f"{_system_prompt()}\n\nApp context (written by the application, not the traveler): the traveler has "
+               f"opened booking {booking_id}. Use this booking_id when you call tools. All data is simulated.")
+    if travel_day:
+        # e.g. a missed flight that left yesterday: the replacements, and so the traveler's times, are on another day
+        context += (f" The replacement flights are on {travel_day}, not on the day of the original flight: read a time"
+                    f" the traveler gives as local time on {travel_day} unless they say another day.")
+    if confirmation:
+        # every turn, not only the one after confirming, so the agent never treats a rebooked trip as open
+        context += (f" This booking is already rebooked (simulated, confirmation {confirmation.get('confirmation_id')})."
+                    " It cannot be rebooked again here. Answer questions about the new flight; if the traveler wants a"
+                    " different flight, explain that and offer the simulated support handoff. Do not search for or"
+                    " prepare another replacement.")
+    return context
 
 
 def _change_notice(change: AirlineChange) -> str:
@@ -102,23 +130,32 @@ def _summary(session: Session, booking_id: str) -> BookingSummary:
         disruption_type=trip.disruption_details.type,
         data_source=trip.data_source,
         rebooked=rebooked,
-        airline=itinerary.airline or itinerary.flight,
+        airline=" ".join(part for part in (itinerary.airline, itinerary.flight) if part) or None,
+        booking_reference=itinerary.booking_reference,
     )
 
 
 def create_app(
     store: SessionStore | None = None,
-    allowed_origins: tuple[str, ...] = DEV_ORIGINS,
+    allowed_origins: tuple[str, ...] | None = None,
     model_client: Any = None,
     model: str | None = None,
     dev: bool = False,
     duffel_client: DuffelClient | None = None,
+    access_code: str | None = _FROM_CONFIG,
+    limits: Limits | None = Limits(),
 ) -> FastAPI:
     """model_client and model are injectable for tests; by default they come from config (server-side only).
 
     dev=True also serves /dev endpoints that create simulated bookings, disruptions and faults for testing. They are
     mock-only, are not part of the traveler's app, and do not exist unless the app is created this way.
+
+    For a deployment: allowed_origins (default ALLOWED_ORIGINS, else the Vite dev server), access_code (default
+    DEMO_ACCESS_CODE; None means open) and limits (None switches the rate limits off).
     """
+    origins = allowed_origins or config.ALLOWED_ORIGINS or DEV_ORIGINS
+    code = config.DEMO_ACCESS_CODE if access_code is _FROM_CONFIG else access_code
+    limiter = RateLimiter()
     app = FastAPI(title="Travel Buddy API", description="Simulated rebooking. No real tickets are created.")
     app.state.duffel_client = duffel_client
 
@@ -137,9 +174,9 @@ def create_app(
     app.add_middleware(RedactedRequestLog)
     app.add_middleware(  # added last so it wraps everything, including error responses
         CORSMiddleware,
-        allow_origins=list(allowed_origins),
+        allow_origins=list(origins),
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", SESSION_HEADER],
+        allow_headers=["Content-Type", SESSION_HEADER, ACCESS_CODE_HEADER],
         expose_headers=["X-Request-Id"],
     )
     configure_logging()
@@ -153,6 +190,7 @@ def create_app(
         session = app.state.sessions.get(x_session_id)
         if session is None:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session not found or expired. Start a new session.")
+        session.refresh_stale()  # untouched mock bookings never show flights that already left
         return session
 
     SessionDep = Annotated[Session, Depends(current_session)]
@@ -171,7 +209,13 @@ def create_app(
 
     @app.post("/sessions", status_code=status.HTTP_201_CREATED, response_model=SessionOut,
               responses={422: {"model": ErrorOut}})
-    def create_session(body: SessionCreate | None = None) -> SessionOut:
+    def create_session(request: Request, body: SessionCreate | None = None,
+                       x_access_code: Annotated[str | None, Header()] = None) -> SessionOut:
+        if code and not secrets.compare_digest((x_access_code or "").encode(), code.encode()):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Enter the access code to use this demo.")
+        if limits and not limiter.allow("sessions", _client_ip(request), limits.sessions_per_ip_per_hour, 3600):
+            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                                "Too many new sessions from your network. Try again in an hour.")
         try:
             session = app.state.sessions.create(body.scenarios if body else None)
         except UnknownScenarioError as exc:
@@ -197,7 +241,9 @@ def create_app(
         if app.state.model_client is None:
             if not config.ANTHROPIC_API_KEY or not name:
                 raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, NOT_CONFIGURED)
-            app.state.model_client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+            # A stuck call must not leave the traveler waiting: one model call gets MODEL_TIMEOUT_SECONDS and one retry.
+            app.state.model_client = anthropic.Anthropic(
+                api_key=config.ANTHROPIC_API_KEY, timeout=MODEL_TIMEOUT_SECONDS, max_retries=1)
         if not name:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, NOT_CONFIGURED)
         return app.state.model_client, name
@@ -235,24 +281,55 @@ def create_app(
     unavailable = {**errors, 503: {"model": ErrorOut}}
 
     @app.post("/chat", response_model=ChatOut, responses=unavailable)
-    def chat(body: ChatIn, session: SessionDep) -> ChatOut:
+    def chat(body: ChatIn, session: SessionDep, request: Request) -> ChatOut:
         if not session.owns(body.booking_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, BOOKING_NOT_FOUND)
+        if limits:
+            if session.turns >= limits.chat_turns_per_session:
+                raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                                    "This demo session has reached its message limit.")
+            if not limiter.allow("chat", _client_ip(request), limits.chat_per_ip_per_minute, 60):
+                raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many messages. Wait a minute, then try again.")
         client, model_name = model_client_and_name()
         booking_id = body.booking_id
         with session.lock:
+            last = session.answered.get(booking_id)
+            if body.message_id and last and last[0] == body.message_id:
+                return last[1]  # a retry of a message already answered: the same answer, no second turn
+            session.searched.pop(booking_id, None)  # cards come only from a search in THIS turn
             notices = session.notices.pop(booking_id, [])
             user_message = "\n".join([*notices, "", body.message]) if notices else body.message
             result = run_turn(
-                client, model_name, _chat_system_prompt(booking_id), session.histories.get(booking_id, []),
-                user_message, session.tools, session.toolset.schemas,
+                client, model_name,
+                _chat_system_prompt(booking_id, session.service_for(booking_id).get_confirmation(booking_id),
+                                    _other_travel_day(session, booking_id)),
+                session.histories.get(booking_id, []),
+                user_message, session.tools, [*session.toolset.schemas, RECOMMEND_SCHEMA],
+                display_tools=frozenset({RECOMMEND_SCHEMA["name"]}),
             )
             if result.stopped_reason == "error":
                 session.notices[booking_id] = notices  # the model never saw them; keep them for the next try
             else:
                 session.histories[booking_id] = result.history
-            return ChatOut(reply=result.reply, stopped_reason=result.stopped_reason,
-                           confirm_card=confirm_card(session, booking_id))
+            searched = session.searched.get(booking_id) if result.stopped_reason != "error" else None
+            out = ChatOut(reply=result.reply, stopped_reason=result.stopped_reason,
+                          confirm_card=confirm_card(session, booking_id), search=_search_results(searched))
+            if result.stopped_reason != "error":
+                session.turns += 1
+                session.transcripts.setdefault(booking_id, []).extend([
+                    {"role": "traveler", "text": body.message},
+                    {"role": "assistant", "text": out.reply, "search": out.search},
+                ])
+                if body.message_id:
+                    session.answered[booking_id] = (body.message_id, out)
+            return out
+
+    @app.get("/bookings/{booking_id}/chat", response_model=ChatHistoryOut, responses=errors)
+    def chat_history(booking_id: BookingDep, session: SessionDep) -> ChatHistoryOut:
+        """The conversation as the traveler saw it, so a reloaded page can show it again."""
+        with session.lock:
+            return ChatHistoryOut(messages=[ChatEntry(**m) for m in session.transcripts.get(booking_id, [])],
+                                  confirm_card=confirm_card(session, booking_id))
 
     @app.post("/confirm", response_model=ConfirmOut, responses={**errors, 409: {"model": ConfirmOut},
                                                               202: {"model": ConfirmOut}})
@@ -267,18 +344,60 @@ def create_app(
                 notices = session.notices.setdefault(body.booking_id, [])
                 notices.append(_notice(outcome, body.option_id))
                 del notices[:-MAX_NOTICES]
+            receipt = None
             if outcome["status"] == "confirmed":
                 session.prepared.pop(body.booking_id, None)
+                if not repeat:
+                    receipt = _receipt(outcome["result"])
+                    session.transcripts.setdefault(body.booking_id, []).append({"role": "app", "text": receipt})
             elif outcome["status"] == "rejected":
                 response.status_code = status.HTTP_409_CONFLICT
             else:
                 response.status_code = status.HTTP_202_ACCEPTED
             return ConfirmOut(status=outcome["status"], reason=outcome.get("reason"),
-                              confirmation=outcome.get("result"), repeat=repeat)
+                              confirmation=outcome.get("result"), repeat=repeat, receipt=receipt)
 
     if dev:
         add_dev_routes(app, SessionDep, BookingDep, get_duffel_client)
     return app
+
+
+def _other_travel_day(session: Session, booking_id: str) -> str | None:
+    """The replacement flights' day, when it differs from the original flight's day (mock bookings only)."""
+    service = session.service_for(booking_id)
+    if service is not session.service:
+        return None
+    day = service.travel_day(booking_id)
+    original = service.get_trip_context(booking_id).original_itinerary.departs[:10]
+    return day if day and day != original else None
+
+
+def _client_ip(request: Request) -> str:
+    """The caller's address. Behind a proxy (Render) start uvicorn with --proxy-headers so this is the real one."""
+    return request.client.host if request.client else "unknown"
+
+
+def _receipt(confirmation: dict[str, Any]) -> str:
+    """The app's note in the chat once a rebooking is confirmed, in the words travelers read."""
+    flight = confirmation.get("updated_itinerary") or {}
+    try:
+        leaves = local_time_text(datetime.fromisoformat(flight["departs"]))
+        lands = local_time_text(datetime.fromisoformat(flight["arrives"]))
+        trip = (f" {flight.get('flight') or 'your new flight'}: leaves {flight['origin']} at {leaves}, "
+                f"lands at {flight['destination']} at {lands}.")
+    except (KeyError, TypeError, ValueError):
+        trip = ""
+    return f"You're rebooked.{trip} Confirmation {confirmation.get('confirmation_id')}."
+
+
+def _search_results(searched: dict[str, Any] | None) -> SearchResults | None:
+    """Option cards are a bonus on top of the reply: data that doesn't fit the schema is left out, never an error."""
+    if not searched:
+        return None
+    try:
+        return SearchResults.model_validate(searched)
+    except ValueError:
+        return None
 
 
 def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_client: Any) -> None:
@@ -290,9 +409,11 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
         body = body or DevBookingCreate()
         seed = body.seed if body.seed is not None else secrets.randbelow(MAX_SEED + 1)
         try:
-            scenario = generate_scenario(seed, scenario=body.scenario)
+            def build() -> Any:
+                return generate_scenario(seed, scenario=body.scenario, situation=body.situation)
+            scenario = build()
             with session.lock:
-                booking_id = session.add_booking(scenario)
+                booking_id = session.add_booking(scenario, source=build)
                 summary = _summary(session, booking_id)
         except GeneratorError as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
@@ -328,6 +449,14 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
         except MockServiceError as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
 
+    @app.post("/dev/bookings/{booking_id}/clear", response_model=BookingSummary, responses=errors)
+    def dev_clear_disruption(booking_id: BookingDep, session: SessionDep) -> BookingSummary:
+        """Put a mock booking back to normal (on time) and start its chat over. Duffel can't undo its changes."""
+        if session.service_for(booking_id) is session.duffel:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Only mock bookings can be put back to normal.")
+        with session.lock:
+            session.clear_disruption(booking_id)
+            return _summary(session, booking_id)
 
     @app.post("/dev/reset", response_model=DevResetOut, responses=errors)
     def dev_reset(session: SessionDep) -> DevResetOut:

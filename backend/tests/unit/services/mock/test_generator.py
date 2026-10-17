@@ -1,6 +1,6 @@
 """Unit tests for the seeded mock booking generator and for adding bookings at runtime. Owner: Jian."""
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -99,3 +99,28 @@ def test_reset_drops_generated_bookings():
     service.add_booking(generate_scenario(5, TODAY))
     service.reset()
     assert service.booking_ids() == ["MOCK-CASE-1"]
+
+
+def test_a_delayed_booking_departs_later_by_its_delay_and_clearing_restores_the_time():
+    delayed = generate_scenario(5, situation="delayed")
+    on_time = generate_scenario(5, situation="on time")
+    delay = delayed.trip.disruption_details.delay_minutes
+    assert delayed.trip.original_itinerary.status == "delayed" and delay
+    moved = datetime.fromisoformat(delayed.trip.original_itinerary.departs)
+    assert moved - datetime.fromisoformat(on_time.trip.original_itinerary.departs) == timedelta(minutes=delay)
+
+    service = MockService(scenarios=[])
+    service.add_booking(delayed)
+    trip = service.clear_disruption(delayed.booking_id)
+    assert trip.original_itinerary.status == "on time" and trip.disruption_details.delay_minutes is None
+    assert trip.original_itinerary.departs == on_time.trip.original_itinerary.departs
+    assert trip.original_itinerary.arrives == on_time.trip.original_itinerary.arrives
+
+    service.add_airline_change(delayed.booking_id, "delay", 30)  # a simulated delay moves the arrival too
+    later = service.get_trip_context(delayed.booking_id).original_itinerary
+    assert datetime.fromisoformat(later.arrives) - datetime.fromisoformat(trip.original_itinerary.arrives) == timedelta(minutes=30)
+
+
+def test_the_situation_does_not_change_a_random_booking_and_a_custom_id_is_used():
+    assert generate_scenario(9) == generate_scenario(9, situation="random")
+    assert generate_scenario(9, booking_id="MOCK-X").booking_id == "MOCK-X"

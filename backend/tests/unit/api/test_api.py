@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.api.main import create_app
 from backend.app.api.sessions import SessionStore
+from backend.tests.unit.api.limits_helper import DEFAULT_BOOKINGS
 
 
 @pytest.fixture
@@ -29,7 +30,7 @@ def test_health(client):
 
 def test_a_new_session_owns_all_mock_bookings_by_default(client):
     body = client.post("/sessions").json()
-    assert body["booking_ids"] == ["MOCK-CASE-1", "MOCK-CASE-2", "MOCK-CASE-3", "MOCK-CASE-4"]
+    assert body["booking_ids"] == DEFAULT_BOOKINGS
     assert body["simulated"] is True
     assert len(body["session_id"]) >= 40
 
@@ -55,11 +56,12 @@ def test_calls_without_a_valid_session_get_401(client, path, headers):
 def test_bookings_list_has_summaries(client):
     session_id = new_session(client)
     bookings = client.get("/bookings", headers=auth(session_id)).json()
-    assert [b["booking_id"] for b in bookings] == ["MOCK-CASE-1", "MOCK-CASE-2", "MOCK-CASE-3", "MOCK-CASE-4"]
+    assert [b["booking_id"] for b in bookings] == DEFAULT_BOOKINGS
     first = bookings[0]
     assert first["origin"] == "JFK" and first["destination"] == "LAX"
     assert first["status"] == "canceled" and first["data_source"] == "mock" and first["rebooked"] is False
-    assert first["airline"] == "Mock Air 100"
+    assert first["airline"] == "Skyway Air SW 100"
+    assert len(first["booking_reference"]) == 6 and first["booking_reference"].isalnum()
     assert bookings[2]["passenger_count"] == 3
     assert "passengers" not in first  # the list carries no passenger details
 

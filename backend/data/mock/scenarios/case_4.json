@@ -5,14 +5,14 @@
   "passenger_count": 1,
   "disruption": {"type": "airline cancellation", "status": "canceled"},
   "original_itinerary": {
-    "flight": "Mock Air 100",
+    "flight": "SW 100",
     "origin": "JFK",
     "destination": "LAX",
     "departs": {"day_offset": 0, "time": "08:00", "tz": "America/New_York"}
   },
   "options": [
     {
-      "option_id": "opt-4a", "flight": "Mock Air 600", "origin": "JFK", "destination": "LAX",
+      "option_id": "opt-4a", "flight": "SW 600", "origin": "JFK", "destination": "LAX",
       "departs": {"day_offset": 0, "time": "12:00", "tz": "America/New_York"},
       "arrives": {"day_offset": 0, "time": "15:30", "tz": "America/Los_Angeles"},
       "duration": "6h 30m", "connections": 0, "additional_cost": 200, "currency": "USD",

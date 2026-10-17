@@ -23,6 +23,12 @@
   --sim-text: #4e2f9b;
   --primary: #14181f;
   --on-primary: #ffffff;
+  /* Travel Buddy (the AI): its own color, so it never looks like the app's own notices */
+  --ai-1: #6a4cf0;
+  --ai-2: #2f7cf6;
+  --ai-bg: #f4f2ff;
+  --ai-border: #ddd6fe;
+  --ai-text: #4a32c4;
   --radius: 10px;
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
@@ -51,6 +57,11 @@
   --sim-text: #c9b8ff;
   --primary: #eef0f3;
   --on-primary: #14181f;
+  --ai-1: #9d87ff;
+  --ai-2: #6aa6ff;
+  --ai-bg: #1f1b36;
+  --ai-border: #3a3168;
+  --ai-text: #c4b8ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -78,6 +89,11 @@
     --sim-text: #c9b8ff;
     --primary: #eef0f3;
     --on-primary: #14181f;
+    --ai-1: #9d87ff;
+    --ai-2: #6aa6ff;
+    --ai-bg: #1f1b36;
+    --ai-border: #3a3168;
+    --ai-text: #c4b8ff;
   }
 }
 
@@ -122,4 +138,46 @@ textarea {
 
 #root {
   min-height: 100vh;
+}
+
+/* Motion. Short and calm; everything is switched off for people who ask for reduced motion. */
+:root {
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 320ms;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* A one-time ring that draws the eye to something new, then fades. */
+@keyframes attention {
+  from { box-shadow: 0 0 0 4px var(--accent-bg); }
+  to { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* While the theme switches, colors fade instead of flashing. Set briefly by the header toggle. */
+.theme-switching,
+.theme-switching * {
+  transition: background-color var(--dur-slow) ease, color var(--dur-slow) ease, border-color var(--dur-slow) ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,5 +1,5 @@
 /** App shell: header, theme toggle, routing between the bookings list and one booking. Owner: Jian. */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { BookingDetail } from '../features/booking/BookingDetail.tsx'
 import { BookingsList } from '../features/booking/BookingsList.tsx'
@@ -27,11 +27,44 @@ function createApi(): BookingsApi {
   return import.meta.env.VITE_USE_SAMPLE_DATA === 'true' ? createFixtureApi() : createHttpApi()
 }
 
+/** Dev builds can hide the test tools for a demo; the choice is remembered in this browser. */
+const DEV_TOOLS_KEY = 'travel-buddy-dev-tools'
+
+function initialDevTools(): boolean {
+  try {
+    return window.localStorage.getItem(DEV_TOOLS_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
 function App() {
-  const [api] = useState<BookingsApi>(createApi)
+  const [baseApi] = useState<BookingsApi>(createApi)
+  const [devTools, setDevTools] = useState<boolean>(initialDevTools)
+  // With the dev tools off, the screens see no dev API, so the test tools and source labels disappear.
+  const api = useMemo(() => (baseApi.dev && !devTools ? { ...baseApi, dev: undefined } : baseApi), [baseApi, devTools])
   const [theme, setTheme] = useState<Theme>(initialTheme)
   const route = parseHash(useHash())
   const conversations = useConversations()
+
+  // Fade the colors for a moment while the theme changes (see .theme-switching in index.css).
+  const switchTheme = (next: Theme) => {
+    const root = document.documentElement
+    root.classList.add('theme-switching')
+    setTheme(next)
+    window.setTimeout(() => root.classList.remove('theme-switching'), 400)
+  }
+
+  const toggleDevTools = () => {
+    setDevTools((on) => {
+      try {
+        window.localStorage.setItem(DEV_TOOLS_KEY, on ? 'off' : 'on')
+      } catch {
+        // not saving the choice is fine
+      }
+      return !on
+    })
+  }
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -51,11 +84,18 @@ function App() {
             Travel Buddy
           </a>
           <div className="header-actions">
+            {baseApi.dev && (
+              <button className="switch" type="button" role="switch" aria-checked={devTools} onClick={toggleDevTools}>
+                <span className="switch-track" aria-hidden="true"><span className="switch-knob" /></span>
+                Dev tools
+              </button>
+            )}
+            {/* Always shown, also in demo mode: nobody should mistake this for a real airline system. */}
             <span className="pill pill-sim">Simulated environment</span>
             <button
               className="btn btn-small"
               type="button"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              onClick={() => switchTheme(theme === 'dark' ? 'light' : 'dark')}
               aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             >
               {theme === 'dark' ? 'Light mode' : 'Dark mode'}
@@ -72,10 +112,8 @@ function App() {
             update={conversations.update}
           /> : <BookingsList api={api} onReset={conversations.clear} />}
       </main>
-      <footer className="footer">
-        Everything in Travel Buddy is simulated. No real ticket will be issued.
-        {(api.kind === 'sample' || api.dev) && <span> {api.label}</span>}
-      </footer>
+      {/* The header's "Simulated environment" badge says it for the whole app; the footer only helps developers. */}
+      {(api.kind === 'sample' || api.dev) && <footer className="footer">{api.label}</footer>}
     </>
   )
 }

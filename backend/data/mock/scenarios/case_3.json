@@ -5,28 +5,28 @@
   "passenger_count": 3,
   "disruption": {"type": "airline cancellation", "status": "canceled"},
   "original_itinerary": {
-    "flight": "Mock Air 100",
+    "flight": "SW 100",
     "origin": "JFK",
     "destination": "LAX",
     "departs": {"day_offset": 1, "time": "08:00", "tz": "America/New_York"}
   },
   "options": [
     {
-      "option_id": "opt-3a", "flight": "Mock Air 500", "origin": "JFK", "destination": "LAX",
+      "option_id": "opt-3a", "flight": "SW 500", "origin": "JFK", "destination": "LAX",
       "departs": {"day_offset": 1, "time": "15:00", "tz": "America/New_York"},
       "arrives": {"day_offset": 1, "time": "18:00", "tz": "America/Los_Angeles"},
       "duration": "6h 0m", "connections": 0, "additional_cost": 0, "currency": "USD",
       "extra": {"cost_applies_to": "all three travelers"}
     },
     {
-      "option_id": "opt-3b", "flight": "Mock Air 520", "origin": "JFK", "destination": "LAX",
+      "option_id": "opt-3b", "flight": "SW 520", "origin": "JFK", "destination": "LAX",
       "departs": {"day_offset": 1, "time": "11:00", "tz": "America/New_York"},
       "arrives": {"day_offset": 1, "time": "14:00", "tz": "America/Los_Angeles"},
       "duration": "6h 0m", "connections": 0, "additional_cost": 120, "currency": "USD",
       "extra": {"cost_applies_to": "all three travelers"}
     },
     {
-      "option_id": "opt-3c", "flight": "Mock Air 540", "origin": "JFK", "destination": "LAX",
+      "option_id": "opt-3c", "flight": "SW 540", "origin": "JFK", "destination": "LAX",
       "departs": {"day_offset": 1, "time": "13:00", "tz": "America/New_York"},
       "arrives": {"day_offset": 1, "time": "16:00", "tz": "America/Los_Angeles"},
       "duration": "6h 0m", "connections": 0, "additional_cost": 90, "currency": "USD",

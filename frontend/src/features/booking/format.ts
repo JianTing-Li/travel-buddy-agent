@@ -14,6 +14,42 @@ export function formatLocalTime(iso: unknown): string {
   return `${MONTHS[Number(month) - 1]} ${Number(day)}, ${clock} (UTC${zone === 'Z' ? '+00:00' : zone})`
 }
 
+/**
+ * The wall-clock time where the flight is, without the UTC offset, e.g. "11:00 AM". Shown next to an airport code,
+ * which already says whose local time it is (the airline convention).
+ */
+export function formatTime(iso: unknown): string {
+  return formatClock(iso).replace(/ \(UTC[^)]*\)$/, '')
+}
+
+/** e.g. "Oct 15, 11:00 AM", the airport's local time, without the UTC offset. */
+export function formatDateTime(iso: unknown): string {
+  return formatLocalTime(iso).replace(/ \(UTC[^)]*\)$/, '')
+}
+
+/** e.g. "Fri, Oct 17" for the date line under a flight. */
+export function formatDate(iso: unknown): string {
+  if (typeof iso !== 'string') return ''
+  const m = ISO.exec(iso)
+  if (!m) return ''
+  const weekday = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay()
+  return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][weekday]}, ${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}`
+}
+
+/** "Skyway Air · SW 210", or just the flight when it already names the airline. */
+export function flightLabel(airline: string | null | undefined, flight: string | null | undefined): string {
+  if (airline && flight) return flight.startsWith(airline) ? flight : `${airline} · ${flight}`
+  return airline || flight || 'Flight'
+}
+
+/** "1 hour 30 min", "2 hours" or "45 min", for delays. */
+export function formatMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  const hours = h === 1 ? '1 hour' : `${h} hours`
+  return h && m ? `${hours} ${m} min` : h ? hours : `${m} min`
+}
+
 export function formatDay(iso: string): string {
   const m = ISO.exec(iso)
   return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}` : iso
@@ -30,9 +66,13 @@ export function formatClock(iso: unknown): string {
   return formatLocalTime(iso).replace(/^[A-Z][a-z]{2} \d+, /, '')
 }
 
+/** "$80" for whole amounts, "$80.50" otherwise. */
 export function formatMoney(amount: number, currency: string): string {
   try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+    const whole = Number.isInteger(amount)
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency', currency, minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2,
+    }).format(amount)
   } catch {
     return `${amount.toFixed(2)} ${currency}`
   }

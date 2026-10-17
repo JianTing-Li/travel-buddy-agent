@@ -43,6 +43,14 @@ class ConfirmationGate:
         self.last_prepared: tuple[str, str] | None = None  # (booking_id, option_id)
         self._limits: dict[str, Limits] = {}  # booking -> limits of the last search that code checked
 
+    def forget(self, booking_id: str) -> None:
+        """Drop everything the gate holds for one booking (test tool: the booking was put back to normal)."""
+        self._prepared.pop(booking_id, None)
+        self._limits.pop(booking_id, None)
+        self._attempts = {key: value for key, value in self._attempts.items() if key[0] != booking_id}
+        if self.last_prepared and self.last_prepared[0] == booking_id:
+            self.last_prepared = None
+
     def tools(self) -> dict[str, Callable[..., Any]]:
         """The agent's tools: search remembers its limits, and prepare_rebooking is held to them and remembered."""
         wrapped = dict(self._tools)

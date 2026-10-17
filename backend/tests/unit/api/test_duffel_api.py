@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.api.main import create_app
 from backend.app.services.duffel.client import DuffelTransportError
+from backend.tests.unit.api.limits_helper import DEFAULT_BOOKINGS, check_limits_for
 from backend.tests.unit.services.duffel.test_service import ORDER, FakeClient, offer, order, segment, slice_
 
 
@@ -80,7 +81,7 @@ def test_creating_a_duffel_booking_books_the_cheapest_test_airline_offer():
     body = response.json()
     assert body["booking_id"] == ORDER and body["data_source"] == "duffel" and body["status"] == "on time"
     assert body["origin"] == "LHR" and body["destination"] == "LTN" and body["rebooked"] is False
-    assert body["airline"] == "Duffel Airways"
+    assert body["airline"] == "Duffel Airways ZZ123"
     search = [c for c in fake.calls if c[0] == "search_offers"][0]
     assert search[1:3] == ("LHR", "LTN") and search[4] == 2
     created = [c for c in fake.calls if c[0] == "create_order"][0]
@@ -105,7 +106,7 @@ def test_mock_and_duffel_bookings_live_side_by_side_in_one_session():
     client, session_id, _ = start()
     create_duffel(client, session_id)
     bookings = client.get("/bookings", headers=auth(session_id)).json()
-    assert [b["booking_id"] for b in bookings] == ["MOCK-CASE-1", "MOCK-CASE-2", "MOCK-CASE-3", "MOCK-CASE-4", ORDER]
+    assert [b["booking_id"] for b in bookings] == [*DEFAULT_BOOKINGS, ORDER]
     assert {b["data_source"] for b in bookings} == {"mock", "duffel"}
     detail = client.get(f"/bookings/{ORDER}", headers=auth(session_id)).json()
     assert detail["trip"]["data_source"] == "duffel" and detail["confirmation"] is None
@@ -142,6 +143,7 @@ def test_a_duffel_rebooking_confirms_once_through_the_gate_and_the_api():
     create_duffel(client, session_id)
     tools = client.app.state.sessions.get(session_id).tools
     option_id = tools["search_replacements"](booking_id=ORDER)["options"][0]["option_id"]
+    check_limits_for(tools, ORDER, option_id)  # the strict gate needs a checked search first
     assert tools["prepare_rebooking"](booking_id=ORDER, option_id=option_id)["validation_result"] == "valid"
     first = client.post("/confirm", json={"booking_id": ORDER, "option_id": option_id}, headers=auth(session_id))
     again = client.post("/confirm", json={"booking_id": ORDER, "option_id": option_id}, headers=auth(session_id))

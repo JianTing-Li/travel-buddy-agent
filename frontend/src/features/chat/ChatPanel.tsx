@@ -6,27 +6,76 @@
  * the confirm card, never through a chat message.
  */
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import type { ChatSlotProps } from '../../app/types.ts'
+import type { ChatSituation, ChatSlotProps } from '../../app/types.ts'
+import { OptionCards } from './OptionCards.tsx'
 import { RichText } from './RichText.tsx'
 import './chat.css'
 
-const EXAMPLES = [
-  "My flight was canceled. I need to land by 3 PM and I don't want to pay extra.",
-  'I missed my flight. I can pay up to $150 extra and want to arrive today.',
-  'There are three of us. We need to stay together and land before 3 PM.',
-]
+/** The welcome text and tap-to-edit examples, by what happened to the booking. */
+const WELCOME: Record<ChatSituation, { intro: string; examples: string[] }> = {
+  canceled: {
+    intro: "Let's find you a new flight. Tell me what you need:",
+    examples: [
+      "I need to land by 3 PM and don't want to pay extra.",
+      'Any flight today works. I can pay up to $100 more.',
+      'Nonstop only, please. I have to arrive before 6 PM.',
+    ],
+  },
+  missed: {
+    intro: "Let's get you on the next flight that works. Tell me what you need:",
+    examples: [
+      'I can pay up to $150 extra and need to arrive today.',
+      'What is the next flight I can take without paying more?',
+      'I need to be there by 10 PM. One connection is fine.',
+    ],
+  },
+  delayed: {
+    intro: "If the new time doesn't work for you, tell me what you need:",
+    examples: [
+      'The delay makes me too late. I need to land by 3 PM.',
+      'Is there an earlier flight at no extra cost?',
+      "I'll keep this flight unless something gets me in before noon.",
+    ],
+  },
+  'on time': {
+    intro: 'Want a different flight? Tell me what you need:',
+    examples: [
+      'Is there an earlier flight? I can pay up to $100 more.',
+      "I'd like to arrive before 5 PM, nonstop only.",
+      'Can I move to a later flight at no extra cost?',
+    ],
+  },
+  rebooked: {
+    intro: "You're rebooked. Ask me anything about your new flight.",
+    examples: ['When does my new flight land?', 'What changed from my original booking?'],
+  },
+}
 const MAX_INPUT_HEIGHT = 160
 
-export function ChatPanel({ bookingId, messages, sending, onSend }: ChatSlotProps) {
+export function ChatPanel(
+  { bookingId, messages, sending, onSend, onChoose, action, situation, travelers, problem }: ChatSlotProps,
+) {
+  const welcome = WELCOME[situation]
   const [draft, setDraft] = useState('')
-  const logRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const lastRef = useRef<HTMLDivElement>(null)
+  const typingRef = useRef<HTMLDivElement>(null)
+  const seen = useRef(messages.length)
+  const slow = useSlow(sending)
+  // Only the newest cards can be chosen; older ones stay as a record of what was shown.
+  const latestSearch = messages.reduce((latest, m, i) => (m.search ? i : latest), -1)
 
-  // Keep the newest message in view.
+  // Bring what is new into view: the traveler's message and the typing dots, then the START of Travel Buddy's reply
+  // (a long reply read from its end is hard to follow). Nothing moves when the page first opens with a history.
   useEffect(() => {
-    const log = logRef.current
-    if (log) log.scrollTop = log.scrollHeight
-  }, [messages.length, sending])
+    const grew = messages.length > seen.current
+    seen.current = messages.length
+    if (!grew && !sending) return
+    const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches ? 'smooth' : 'auto'
+    const reply = !sending && messages[messages.length - 1]?.role === 'assistant'
+    const target = sending ? typingRef.current : lastRef.current
+    target?.scrollIntoView({ block: reply ? 'start' : 'nearest', behavior: smooth })
+  }, [messages, sending])
 
   const grow = (el: HTMLTextAreaElement) => {
     el.style.height = 'auto'
@@ -66,22 +115,38 @@ export function ChatPanel({ bookingId, messages, sending, onSend }: ChatSlotProp
   }
 
   return (
-    <section className="card chat" aria-label={`Chat with Travel Buddy about booking ${bookingId}`}>
-      <div>
-        <h2 className="card-title">Chat with Travel Buddy</h2>
-        <p className="muted small">Simulated: no real tickets are bought or changed.</p>
+    <section className="card chat" aria-labelledby={`chat-title-${bookingId}`}>
+      <div className="chat-head">
+        <span className="ai-avatar ai-avatar--large" aria-hidden="true">✦</span>
+        <div>
+          <h2 className="card-title" id={`chat-title-${bookingId}`}>Travel Buddy</h2>
+          <p className="small">Your AI travel assistant</p>
+        </div>
+        <span className="pill pill-ai">AI</span>
       </div>
 
-      <div ref={logRef} className="chat-log" role="log" aria-live="polite" aria-relevant="additions" tabIndex={0}>
+      <div className="chat-log" role="log" aria-live="polite" aria-relevant="additions">
         {messages.length === 0 && !sending && (
           <div className="chat-welcome">
-            <p>
-              Tell me what happened and what you need: how much extra you can pay, when you must arrive, how many
-              connections are okay, and how many people are traveling.
-            </p>
-            <p className="muted small">For example (tap one to edit it first):</p>
+            <div className="chat-turn">
+              <span className="ai-avatar" aria-hidden="true">✦</span>
+              <div className="chat-msg chat-msg--assistant">
+                <p>{welcome.intro}</p>
+                {situation !== 'rebooked' && (
+                  <ul className="chat-needs">
+                    <li><strong>When you must arrive</strong></li>
+                    <li><strong>The most you can pay extra</strong> for the whole booking</li>
+                    <li><strong>How many connections</strong> are okay</li>
+                  </ul>
+                )}
+              </div>
+            </div>
+            {travelers > 1 && situation !== 'rebooked' && (
+              <p className="muted small">All {travelers} travelers stay together on the same flight.</p>
+            )}
+            <p className="muted small">Try one (you can edit it first):</p>
             <div className="chat-examples">
-              {EXAMPLES.map((example) => (
+              {welcome.examples.map((example) => (
                 <button key={example} type="button" className="chat-chip" onClick={() => pickExample(example)}>
                   {example}
                 </button>
@@ -90,20 +155,69 @@ export function ChatPanel({ bookingId, messages, sending, onSend }: ChatSlotProp
           </div>
         )}
 
-        {messages.map((m, i) => (
-          <div key={i} className={`chat-msg chat-msg--${m.role}`}>
-            <span className="chat-sr">{m.role === 'traveler' ? 'You said: ' : 'Travel Buddy said: '}</span>
-            {m.role === 'assistant' ? <RichText text={m.text} /> : m.text}
-          </div>
-        ))}
+        {messages.map((m, i) => {
+          const last = i === messages.length - 1 ? lastRef : undefined
+          if (m.role === 'app') {
+            return (
+              <div key={i} ref={last} className="chat-receipt" role="status">
+                <span className="chat-receipt-icon" aria-hidden="true">✓</span>
+                <p>{m.text}</p>
+              </div>
+            )
+          }
+          if (m.role === 'traveler') {
+            return (
+              <div key={i} ref={last} className="chat-msg chat-msg--traveler">
+                <span className="chat-sr">You said: </span>
+                {m.text}
+              </div>
+            )
+          }
+          // The avatar marks where Travel Buddy starts speaking, not every bubble.
+          const first = messages[i - 1]?.role !== 'assistant'
+          return (
+            <div key={i} ref={last} className="chat-turn">
+              {first ? <span className="ai-avatar" aria-hidden="true">✦</span> : <span className="ai-avatar-space" />}
+              <div className="chat-turn-body">
+                <div className="chat-msg chat-msg--assistant">
+                  <span className="chat-sr">Travel Buddy said: </span>
+                  <RichText text={m.text} />
+                </div>
+                {m.search && onChoose && (
+                  <OptionCards
+                    search={m.search}
+                    chosen={m.chosen}
+                    active={i === latestSearch && !sending}
+                    onChoose={(option) => onChoose(i, option)}
+                  />
+                )}
+              </div>
+            </div>
+          )
+        })}
 
         {sending && (
-          <div className="chat-msg chat-msg--assistant chat-typing" role="status">
-            <span className="chat-sr">Travel Buddy is working on it</span>
-            <span className="chat-dots" aria-hidden="true"><i /><i /><i /></span>
+          <div ref={typingRef} className="chat-turn" role="status">
+            <span className="ai-avatar ai-avatar--thinking" aria-hidden="true">✦</span>
+            <div className="chat-msg chat-msg--assistant chat-typing">
+              <span className="chat-dots" aria-hidden="true"><i /><i /><i /></span>
+              <span className="chat-typing-text">{slow ? 'Still working on it…' : 'Thinking…'}</span>
+            </div>
           </div>
         )}
       </div>
+
+      {problem && !sending && (
+        <div className="chat-problem" role="alert">
+          <p>{problem.message}</p>
+          {problem.fallback && <p className="small">{problem.fallback}</p>}
+          <button className="btn btn-small" type="button" onClick={problem.onRetry} aria-busy={problem.retrying}>
+            Try again
+          </button>
+        </div>
+      )}
+
+      {action && <div className="chat-action">{action}</div>}
 
       <form className="chat-form" onSubmit={onSubmit}>
         <label className="chat-sr" htmlFor={`chat-input-${bookingId}`}>Message Travel Buddy</label>
@@ -113,7 +227,7 @@ export function ChatPanel({ bookingId, messages, sending, onSend }: ChatSlotProp
           className="chat-input"
           rows={1}
           value={draft}
-          placeholder="Tell Travel Buddy what you need…"
+          placeholder="Message Travel Buddy…"
           onChange={(e) => {
             setDraft(e.target.value)
             grow(e.target)
@@ -126,4 +240,18 @@ export function ChatPanel({ bookingId, messages, sending, onSend }: ChatSlotProp
       </form>
     </section>
   )
+}
+
+/** True once a reply has taken longer than a few seconds, so the wait says it is still going. */
+function useSlow(sending: boolean): boolean {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    if (!sending) return
+    const timer = window.setTimeout(() => setSlow(true), 8000)
+    return () => {
+      window.clearTimeout(timer)
+      setSlow(false)
+    }
+  }, [sending])
+  return slow
 }

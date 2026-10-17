@@ -74,7 +74,8 @@ def play_case(case: dict[str, Any], mode: str, live_client: Any = None, model_na
     try:
         headers = {"X-Session-Id": api.post("/sessions").json()["session_id"]}
         detail = api.get(f"/bookings/{case['booking_id']}", headers=headers).json()
-        ctx = Ctx(booking_id=case["booking_id"], day=detail["trip"]["original_itinerary"]["departs"][:10])
+        day = _travel_day(api, headers["X-Session-Id"], case["booking_id"], detail)
+        ctx = Ctx(booking_id=case["booking_id"], day=day)
         for turn, say in enumerate([case["traveler_message"], case["followup_answer"], NUDGE]):
             if turn > 0 and _accepted_searches(_so_far(rec, recorder)):
                 break
@@ -186,3 +187,9 @@ def format_report(results: list[dict[str, Any]], mode: str) -> str:
             lines.append(f"  {r['case']} run {r['run']}: " + "; ".join(r["problems"]))
     lines.append("Judged by code only. Simulated data: no real tickets are bought or changed.")
     return "\n".join(lines)
+
+def _travel_day(api: Any, session_id: str, booking_id: str, detail: dict[str, Any]) -> str:
+    """The day the replacement flights are on: the original flight's day, except for a missed flight that already
+    left the day before. Read from the in-process app, not from the model."""
+    service = api.app.state.sessions.get(session_id).service
+    return service.travel_day(booking_id) or detail["trip"]["original_itinerary"]["departs"][:10]

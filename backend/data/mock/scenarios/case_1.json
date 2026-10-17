@@ -5,26 +5,26 @@
   "passenger_count": 1,
   "disruption": {"type": "airline cancellation", "status": "canceled"},
   "original_itinerary": {
-    "flight": "Mock Air 100",
+    "flight": "SW 100",
     "origin": "JFK",
     "destination": "LAX",
     "departs": {"day_offset": 0, "time": "08:00", "tz": "America/New_York"}
   },
   "options": [
     {
-      "option_id": "opt-1a", "flight": "Mock Air 210", "origin": "JFK", "destination": "LAX",
+      "option_id": "opt-1a", "flight": "SW 210", "origin": "JFK", "destination": "LAX",
       "departs": {"day_offset": 0, "time": "11:00", "tz": "America/New_York"},
       "arrives": {"day_offset": 0, "time": "14:00", "tz": "America/Los_Angeles"},
       "duration": "6h 0m", "connections": 0, "additional_cost": 0, "currency": "USD"
     },
     {
-      "option_id": "opt-1b", "flight": "Mock Air 330", "origin": "JFK", "destination": "LAX",
+      "option_id": "opt-1b", "flight": "SW 330", "origin": "JFK", "destination": "LAX",
       "departs": {"day_offset": 0, "time": "06:30", "tz": "America/New_York"},
       "arrives": {"day_offset": 0, "time": "13:00", "tz": "America/Los_Angeles"},
       "duration": "9h 30m", "connections": 1, "additional_cost": 0, "currency": "USD"
     },
     {
-      "option_id": "opt-1c", "flight": "Mock Air 410", "origin": "JFK", "destination": "LAX",
+      "option_id": "opt-1c", "flight": "SW 410", "origin": "JFK", "destination": "LAX",
       "departs": {"day_offset": 0, "time": "13:00", "tz": "America/New_York"},
       "arrives": {"day_offset": 0, "time": "16:00", "tz": "America/Los_Angeles"},
       "duration": "6h 0m", "connections": 0, "additional_cost": 0, "currency": "USD"

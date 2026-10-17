@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..contract.models import Option, TripContext
+from ..contract.models import Limits, Option, TripContext
 from ..services.airline_change import AirlineChange
 
 
@@ -31,7 +31,8 @@ class BookingSummary(BaseModel):
     disruption_type: str
     data_source: Literal["duffel", "mock"]
     rebooked: bool
-    airline: str | None = None  # the carrier or flight name shown on booking cards
+    airline: str | None = None  # the carrier and flight shown on booking cards, e.g. "Skyway Air SW 100"
+    booking_reference: str | None = None  # the record locator travelers know (e.g. "K7QX2M"), when there is one
 
 
 class BookingDetail(BaseModel):
@@ -48,6 +49,8 @@ class ChatIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     booking_id: str = Field(min_length=1, max_length=64)
     message: str = Field(max_length=2000)
+    # Set by the app per traveler message and reused when it retries, so a retry never runs a turn twice.
+    message_id: str | None = Field(default=None, max_length=64)
 
     @field_validator("message")
     @classmethod
@@ -67,9 +70,40 @@ class ConfirmCard(BaseModel):
     notice: str = "Simulated rebooking. No real ticket is issued."
 
 
+class ExcludedOption(BaseModel):
+    """An option the limits filter removed: typed facts and code-written reasons only, never source free text."""
+    option_id: str
+    arrives: str
+    additional_cost: float
+    currency: str
+    connections: int
+    reasons: list[str]
+
+
+class SearchResults(BaseModel):
+    """A search checked by code against the traveler's limits, for the app to show as option cards."""
+    options: list[Option]  # within every limit
+    excluded: list[ExcludedOption]  # removed, with the limit each one breaks
+    limits: Limits  # what they were checked against
+    recommended: str | None = None  # the option Travel Buddy recommends, if it said (only one of `options`)
+
+
 class ChatOut(BaseModel):
     reply: str
     stopped_reason: Literal["reply", "step_limit", "error"]
+    confirm_card: ConfirmCard | None
+    search: SearchResults | None = None  # only when this turn ran a checked search
+
+
+class ChatEntry(BaseModel):
+    """One line of the conversation as the traveler saw it: no tool calls, no app notices meant for the agent."""
+    role: Literal["traveler", "assistant", "app"]
+    text: str
+    search: SearchResults | None = None
+
+
+class ChatHistoryOut(BaseModel):
+    messages: list[ChatEntry]
     confirm_card: ConfirmCard | None
 
 
@@ -84,6 +118,7 @@ class ConfirmOut(BaseModel):
     reason: str | None = None
     confirmation: dict[str, Any] | None = None
     repeat: bool = False
+    receipt: str | None = None  # the app's note for the chat when a rebooking is confirmed
 
 
 class ChangeCheckOut(BaseModel):
@@ -96,7 +131,8 @@ class ChangeCheckOut(BaseModel):
 
 class DevBookingCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    scenario: str | None = None  # an eval case name (case_1 to case_4); None for a random booking
+    scenario: str | None = None  # an eval case name (case_1 to case_4); None for a generated booking
+    situation: Literal["random", "on time", "canceled", "delayed", "missed"] = "random"  # generated bookings only
     seed: int | None = Field(default=None, ge=0, le=999_999)  # None picks one; the same seed gives the same booking
 
 

@@ -271,7 +271,7 @@ def test_a_price_change_since_search_must_be_reviewed(client, service):
     client.offers["oco_1"] = offer("oco_1", amount="135.00")
     changed = service.prepare_rebooking(ORDER, "oco_1")
     assert changed.validation_result == "changed"
-    assert changed.changes_to_review == ["Additional cost changed from 125 USD to 135 USD."]
+    assert changed.changes_to_review == ["Extra cost changed from 125 USD to 135 USD."]
     assert service.prepare_rebooking(ORDER, "oco_1").validation_result == "valid"
 
 
@@ -361,7 +361,7 @@ def test_airline_changes_are_read_from_the_order(client, service):
                                    "removed": removed, "added": added}])
     (change,) = service.list_airline_changes(ORDER)
     assert change.change_id == "aic_1" and change.kind == "delay" and change.data_source == "duffel"
-    assert change.summary == "The airline moved the departure from Nov 14, 10:03 AM (UTC+00:00) to Nov 14, 11:03 AM (UTC+00:00)."
+    assert change.summary == "The airline moved your departure from 10:03 AM on Nov 14 to 11:03 AM on Nov 14."
     assert calls(client, "get_order")  # reading the order, never Duffel's list call
 
 
