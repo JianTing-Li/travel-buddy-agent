@@ -76,6 +76,7 @@ def test_loop_tool_results_are_wrapped():
     from backend.app.agent.loop import _run_tool
     from backend.app.agent.decide import ToolCall
     tools = build_stub_tools("case_4")
-    out = _run_tool(ToolCall("t1", "search_replacements", {"booking_id": "MOCK-CASE-4"}), tools)
+    limits = {"budget_additional_cost": 0, "currency": "USD", "arrive_by": "2026-10-15T15:00-07:00", "max_connections": 1, "passenger_count": 1}
+    out = _run_tool(ToolCall("t1", "search_replacements", {"booking_id": "MOCK-CASE-4", "limits": limits}), tools)
     body = json.loads(out["content"])
     assert "tool_data" in body and "warning" in body

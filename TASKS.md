@@ -11,8 +11,8 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 ## Cheich: agent and harness
 - [x] System Prompt v0 from PRD 3b (agent/prompts/)
 - [x] Tool-use loop with Claude (agent/loop.py), tested with stub tools (agent/stub_tools.py)
-- [ ] Requirement extraction: required limits vs preferences, clarifying questions (agent/decide.py)
-- [x] Limits filter: budget, arrive_by, connections (harness/limits.py), plugged into the live session tools (api/sessions.py, one line) and tested with the 4 PRD scenarios. Gap: if the model searches without limits, options come back unchecked (limits_checked_by_code is false)
+- [~] Requirement extraction: required limits vs preferences, clarifying questions. Done: code rule (harness/requirements.py, enforced in agent/loop.py) refuses a search unless all five required limits are present and valid, and tells the agent what to ask; 9 test cases written (tests/evals/requirements/). Not yet measured: the PRD's 90% target needs the eval runner in live mode
+- [x] Limits filter: budget, arrive_by, connections (harness/limits.py), plugged into the live session tools (api/sessions.py, one line) and tested with the 4 PRD scenarios; a search without complete limits is now refused by the requirement check
 - [x] Explicit-confirmation gate and duplicate-attempt tracking (harness/confirmation.py), mock completer for now
 - [x] Guards: untrusted tool content, block rebooking when eligibility or cost unknown (harness/guards.py)
 - [ ] Unit tests for harness

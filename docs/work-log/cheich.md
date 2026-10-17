@@ -146,3 +146,15 @@ Not done / for Jian
 - `tests/unit/harness/test_limits_wired.py` (3 tests) proves it through the session builder the live app uses: with limits the search is checked by code and the 4 PM option is dropped; a budget in the wrong currency returns nothing; incomplete limits return nothing.
 - The expected-failure currency test now says exactly what is still open: the confirmation gate itself does not compare currencies (search does).
 - Still open: if the model calls `search_replacements` without `limits`, the options come back unchecked (`limits_checked_by_code: false`). The tool could refuse to search without limits, or the prompt could stress it; for Jian and me to decide.
+
+## 2026-10-16: requirement extraction (branch feat/guards-and-cutoff)
+Done
+- `harness/requirements.py`: `check_limits` says exactly which required limits (budget, currency, arrive_by, max_connections, passenger_count) are missing or invalid. A zero budget or zero connections is a real answer, not missing.
+- `agent/loop.py`: a `search_replacements` call without complete, valid limits is refused with a plain message naming what is missing and telling the agent to ask the traveler (or to call again with every field if the traveler already said them). Never guess, never assume a limit is flexible. This also closes the earlier gap where a search without limits came back unchecked, with no change to Jian's tool.
+- `tests/unit/harness/test_requirements.py` (24 tests): each missing field, bad values, no limits at all, the wrong keys the live model once used, complete limits going through the filter, and the turn continuing so the agent can ask.
+- `tests/evals/requirements/extraction_cases.json`: 9 cases for the eval runner (3 from PRD 3d, 6 designed from the PRD's test list). Review the designed ones with Jian.
+- My three tests that searched without limits now pass complete limits. One scripted test in Jian's `tests/unit/api/test_dev.py` did the same and now passes complete limits too (4 lines, with your OK); please check it in review.
+
+Not done
+- The code can only check that limits are COMPLETE and VALID, not that the traveler really said them. The prompt still has to make the agent ask and confirm. The PRD's 90% metric needs the eval runner in live mode.
+- Preferences (for example nonstop) are not in the contract's `Limits` in MVP 1, so they are not checked; the agent weighs them when it compares options.

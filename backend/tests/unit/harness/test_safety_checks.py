@@ -19,6 +19,7 @@ from backend.tests.unit.agent.test_loop import FakeClient, resp, text, tool
 
 TODAY = date(2026, 10, 15)
 B, OPT = "MOCK-CASE-1", "opt-1a"
+LIMITS = {"budget_additional_cost": 0, "currency": "USD", "arrive_by": "2026-10-15T15:00-07:00", "max_connections": 1, "passenger_count": 1}  # a search needs complete limits
 ALL_OPTIONS = [
     ("MOCK-CASE-1", "opt-1a"), ("MOCK-CASE-1", "opt-1b"), ("MOCK-CASE-1", "opt-1c"),
     ("MOCK-CASE-2", "opt-2a"), ("MOCK-CASE-2", "opt-2b"),
@@ -76,7 +77,7 @@ def test_a_failing_search_tool_reaches_the_model_as_an_error_and_the_turn_contin
 
 def test_case_4_injected_text_is_flagged_in_the_real_mock_data():
     toolset, _, tools, _ = make()
-    out = _run_tool(ToolCall("t1", "search_replacements", {"booking_id": "MOCK-CASE-4"}), tools)
+    out = _run_tool(ToolCall("t1", "search_replacements", {"booking_id": "MOCK-CASE-4", "limits": LIMITS}), tools)
     body = json.loads(out["content"])
     assert "tool_data" in body and "warning" in body
     assert any("note" in path for path in body["suspicious_fields"])
@@ -85,7 +86,7 @@ def test_case_4_injected_text_is_flagged_in_the_real_mock_data():
 def test_normal_mock_data_is_not_flagged_as_suspicious():
     _, _, tools, _ = make()
     for booking in ("MOCK-CASE-1", "MOCK-CASE-2", "MOCK-CASE-3"):
-        body = json.loads(_run_tool(ToolCall("t", "search_replacements", {"booking_id": booking}), tools)["content"])
+        body = json.loads(_run_tool(ToolCall("t", "search_replacements", {"booking_id": booking, "limits": LIMITS}), tools)["content"])
         assert "warning" not in body
 
 

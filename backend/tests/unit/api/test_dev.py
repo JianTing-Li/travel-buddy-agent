@@ -159,7 +159,10 @@ def test_a_tool_failure_fault_reaches_the_agent_as_a_tool_error_and_clears():
     def script(*blocks):
         return NS(content=list(blocks), stop_reason="end_turn")
 
-    tool = NS(type="tool_use", id="t1", name="search_replacements", input={"booking_id": "MOCK-CASE-1"})
+    # complete limits: a search without them is refused by Cheich's required-limits check before it reaches the fault
+    limits = {"budget_additional_cost": 0, "currency": "USD", "arrive_by": "2026-10-15T15:00-07:00",
+              "max_connections": 1, "passenger_count": 1}
+    tool = NS(type="tool_use", id="t1", name="search_replacements", input={"booking_id": "MOCK-CASE-1", "limits": limits})
     requests: list[list] = []
 
     class Model:

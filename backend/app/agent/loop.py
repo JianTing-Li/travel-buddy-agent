@@ -6,6 +6,7 @@ from typing import Any, Callable
 
 from backend.app.agent.decide import ToolCall, decide
 from backend.app.harness.guards import wrap_untrusted
+from backend.app.harness.requirements import check_limits
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "system_prompt_v0.txt"
 DEFAULT_MAX_STEPS = 8
@@ -44,6 +45,10 @@ def _run_tool(call: ToolCall, tools: dict[str, Callable[..., Any]]) -> dict[str,
         return result(f"Unknown tool '{call.name}'. Available tools: {', '.join(sorted(tools))}.", True)
     if not isinstance(call.input, dict):
         return result("Tool input must be a JSON object.", True)
+    if call.name == "search_replacements":  # never search on missing or invalid required limits
+        check = check_limits(call.input.get("limits"))
+        if not check.ok:
+            return result(check.message, True)
     try:
         return result(json.dumps(wrap_untrusted(fn(**call.input)), default=str))
     except TypeError as exc:
