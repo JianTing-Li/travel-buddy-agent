@@ -214,7 +214,7 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
   if (loadError) {
     return (
       <section className="booking-page">
-        <a className="back" href={listHref}>← All bookings</a>
+        <a className="back" href={listHref}><span className="back-arrow" aria-hidden="true">←</span>All bookings</a>
         <div className="card empty" role="alert">
           {loadError === 'not found' ? (
             <>
@@ -249,7 +249,7 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
 
   return (
     <section className="booking-page">
-      <a className="back" href={listHref}>← All bookings</a>
+      <a className="back" href={listHref}><span className="back-arrow" aria-hidden="true">←</span>All bookings</a>
       <FlightCard detail={detail} changes={disrupted ? changes : []} showSource={Boolean(api.dev)} />
       <ChatSlot
         bookingId={bookingId}
