@@ -183,12 +183,12 @@ def main(argv: list[str] | None = None, live_client_factory: Callable[[], Any] |
     return 1 if any(r["violations"] or r["error"] for r in results) else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
-
-
 def _travel_day(api: Any, session_id: str, booking_id: str, detail: dict[str, Any]) -> str:
     """The day the replacement flights are on: the original flight's day, except for a missed flight that already
     left the day before. Read from the in-process app, not from the model."""
     service = api.app.state.sessions.get(session_id).service
     return service.travel_day(booking_id) or detail["trip"]["original_itinerary"]["departs"][:10]
+
+
+if __name__ == "__main__":
+    sys.exit(main())

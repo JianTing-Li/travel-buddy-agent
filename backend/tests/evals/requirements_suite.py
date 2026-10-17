@@ -188,7 +188,6 @@ def format_report(results: list[dict[str, Any]], mode: str) -> str:
     lines.append("Judged by code only. Simulated data: no real tickets are bought or changed.")
     return "\n".join(lines)
 
-
 def _travel_day(api: Any, session_id: str, booking_id: str, detail: dict[str, Any]) -> str:
     """The day the replacement flights are on: the original flight's day, except for a missed flight that already
     left the day before. Read from the in-process app, not from the model."""
