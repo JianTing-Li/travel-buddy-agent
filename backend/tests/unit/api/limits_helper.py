@@ -1,4 +1,4 @@
-"""Complete traveler limits for API tests, now that the live gate is strict. Owner: Jian.
+"""Shared helpers for API tests: the default bookings, and complete traveler limits for the strict gate. Owner: Jian.
 
 The live app refuses to prepare or confirm an option until a search checked by code has confirmed the traveler's
 limits. Tests that prepare an option first run such a search, with limits that the option fits exactly. The mock's
@@ -7,6 +7,9 @@ dates move with the calendar, so the limits are read from the option instead of 
 from typing import Any, Callable
 
 from backend.app.services.mock.scenarios import load_scenario
+
+# What a default session starts with: the 4 PRD cases, then two on-time bookings.
+DEFAULT_BOOKINGS = ["MOCK-CASE-1", "MOCK-CASE-2", "MOCK-CASE-3", "MOCK-CASE-4", "MOCK-ONTIME-1", "MOCK-ONTIME-2"]
 
 
 def limits_that_fit(option: dict[str, Any], passengers: int = 1) -> dict[str, Any]:

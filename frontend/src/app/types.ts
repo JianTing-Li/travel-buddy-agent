@@ -220,11 +220,15 @@ export const DEV_FAULTS = [
 ] as const;
 
 export interface DevBookingCreate {
-  /** An eval case (case_1 to case_4); omit for a random booking. */
+  /** An eval case (case_1 to case_4); omit for a generated booking. */
   scenario?: string | null;
   /** 0 to 999999. The same seed gives the same booking; omit to pick one. */
   seed?: number | null;
+  /** What a generated booking starts as; "random" is canceled or missed. */
+  situation?: DevSituation;
 }
+
+export type DevSituation = "random" | "on time" | "canceled" | "delayed" | "missed";
 
 export interface DevBookingOut {
   booking: BookingSummary;
@@ -282,6 +286,16 @@ export interface ChatSlotProps {
   situation: ChatSituation;
   /** How many people are on the booking. */
   travelers: number;
+  /** The last message didn't get an answer: what went wrong, and a way to send it again. */
+  problem?: ChatProblem | null;
+}
+
+export interface ChatProblem {
+  message: string;
+  /** Shown after repeated failures: a way forward that doesn't need Travel Buddy. */
+  fallback?: string;
+  retrying: boolean;
+  onRetry: () => void;
 }
 
 export type ChatSituation = "canceled" | "delayed" | "missed" | "on time" | "rebooked";

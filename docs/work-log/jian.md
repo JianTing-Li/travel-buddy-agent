@@ -1,5 +1,14 @@
 # Jian work log
 
+## 2026-10-17: errors, loading, dev panel and on-time bookings (branch feature/polish-travel-buddy)
+- Chat errors are app notices, not Travel Buddy bubbles: "Can't reach Travel Buddy" (no answer), "assistant isn't available" (503 or a failed model turn), "taking too long" (browser time limit). Try again resends the same message without repeating it; after two failures the notice points to the airline with the booking ref. The model client now has a 45 s timeout and one retry (`api/main.py`).
+- Booking page: "Booking not found" only for a 404; other failures say "Couldn't load this booking" with Try again. Skeletons replace the loading text on both pages.
+- Generator (`services/mock/generator.py`): `situation` = on time, canceled, delayed, missed or random (the old behavior, unchanged for the same seed); generated bookings now have an original arrival time; a delay moves departure and arrival, drawn from its own random stream so the on-time and delayed versions of a seed share route and options.
+- Default sessions also get MOCK-ONTIME-1 (JFK to MIA) and MOCK-ONTIME-2 (DEN to LAX), so the list isn't only disruptions. A session asking for specific scenarios gets exactly those. Tests use `DEFAULT_BOOKINGS` from `tests/unit/api/limits_helper.py`.
+- `POST /dev/bookings/{id}/clear` ("Back to normal"): a mock booking is on time again with no changes, faults or rebooking, and its chat, card, notices and gate state are forgotten (`ConfirmationGate.forget`, Cheich's file, with his OK). Duffel bookings get 409.
+- Dev panel wording: "Add a test booking" with "What happened", PRD cases in their own group, fault names in plain words.
+- Checked: 621 backend tests, frontend build and lint; in the browser: on-time bookings listed, delayed booking added and put back to normal, server stopped (can't reach, then the airline fallback), backend without an AI key (assistant unavailable), recovery after restart, unknown booking.
+
 ## 2026-10-17: booking page layout and label cleanup (branch feature/polish-travel-buddy)
 - Booking page: a full-width flight card leads (trip, what happened, the flight). After a rebooking it shows "You're rebooked", the new flight first and the original crossed out as replaced; before, the side card kept showing the old flight under "Rebooked". The guidance card and the side panel are gone.
 - Chat (Cheich's `features/chat`, with his OK): full width, the page scrolls instead of a box inside the page, the input stays at the bottom of the screen, and a new reply is shown from its start. The guidance bullets moved into the welcome message. The confirm card now sits inside the chat, just above the input (`ChatSlotProps.action`).

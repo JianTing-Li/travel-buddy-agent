@@ -51,7 +51,7 @@ const WELCOME: Record<ChatSituation, { intro: string; examples: string[] }> = {
 }
 const MAX_INPUT_HEIGHT = 160
 
-export function ChatPanel({ bookingId, messages, sending, onSend, action, situation, travelers }: ChatSlotProps) {
+export function ChatPanel({ bookingId, messages, sending, onSend, action, situation, travelers, problem }: ChatSlotProps) {
   const welcome = WELCOME[situation]
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -154,6 +154,16 @@ export function ChatPanel({ bookingId, messages, sending, onSend, action, situat
           </div>
         )}
       </div>
+
+      {problem && !sending && (
+        <div className="chat-problem" role="alert">
+          <p>{problem.message}</p>
+          {problem.fallback && <p className="small">{problem.fallback}</p>}
+          <button className="btn btn-small" type="button" onClick={problem.onRetry} aria-busy={problem.retrying}>
+            Try again
+          </button>
+        </div>
+      )}
 
       {action && <div className="chat-action">{action}</div>}
 

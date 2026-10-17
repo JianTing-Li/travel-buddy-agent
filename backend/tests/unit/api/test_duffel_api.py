@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.api.main import create_app
 from backend.app.services.duffel.client import DuffelTransportError
-from backend.tests.unit.api.limits_helper import check_limits_for
+from backend.tests.unit.api.limits_helper import DEFAULT_BOOKINGS, check_limits_for
 from backend.tests.unit.services.duffel.test_service import ORDER, FakeClient, offer, order, segment, slice_
 
 
@@ -106,7 +106,7 @@ def test_mock_and_duffel_bookings_live_side_by_side_in_one_session():
     client, session_id, _ = start()
     create_duffel(client, session_id)
     bookings = client.get("/bookings", headers=auth(session_id)).json()
-    assert [b["booking_id"] for b in bookings] == ["MOCK-CASE-1", "MOCK-CASE-2", "MOCK-CASE-3", "MOCK-CASE-4", ORDER]
+    assert [b["booking_id"] for b in bookings] == [*DEFAULT_BOOKINGS, ORDER]
     assert {b["data_source"] for b in bookings} == {"mock", "duffel"}
     detail = client.get(f"/bookings/{ORDER}", headers=auth(session_id)).json()
     assert detail["trip"]["data_source"] == "duffel" and detail["confirmation"] is None

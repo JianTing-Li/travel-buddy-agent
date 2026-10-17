@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.api.main import create_app
 from backend.app.api.sessions import MAX_BOOKINGS_PER_SESSION
-from backend.tests.unit.api.limits_helper import check_limits_for
+from backend.tests.unit.api.limits_helper import DEFAULT_BOOKINGS, check_limits_for
 
 
 def start(dev=True, model=None) -> tuple[TestClient, str]:
@@ -213,7 +213,7 @@ def test_reset_puts_the_session_back_to_its_first_bookings():
 
     response = reset(client, session_id)
     assert response.status_code == 200
-    assert response.json() == {"booking_ids": ["MOCK-CASE-1", "MOCK-CASE-2", "MOCK-CASE-3", "MOCK-CASE-4"]}
+    assert response.json() == {"booking_ids": DEFAULT_BOOKINGS}
     bookings = {b["booking_id"]: b for b in client.get("/bookings", headers=auth(session_id)).json()}
     assert "MOCK-GEN-8" not in bookings  # generated booking gone
     assert bookings["MOCK-CASE-1"]["rebooked"] is False and bookings["MOCK-CASE-1"]["status"] == "canceled"
@@ -251,3 +251,71 @@ def test_a_session_limited_to_some_scenarios_keeps_them_after_reset():
     session_id = client.post("/sessions", json={"scenarios": ["case_2"]}).json()["session_id"]
     create(client, session_id, seed=3)
     assert reset(client, session_id).json() == {"booking_ids": ["MOCK-CASE-2"]}
+
+
+def test_a_default_session_also_starts_with_two_on_time_bookings():
+    client, session_id = start()
+    bookings = {b["booking_id"]: b for b in client.get("/bookings", headers=auth(session_id)).json()}
+    for booking_id in ("MOCK-ONTIME-1", "MOCK-ONTIME-2"):
+        assert bookings[booking_id]["status"] == "on time" and bookings[booking_id]["data_source"] == "mock"
+        assert (bookings[booking_id]["origin"], bookings[booking_id]["destination"]) != ("JFK", "LAX")
+    only = client.post("/sessions", json={"scenarios": ["case_1"]}).json()
+    assert only["booking_ids"] == ["MOCK-CASE-1"]  # asking for scenarios gives exactly those
+
+
+@pytest.mark.parametrize("situation, status", [
+    ("on time", "on time"), ("canceled", "canceled"), ("delayed", "delayed"), ("missed", "missed by traveler")])
+def test_a_generated_booking_can_start_in_a_chosen_situation(situation, status):
+    client, session_id = start()
+    made = create(client, session_id, seed=5, situation=situation)
+    assert made.status_code == 201 and made.json()["booking"]["status"] == status
+    detail = client.get("/bookings/MOCK-GEN-5", headers=auth(session_id)).json()
+    assert detail["trip"]["original_itinerary"]["arrives"] is not None
+    if situation == "delayed":
+        assert detail["trip"]["disruption_details"]["delay_minutes"] > 0
+
+
+def test_an_unknown_situation_is_rejected():
+    client, session_id = start()
+    assert create(client, session_id, situation="stormy").status_code == 422
+
+
+def test_clear_disruption_puts_a_booking_back_to_normal_and_starts_its_chat_over():
+    client, session_id = start()
+    session = client.app.state.sessions.get(session_id)
+    client.post("/dev/bookings/MOCK-CASE-1/disrupt", json={"kind": "delay", "delay_minutes": 30}, headers=auth(session_id))
+    assert client.post("/bookings/MOCK-CASE-1/changes/check", headers=auth(session_id)).json()["new_changes"]
+    check_limits_for(session.tools, "MOCK-CASE-1", "opt-1a")
+    session.tools["prepare_rebooking"](booking_id="MOCK-CASE-1", option_id="opt-1a")
+    session.histories["MOCK-CASE-1"] = [{"role": "user", "content": "hi"}]
+    session.histories["MOCK-CASE-2"] = [{"role": "user", "content": "keep me"}]
+
+    cleared = client.post("/dev/bookings/MOCK-CASE-1/clear", headers=auth(session_id))
+    assert cleared.status_code == 200 and cleared.json()["status"] == "on time"
+    detail = client.get("/bookings/MOCK-CASE-1", headers=auth(session_id)).json()
+    assert detail["trip"]["disruption_details"]["type"] == "none reported" and detail["confirmation"] is None
+    assert "MOCK-CASE-1" not in session.histories and "MOCK-CASE-1" not in session.prepared
+    assert session.histories["MOCK-CASE-2"]  # other bookings untouched
+    # the gate forgot the booking, so the strict gate asks for a checked search again
+    assert client.post("/confirm", json={"booking_id": "MOCK-CASE-1", "option_id": "opt-1a"},
+                       headers=auth(session_id)).status_code == 409
+    # a new change after clearing is shown again (change ids start over)
+    client.post("/dev/bookings/MOCK-CASE-1/disrupt", json={"kind": "cancellation"}, headers=auth(session_id))
+    assert client.post("/bookings/MOCK-CASE-1/changes/check", headers=auth(session_id)).json()["new_changes"]
+
+
+def test_clearing_a_rebooked_booking_undoes_the_simulated_rebooking():
+    client, session_id = start()
+    session = client.app.state.sessions.get(session_id)
+    check_limits_for(session.tools, "MOCK-CASE-1", "opt-1a")
+    session.tools["prepare_rebooking"](booking_id="MOCK-CASE-1", option_id="opt-1a")
+    client.post("/confirm", json={"booking_id": "MOCK-CASE-1", "option_id": "opt-1a"}, headers=auth(session_id))
+    cleared = client.post("/dev/bookings/MOCK-CASE-1/clear", headers=auth(session_id)).json()
+    assert cleared["rebooked"] is False and cleared["status"] == "on time"
+
+
+def test_clear_disruption_is_dev_only_and_needs_an_owned_booking():
+    client, session_id = start(dev=False)
+    assert client.post("/dev/bookings/MOCK-CASE-1/clear", headers=auth(session_id)).status_code == 404
+    client, session_id = start()
+    assert client.post("/dev/bookings/MOCK-NOPE/clear", headers=auth(session_id)).status_code == 404

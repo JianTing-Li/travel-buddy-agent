@@ -55,6 +55,7 @@ SESSION_HEADER = "X-Session-Id"
 BOOKING_NOT_FOUND = "Booking not found."
 NOT_CONFIGURED = "The assistant isn't configured on the server."
 MAX_NOTICES = 5
+MODEL_TIMEOUT_SECONDS = 45.0
 
 
 @lru_cache(maxsize=1)
@@ -197,7 +198,9 @@ def create_app(
         if app.state.model_client is None:
             if not config.ANTHROPIC_API_KEY or not name:
                 raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, NOT_CONFIGURED)
-            app.state.model_client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+            # A stuck call must not leave the traveler waiting: one model call gets MODEL_TIMEOUT_SECONDS and one retry.
+            app.state.model_client = anthropic.Anthropic(
+                api_key=config.ANTHROPIC_API_KEY, timeout=MODEL_TIMEOUT_SECONDS, max_retries=1)
         if not name:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, NOT_CONFIGURED)
         return app.state.model_client, name
@@ -290,7 +293,7 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
         body = body or DevBookingCreate()
         seed = body.seed if body.seed is not None else secrets.randbelow(MAX_SEED + 1)
         try:
-            scenario = generate_scenario(seed, scenario=body.scenario)
+            scenario = generate_scenario(seed, scenario=body.scenario, situation=body.situation)
             with session.lock:
                 booking_id = session.add_booking(scenario)
                 summary = _summary(session, booking_id)
@@ -328,6 +331,14 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
         except MockServiceError as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
 
+    @app.post("/dev/bookings/{booking_id}/clear", response_model=BookingSummary, responses=errors)
+    def dev_clear_disruption(booking_id: BookingDep, session: SessionDep) -> BookingSummary:
+        """Put a mock booking back to normal (on time) and start its chat over. Duffel can't undo its changes."""
+        if session.service_for(booking_id) is session.duffel:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Only mock bookings can be put back to normal.")
+        with session.lock:
+            session.clear_disruption(booking_id)
+            return _summary(session, booking_id)
 
     @app.post("/dev/reset", response_model=DevResetOut, responses=errors)
     def dev_reset(session: SessionDep) -> DevResetOut:

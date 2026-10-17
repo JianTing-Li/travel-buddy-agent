@@ -118,6 +118,21 @@
 .chat-form .btn { min-height: 44px; }
 .chat-form .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* A message that got no answer: an app notice, not a reply from Travel Buddy. */
+.chat-problem {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-size: 14px;
+  animation: rise var(--dur) var(--ease-out) both;
+}
+.chat-problem .small { color: inherit; }
+.chat-problem .btn { margin-top: 4px; }
+
 /* Text for screen readers only. */
 .chat-sr {
   position: absolute;

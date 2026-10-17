@@ -144,6 +144,25 @@ class MockService:
         except KeyError:
             raise UnknownBookingError(f"Mock booking '{booking_id}' not found") from None
 
+    def clear_disruption(self, booking_id: str) -> TripContext:
+        """Put a booking back to normal for testing: on time, with no airline changes, faults, prepared option or
+        rebooking. Its options are the scenario's originals again."""
+        with self._lock:
+            booking = self._booking(booking_id)
+            fresh = _Booking(booking.scenario)
+            fresh.trip.original_itinerary.status = "on time"
+            fresh.trip.disruption_details = Disruption(type="none reported")
+            original = booking.scenario.trip.original_itinerary
+            if booking.scenario.trip.disruption_details.delay_minutes and original.departs:
+                # a generated delay moved the departure; put it back to the scheduled time
+                back = timedelta(minutes=booking.scenario.trip.disruption_details.delay_minutes)
+                itinerary = fresh.trip.original_itinerary
+                itinerary.departs = (datetime.fromisoformat(original.departs) - back).isoformat(timespec="minutes")
+                if original.arrives:
+                    itinerary.arrives = (datetime.fromisoformat(original.arrives) - back).isoformat(timespec="minutes")
+            self._bookings[booking_id] = fresh
+            return fresh.trip.model_copy(deep=True)
+
     def get_trip_context(self, booking_id: str) -> TripContext:
         with self._lock:
             return self._booking(booking_id).trip.model_copy(deep=True)
@@ -162,6 +181,9 @@ class MockService:
                     raise ValueError("delay_minutes must be positive for a delay")
                 moved = datetime.fromisoformat(itinerary.departs) + timedelta(minutes=delay_minutes)
                 itinerary.departs = moved.isoformat(timespec="minutes")
+                if itinerary.arrives:  # the flight lands later by the same delay
+                    later = datetime.fromisoformat(itinerary.arrives) + timedelta(minutes=delay_minutes)
+                    itinerary.arrives = later.isoformat(timespec="minutes")
                 itinerary.status = "delayed"
                 total = (booking.trip.disruption_details.delay_minutes or 0) + delay_minutes
                 booking.trip.disruption_details = Disruption(type="airline delay", delay_minutes=total)

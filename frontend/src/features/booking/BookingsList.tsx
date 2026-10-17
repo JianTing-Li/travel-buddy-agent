@@ -25,7 +25,7 @@ export function BookingsList({ api, onReset }: { api: BookingsApi; onReset: () =
     api
       .listBookings()
       .then((list) => !cancelled && setBookings(list))
-      .catch(() => !cancelled && setError("Couldn't load your bookings. Try again."))
+      .catch(() => !cancelled && setError("Couldn't load your bookings. Check your connection, then try again."))
     return () => {
       cancelled = true
     }
@@ -35,7 +35,7 @@ export function BookingsList({ api, onReset }: { api: BookingsApi; onReset: () =
     <section aria-labelledby="bookings-title">
       <h1 className="page-title" id="bookings-title">Your bookings</h1>
       <p className="muted" style={{ marginBottom: 16 }}>
-        Open a disrupted booking and Travel Buddy will help you find a replacement flight.
+        Open a booking to see your flight. If something went wrong, Travel Buddy can help you find a new one.
       </p>
       {error && (
         <div className="card" role="alert">
@@ -45,7 +45,17 @@ export function BookingsList({ api, onReset }: { api: BookingsApi; onReset: () =
           </button>
         </div>
       )}
-      {!bookings && !error && <p className="muted" role="status">Loading bookings…</p>}
+      {!bookings && !error && (
+        <div className="stack" aria-busy="true" aria-label="Loading bookings">
+          {[0, 1, 2].map((i) => (
+            <div className="card skeleton-card" key={i}>
+              <span className="skeleton skeleton-title" style={{ width: '30%' }} />
+              <span className="skeleton skeleton-line" style={{ width: '45%' }} />
+              <span className="skeleton skeleton-line" style={{ width: '60%' }} />
+            </div>
+          ))}
+        </div>
+      )}
       {bookings && bookings.length === 0 && (
         <div className="card empty">
           <h2 className="card-title">No bookings yet</h2>

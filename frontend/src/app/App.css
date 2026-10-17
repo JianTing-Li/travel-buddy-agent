@@ -307,4 +307,22 @@
 }
 .dev-faults { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--border); }
 .dev-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
-.dev-duffel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.dev-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.dev-message { margin-top: 10px; font-size: 14px; color: var(--success-text); animation: rise var(--dur) var(--ease-out) both; }
+
+/* loading placeholders in the shape of what is coming */
+.skeleton {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-line { height: 14px; }
+.skeleton-title { height: 26px; width: 55%; }
+.skeleton-block { height: 72px; }
+.skeleton-card { display: grid; gap: 10px; padding: 18px; min-height: 120px; }
+@keyframes shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}

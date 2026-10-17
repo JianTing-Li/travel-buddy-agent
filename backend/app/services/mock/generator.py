@@ -21,6 +21,9 @@ AIRPORT_ZONES = {
     "LAX": "America/Los_Angeles", "SFO": "America/Los_Angeles", "SEA": "America/Los_Angeles",
 }
 DISRUPTIONS = (("airline cancellation", "canceled"), ("missed flight", "missed by traveler"))
+# What a generated booking can start as. "random" picks one of DISRUPTIONS (the old behavior).
+SITUATIONS = ("random", "on time", "canceled", "delayed", "missed")
+DELAY_MINUTES = (45, 90, 150)
 PAID_COSTS = (45, 60, 80, 95, 120, 140, 150, 175, 200)  # whole-booking additional costs, in USD
 CONNECTION_EXTRA_MINUTES = 90
 MAX_SEED = 999_999
@@ -45,10 +48,18 @@ def _renamed(base: Scenario, booking_id: str, seed: int) -> Scenario:
     return Scenario(f"{base.scenario_id}-g{seed}", booking_id, base.passenger_count, trip, base.options)
 
 
-def generate_scenario(seed: int, today: date | None = None, scenario: str | None = None) -> Scenario:
-    """Build a mock booking. `scenario` re-issues one of the eval cases; otherwise the seed decides everything."""
+def generate_scenario(seed: int, today: date | None = None, scenario: str | None = None,
+                      situation: str = "random", booking_id: str | None = None) -> Scenario:
+    """Build a mock booking. `scenario` re-issues one of the eval cases; otherwise the seed decides everything.
+
+    `situation` sets what the booking starts as: on time, canceled, delayed, missed, or random (canceled or missed).
+    The seed still decides the route, times and options, so the same seed and situation give the same booking.
+    `booking_id` replaces the default MOCK-GEN-<seed> id.
+    """
     if not 0 <= seed <= MAX_SEED:
         raise GeneratorError(f"seed must be between 0 and {MAX_SEED}")
+    if situation not in SITUATIONS:
+        raise GeneratorError(f"situation must be one of: {', '.join(SITUATIONS)}")
     today = today or date.today()
     if scenario is not None:
         try:
@@ -63,8 +74,20 @@ def generate_scenario(seed: int, today: date | None = None, scenario: str | None
     passengers = rng.randint(1, 3)
     disruption, status = rng.choice(DISRUPTIONS)
     day = today + timedelta(days=rng.randint(0, 1))
-    booking_id = f"MOCK-GEN-{seed}"
+    booking_id = booking_id or f"MOCK-GEN-{seed}"
     departs = datetime.combine(day, time(rng.randint(6, 9), 0), tzinfo=origin_zone)
+    delay_minutes = None
+    if situation == "on time":
+        disruption, status = "none reported", "on time"
+    elif situation == "canceled":
+        disruption, status = "airline cancellation", "canceled"
+    elif situation == "missed":
+        disruption, status = "missed flight", "missed by traveler"
+    elif situation == "delayed":
+        disruption, status = "airline delay", "delayed"
+        # its own random stream, so a delayed booking has the same route and options as the on-time one
+        delay_minutes = random.Random(f"delay-{seed}").choice(DELAY_MINUTES)
+        departs += timedelta(minutes=delay_minutes)
 
     count = rng.randint(3, 5)
     hours = sorted(rng.sample(range(7, 21), count))  # distinct departure hours, earliest first
@@ -96,10 +119,11 @@ def generate_scenario(seed: int, today: date | None = None, scenario: str | None
     trip = TripContext(
         original_itinerary={
             "booking_id": booking_id, "flight": f"Mock Air {rng.randint(100, 199)}", "origin": origin,
-            "destination": destination, "departs": _iso(departs), "status": status,
+            "destination": destination, "departs": _iso(departs),
+            "arrives": _iso((departs + timedelta(minutes=block)).astimezone(destination_zone)), "status": status,
         },
         passengers=[{"passenger_id": f"{booking_id}-P{i + 1}", "type": "adult"} for i in range(passengers)],
-        disruption_details={"type": disruption, "simulated": True},
+        disruption_details={"type": disruption, "simulated": True, "delay_minutes": delay_minutes},
         data_source="mock",
     )
     return Scenario(f"gen-{seed}", booking_id, passengers, trip, options)

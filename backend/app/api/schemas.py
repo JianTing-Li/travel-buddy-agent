@@ -96,7 +96,8 @@ class ChangeCheckOut(BaseModel):
 
 class DevBookingCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    scenario: str | None = None  # an eval case name (case_1 to case_4); None for a random booking
+    scenario: str | None = None  # an eval case name (case_1 to case_4); None for a generated booking
+    situation: Literal["random", "on time", "canceled", "delayed", "missed"] = "random"  # generated bookings only
     seed: int | None = Field(default=None, ge=0, le=999_999)  # None picks one; the same seed gives the same booking
 
 

@@ -20,6 +20,8 @@ export interface DevApi {
   /** Creates a real Duffel TEST order and adds it to the session. */
   createDuffelBooking(body: DevDuffelBookingIn): Promise<BookingSummary>
   disrupt(bookingId: string, body: DevDisruptIn): Promise<AirlineChange>
+  /** Puts a mock booking back to normal (on time) and starts its chat over. */
+  clearDisruption(bookingId: string): Promise<BookingSummary>
   setFaults(bookingId: string, faults: string[]): Promise<DevFaultsOut>
   /** Starts this session over with its first mock bookings. Other sessions are untouched. */
   reset(): Promise<DevResetOut>

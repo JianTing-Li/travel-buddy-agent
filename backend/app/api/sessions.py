@@ -15,6 +15,7 @@ from ..harness.confirmation import ConfirmationGate
 from ..harness.limits import limits_filter
 from ..services.duffel.client import DuffelClient
 from ..services.duffel.service import DuffelService
+from ..services.mock.generator import generate_scenario
 from ..services.mock.mock_service import MockService
 from ..services.mock.scenarios import Scenario, scenario_names
 from ..tools.registry import ToolSet, build_tools
@@ -22,6 +23,9 @@ from ..tools.registry import ToolSet, build_tools
 SESSION_IDLE_SECONDS = 12 * 60 * 60
 MAX_SESSIONS = 200
 MAX_BOOKINGS_PER_SESSION = 50
+# On-time bookings every default session starts with next to the PRD cases, so the list is not only disruptions.
+# (booking id, generator seed); the seed fixes the route, times and options.
+STARTER_ON_TIME = (("MOCK-ONTIME-1", 1), ("MOCK-ONTIME-2", 6))
 
 
 class UnknownScenarioError(ValueError):
@@ -50,6 +54,7 @@ class Session:
     notices: dict[str, list[str]] = field(default_factory=dict)  # booking_id -> app notices for the next chat turn
     shown_changes: dict[str, set[str]] = field(default_factory=dict)  # booking_id -> change ids already shown
     scenario_names: list[str] = field(default_factory=list)  # the mock scenarios this session started with
+    starters: bool = False  # whether it also started with the on-time starter bookings
     duffel_client: DuffelClient | None = None  # kept so a reset can start a fresh Duffel service
     last_used: float = field(default_factory=time.monotonic)
     lock: threading.Lock = field(default_factory=threading.Lock)  # one request at a time per session
@@ -87,11 +92,19 @@ class Session:
         self.allowed_ids.add(booking_id)
         return booking_id
 
+    def clear_disruption(self, booking_id: str) -> None:
+        """Put one mock booking back to normal (on time) and forget its chat, card, notices and gate state.
+        The caller holds the session lock and has checked it is a mock booking."""
+        self.service.clear_disruption(booking_id)
+        self.gate.forget(booking_id)
+        for per_booking in (self.histories, self.prepared, self.notices, self.shown_changes):
+            per_booking.pop(booking_id, None)
+
     def reset(self) -> None:
         """Start this session over: its first mock bookings only, nothing generated, changed, faulted or rebooked,
         no chat history. Duffel test bookings leave the session (the orders stay on the Duffel test account).
         Other sessions are untouched. The caller holds the session lock."""
-        parts = _build(self.scenario_names, self.duffel_client)
+        parts = _build(self.scenario_names, self.duffel_client, self.starters)
         self.service, self.toolset, self.gate, self.tools = parts.service, parts.toolset, parts.gate, parts.tools
         self.allowed_ids, self.duffel, self.prepared = parts.allowed_ids, parts.duffel, parts.prepared
         self.histories, self.notices, self.shown_changes = {}, {}, {}
@@ -108,9 +121,12 @@ class _Parts:
     prepared: dict[str, dict[str, Any]]
 
 
-def _build(names: list[str], client: DuffelClient | None) -> _Parts:
+def _build(names: list[str], client: DuffelClient | None, starters: bool = False) -> _Parts:
     """Everything a session needs, wired together: services, tools, the confirmation gate."""
     service = MockService(scenarios=list(dict.fromkeys(names)))
+    if starters:
+        for booking_id, seed in STARTER_ON_TIME:
+            service.add_booking(generate_scenario(seed, situation="on time", booking_id=booking_id))
     allowed = set(service.booking_ids())
     duffel = DuffelService(client) if client is not None else None
     toolset = build_tools(service, allowed_booking_ids=allowed, duffel=duffel, limits_filter=limits_filter)
@@ -148,9 +164,10 @@ class SessionStore:
         if unknown or not names:
             raise UnknownScenarioError(f"Unknown or empty scenarios. Choose from: {', '.join(known)}")
         client = self._duffel_client_factory() if self._duffel_client_factory else None
-        p = _build(names, client)
+        starters = scenarios is None  # a session asking for specific scenarios gets exactly those
+        p = _build(names, client, starters)
         session = Session(secrets.token_urlsafe(32), p.service, p.toolset, p.gate, p.tools, p.allowed_ids, p.duffel,
-                          prepared=p.prepared, scenario_names=list(names), duffel_client=client)
+                          prepared=p.prepared, scenario_names=list(names), starters=starters, duffel_client=client)
         with self._lock:
             self._expire()
             while len(self._sessions) >= self._max_sessions:
