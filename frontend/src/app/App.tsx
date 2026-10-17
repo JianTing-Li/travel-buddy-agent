@@ -30,9 +30,21 @@ function createApi(): BookingsApi {
 /** Dev builds can hide the test tools for a demo; the choice is remembered in this browser. */
 const DEV_TOOLS_KEY = 'travel-buddy-dev-tools'
 
+/** On by default while developing; off by default on the deployed demo, so visitors first see the real app. */
 function initialDevTools(): boolean {
+  const fallback = !import.meta.env.PROD
   try {
-    return window.localStorage.getItem(DEV_TOOLS_KEY) !== 'off'
+    const saved = window.localStorage.getItem(DEV_TOOLS_KEY)
+    return saved === null ? fallback : saved === 'on'
+  } catch {
+    return fallback
+  }
+}
+
+/** Whether this browser has ever used the switch; until then it pulses gently to be noticed. */
+function switchSeen(): boolean {
+  try {
+    return window.localStorage.getItem(DEV_TOOLS_KEY) !== null
   } catch {
     return true
   }
@@ -41,6 +53,7 @@ function initialDevTools(): boolean {
 function App() {
   const [baseApi] = useState<BookingsApi>(createApi)
   const [devTools, setDevTools] = useState<boolean>(initialDevTools)
+  const [seen, setSeen] = useState<boolean>(switchSeen)
   // With the dev tools off, the screens see no dev API, so the test tools and source labels disappear.
   const api = useMemo(() => (baseApi.dev && !devTools ? { ...baseApi, dev: undefined } : baseApi), [baseApi, devTools])
   const [theme, setTheme] = useState<Theme>(initialTheme)
@@ -56,6 +69,7 @@ function App() {
   }
 
   const toggleDevTools = () => {
+    setSeen(true)
     setDevTools((on) => {
       try {
         window.localStorage.setItem(DEV_TOOLS_KEY, on ? 'off' : 'on')
@@ -85,9 +99,20 @@ function App() {
           </a>
           <div className="header-actions">
             {baseApi.dev && (
-              <button className="switch" type="button" role="switch" aria-checked={devTools} onClick={toggleDevTools}>
+              <button
+                className={`switch${seen ? '' : ' switch--new'}`}
+                type="button"
+                role="switch"
+                aria-checked={devTools}
+                aria-describedby="dev-tools-hint"
+                onClick={toggleDevTools}
+              >
+                <span className="switch-icon" aria-hidden="true">🛠</span>
+                <span className="switch-label">
+                  Dev tools
+                  <span className="switch-hint" id="dev-tools-hint">Simulate delays, add bookings</span>
+                </span>
                 <span className="switch-track" aria-hidden="true"><span className="switch-knob" /></span>
-                Dev tools
               </button>
             )}
             {/* Always shown, also in demo mode: nobody should mistake this for a real airline system. */}

@@ -14,6 +14,8 @@ class Limits:
     sessions_per_ip_per_hour: int = 20
     chat_per_ip_per_minute: int = 20
     chat_turns_per_session: int = 80
+    dev_actions_per_ip_per_hour: int = 60  # test tools: add bookings, simulate changes, faults, reset
+    duffel_bookings_per_ip_per_hour: int = 3  # each one is a real order on the Duffel TEST account
 
 
 class RateLimiter:
