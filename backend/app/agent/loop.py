@@ -8,7 +8,7 @@ from backend.app.agent.decide import ToolCall, decide
 from backend.app.harness.guards import wrap_untrusted
 from backend.app.harness.requirements import check_limits
 
-PROMPT_PATH = Path(__file__).parent / "prompts" / "system_prompt_v1.txt"
+PROMPT_PATH = Path(__file__).parent / "prompts" / "system_prompt_v2.txt"
 DEFAULT_MAX_STEPS = 8
 STEP_LIMIT_REPLY = "I wasn't able to finish that. Please try again or rephrase your request."
 ERROR_REPLY = "Something went wrong on my side. Please try again."

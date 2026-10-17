@@ -42,11 +42,12 @@ export function flightLabel(airline: string | null | undefined, flight: string |
   return airline || flight || 'Flight'
 }
 
-/** "1h 30m" from minutes, for delays. */
+/** "1 hour 30 min", "2 hours" or "45 min", for delays. */
 export function formatMinutes(minutes: number): string {
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
-  return h && m ? `${h}h ${m}m` : h ? `${h}h` : `${m} min`
+  const hours = h === 1 ? '1 hour' : `${h} hours`
+  return h && m ? `${hours} ${m} min` : h ? hours : `${m} min`
 }
 
 export function formatDay(iso: string): string {
@@ -65,9 +66,13 @@ export function formatClock(iso: unknown): string {
   return formatLocalTime(iso).replace(/^[A-Z][a-z]{2} \d+, /, '')
 }
 
+/** "$80" for whole amounts, "$80.50" otherwise. */
 export function formatMoney(amount: number, currency: string): string {
   try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+    const whole = Number.isInteger(amount)
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency', currency, minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2,
+    }).format(amount)
   } catch {
     return `${amount.toFixed(2)} ${currency}`
   }

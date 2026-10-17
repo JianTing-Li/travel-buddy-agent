@@ -33,20 +33,27 @@ def diff_options(old: Option, new: Option) -> list[str]:
     """Human-readable differences the traveler must review."""
     changes = []
     if old.additional_cost != new.additional_cost or old.currency != new.currency:
-        changes.append(f"Additional cost changed from {old.additional_cost:g} {old.currency} "
+        changes.append(f"Extra cost changed from {old.additional_cost:g} {old.currency} "
                        f"to {new.additional_cost:g} {new.currency}.")
     for key, label in DETAIL_LABELS.items():
         before, after = getattr(old.flight_details, key), getattr(new.flight_details, key)
         if before != after:
+            if key in ("departs", "arrives"):  # times as travelers read them, not raw timestamps
+                before, after = _readable_time(before), _readable_time(after)
             changes.append(f"{label} changed from {before} to {after}.")
     if old.eligibility != new.eligibility:
         changes.append(f"Eligibility changed from {old.eligibility} to {new.eligibility}.")
     return changes
 
 
-def clock_text(moment: datetime) -> str:
-    """e.g. 'Oct 16, 9:00 AM (UTC-04:00)': the wall-clock time in the timestamp's own zone."""
+def local_time_text(moment: datetime) -> str:
+    """e.g. '9:30 AM on Oct 16': the local time where the flight is, for notices travelers read."""
     hour = moment.hour % 12 or 12
-    zone = moment.strftime("%z")
-    offset = f"{zone[:3]}:{zone[3:]}" if zone else "+00:00"
-    return f"{moment:%b} {moment.day}, {hour}:{moment:%M} {'AM' if moment.hour < 12 else 'PM'} (UTC{offset})"
+    return f"{hour}:{moment:%M} {'AM' if moment.hour < 12 else 'PM'} on {moment:%b} {moment.day}"
+
+
+def _readable_time(value: object) -> object:
+    try:
+        return local_time_text(datetime.fromisoformat(str(value)))
+    except ValueError:
+        return value

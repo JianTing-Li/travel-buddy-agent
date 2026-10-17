@@ -156,6 +156,14 @@ def test_a_turn_with_a_checked_search_returns_the_options_for_cards_and_the_remo
     assert chat(client, session_id, "thanks").json()["search"] is None  # only the turn that searched
 
 
+def test_a_new_checked_search_removes_the_confirm_card_of_an_earlier_choice():
+    new_search = resp(tool("search_replacements",
+                           {"booking_id": "MOCK-CASE-1", "limits": scenario_limits("case_1", "opt-1b")}, "t4"))
+    client, _, session_id = make(*PREPARE_FLOW, new_search, resp(text("Here is what fits now.")))
+    assert chat(client, session_id, "Book the 2 PM one").json()["confirm_card"] is not None
+    assert chat(client, session_id, "Actually, change my limits").json()["confirm_card"] is None
+
+
 def test_explicit_confirm_completes_the_simulated_rebooking_and_the_next_turn_hears_about_it():
     client, model, session_id = make(*PREPARE_FLOW, resp(text("Done. This is a simulated rebooking.")))
     chat(client, session_id, "Book the 2 PM one")

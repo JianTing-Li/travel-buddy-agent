@@ -19,6 +19,18 @@ import { flightLabel, formatTime } from './format.ts'
 const CANT_REACH = "Can't reach Travel Buddy. Check your connection, then try again."
 const ASSISTANT_DOWN = "Travel Buddy's assistant isn't available right now. Try again in a moment."
 const TOO_SLOW = 'Travel Buddy is taking too long to answer. Try again.'
+const NOT_KNOWN_YET = "We don't know yet whether your rebooking went through."
+
+/**
+ * Why a confirm was refused, for the traveler. The gate's reasons are written for Travel Buddy, so only the
+ * "What changed" part (plain facts) is passed on.
+ */
+function rejectionText(reason: string | null | undefined): string {
+  const changed = reason?.split('What changed:')[1]?.trim()
+  if (changed) return `This flight changed since you reviewed it: ${changed} Ask Travel Buddy to show it again.`
+  if (reason?.includes('outside the traveler')) return 'This flight no longer fits your limits. Ask Travel Buddy for another option.'
+  return "This flight can't be confirmed right now. Ask Travel Buddy for another option."
+}
 /** How often the open page asks the app for airline changes. */
 const CHANGE_POLL_MS = 8000
 
@@ -123,16 +135,14 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
           setDetail(await api.getBooking(bookingId))
           return null
         }
-        if (out.status === 'pending') {
-          return { kind: 'pending', message: out.reason ?? 'The result of your rebooking is not known yet.' }
-        }
+        if (out.status === 'pending') return { kind: 'pending', message: NOT_KNOWN_YET }
         update(bookingId, (c) => ({ ...c, card: null }))
-        return { kind: 'error', message: out.reason ?? 'That option can no longer be confirmed.' }
+        return { kind: 'error', message: rejectionText(out.reason) }
       } catch {
         // The request may have reached the server, so this is treated as uncertain, never as "try again".
         return {
           kind: 'pending',
-          message: "We lost the connection while confirming, so we can't tell yet whether it went through.",
+          message: "We lost the connection while confirming, so we don't know yet whether it went through.",
         }
       }
     },

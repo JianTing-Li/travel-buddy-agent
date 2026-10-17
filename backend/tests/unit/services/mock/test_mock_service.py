@@ -72,7 +72,7 @@ def test_prepare_reports_changed_details_once_then_accepts_the_new_version(servi
     tamper(service, "MOCK-CASE-2", "opt-2a", additional_cost=95.0)
     changed = service.prepare_rebooking("MOCK-CASE-2", "opt-2a")
     assert changed.validation_result == provisional.RESULT_CHANGED
-    assert changed.changes_to_review == ["Additional cost changed from 80 USD to 95 USD."]
+    assert changed.changes_to_review == ["Extra cost changed from 80 USD to 95 USD."]
     assert changed.latest_option_details.additional_cost == 95
     again = service.prepare_rebooking("MOCK-CASE-2", "opt-2a")  # the traveler has now seen the new version
     assert again.validation_result == provisional.RESULT_VALID

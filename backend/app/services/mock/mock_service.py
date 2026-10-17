@@ -27,7 +27,7 @@ from ..errors import (
     UnknownBookingError,
     UnknownOptionError,
 )
-from ..validation import clock_text, diff_options, validate_option
+from ..validation import diff_options, local_time_text, validate_option
 from . import provisional
 from .scenarios import Scenario, load_scenario, scenario_names
 
@@ -74,7 +74,6 @@ class _Booking:
 
 _validate = validate_option
 _diff = diff_options
-_clock = clock_text
 
 
 class MockService:
@@ -187,7 +186,8 @@ class MockService:
                 itinerary.status = "delayed"
                 total = (booking.trip.disruption_details.delay_minutes or 0) + delay_minutes
                 booking.trip.disruption_details = Disruption(type="airline delay", delay_minutes=total)
-                summary = f"The airline delayed the departure by {delay_minutes} minutes, to {_clock(moved)}."
+                summary = (f"The airline delayed your flight by {delay_minutes} minutes. "
+                           f"It now leaves {itinerary.origin} at {local_time_text(moved)}.")
             else:
                 itinerary.status = "canceled"
                 booking.trip.disruption_details = Disruption(type="airline cancellation")

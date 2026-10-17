@@ -25,8 +25,8 @@ def searching_agent(**changes):
     return replies
 
 
-def test_there_are_nine_cases_and_each_has_what_the_scorer_needs():
-    assert len(CASES) == 9
+def test_there_are_fifteen_cases_and_each_has_what_the_scorer_needs():
+    assert len(CASES) == 15
     for case in CASES.values():
         assert {"booking_id", "followup_answer", "final_limits", "traveler_message"} <= set(case)
         assert set(case["final_limits"]) == {"budget_additional_cost", "currency", "arrive_by_local",

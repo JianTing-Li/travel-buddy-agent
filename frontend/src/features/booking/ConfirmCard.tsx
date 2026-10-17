@@ -63,10 +63,10 @@ export function ConfirmCard({ card, showSource, onConfirm, onCheck, onDismiss }:
         {d.duration && <li>Flight time {d.duration}</li>}
       </ul>
       <div className="confirm-cost">
-        <span>Extra cost, whole booking</span>
+        <span>Extra cost for the whole booking</span>
         <strong>{formatMoney(option.additional_cost, option.currency)}</strong>
       </div>
-      {free && <p className="muted">No additional payment required.</p>}
+      {free && <p className="muted">No extra payment needed.</p>}
       {card.changes_to_review.length > 0 && (
         <ul className="changes">
           {card.changes_to_review.map((change) => <li key={change}>{change}</li>)}
@@ -78,7 +78,7 @@ export function ConfirmCard({ card, showSource, onConfirm, onCheck, onDismiss }:
         <div className="pending" role="status">
           <h3>Checking your rebooking</h3>
           <p>{pending}</p>
-          <p className="small">Please don't try to book again yet. Nothing more will be booked until this is settled.</p>
+          <p className="small">Please don't book again yet. Nothing else will be booked until we know.</p>
           <div className="confirm-actions">
             <button className="btn" type="button" onClick={check} aria-busy={busy}>
               {busy ? 'Checking…' : 'Check status'}

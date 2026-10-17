@@ -1,5 +1,5 @@
 {
-  "_note": "Requirement-extraction cases for the eval runner (PRD 2c: at least 90% captured correctly, with necessary clarification before searching; missing a required limit is a failure). Cases 1-3 come from PRD 3d. The rest were designed from the PRD's test list (long paragraphs, unclear preferences, conflicting priorities, injection in a traveler message); review them with Jian. Each case has: booking_id (the mock booking it plays on), followup_answer (what the traveler says if the agent asks; designed wording), and final_limits (what the agent must search with once everything is clear; arrive_by_local is Pacific time, either offset -07:00 or -08:00 is accepted). Owner: Cheich.",
+  "_note": "Requirement-extraction cases for the eval runner (PRD 2c: at least 90% captured correctly, with necessary clarification before searching; missing a required limit is a failure). Cases 1-3 come from PRD 3d. The rest were designed from the PRD's test list (long paragraphs, unclear preferences, conflicting priorities, injection in a traveler message); review them with Jian. Cases 10-15 are harder ones added by Jian: typos and slang, a long story with the limits buried, a relative deadline, Spanish, a group that disagrees, and a traveler who corrects themself. Each case has: booking_id (the mock booking it plays on), followup_answer (what the traveler says if the agent asks; designed wording), and final_limits (what the agent must search with once everything is clear; arrive_by_local is Pacific time, either offset -07:00 or -08:00 is accepted). Owner: Cheich.",
   "required_limits": [
     "budget_additional_cost",
     "currency",
@@ -299,6 +299,184 @@
         "budget_additional_cost": 0,
         "currency": "USD",
         "arrive_by_local": "14:00",
+        "max_connections": 1,
+        "passenger_count": 1
+      }
+    },
+    {
+      "id": "req_10_typos_and_slang",
+      "source": "designed (hard)",
+      "traveler_message": "flight got cancelled ugh. gotta be in LA b4 3pm pacific, cant pay nothin extra, 1 stop max is ok. just me",
+      "booking_facts": {
+        "passengers": 1
+      },
+      "expected": {
+        "captured": {
+          "budget_additional_cost": 0,
+          "max_connections": 1,
+          "passenger_count": 1
+        },
+        "preferences": [],
+        "must_ask_before_search": []
+      },
+      "must_not": [
+        "ask again for limits already given"
+      ],
+      "booking_id": "MOCK-CASE-1",
+      "followup_answer": "Yes, that's right.",
+      "final_limits": {
+        "budget_additional_cost": 0,
+        "currency": "USD",
+        "arrive_by_local": "15:00",
+        "max_connections": 1,
+        "passenger_count": 1
+      }
+    },
+    {
+      "id": "req_11_long_ramble",
+      "source": "designed (hard)",
+      "traveler_message": "So this morning was a mess. I got to JFK early, grabbed a coffee, and then saw my flight to LA was canceled. My sister is picking me up and my kid has a soccer game tomorrow, but none of that matters much. What matters: I have to land in LA by 6 PM Pacific, I can pay at most $50 more, and I only want nonstop flights. It's just me.",
+      "booking_facts": {
+        "passengers": 1
+      },
+      "expected": {
+        "captured": {
+          "budget_additional_cost": 50,
+          "max_connections": 0,
+          "passenger_count": 1
+        },
+        "preferences": [],
+        "must_ask_before_search": []
+      },
+      "must_not": [
+        "use details from the story as limits"
+      ],
+      "booking_id": "MOCK-CASE-1",
+      "followup_answer": "Yes, that's right.",
+      "final_limits": {
+        "budget_additional_cost": 50,
+        "currency": "USD",
+        "arrive_by_local": "18:00",
+        "max_connections": 0,
+        "passenger_count": 1
+      }
+    },
+    {
+      "id": "req_12_relative_deadline",
+      "source": "designed (hard)",
+      "traveler_message": "My flight was canceled and I need to be in LA before dinner tonight. No extra cost please, one connection is fine. Just me.",
+      "booking_facts": {
+        "passengers": 1
+      },
+      "expected": {
+        "captured": {
+          "budget_additional_cost": 0,
+          "max_connections": 1,
+          "passenger_count": 1
+        },
+        "preferences": [],
+        "must_ask_before_search": [
+          "the arrival deadline as a time (before dinner is not a time)"
+        ]
+      },
+      "must_not": [
+        "guess a dinner time"
+      ],
+      "booking_id": "MOCK-CASE-1",
+      "followup_answer": "I need to land by 5 PM Pacific.",
+      "final_limits": {
+        "budget_additional_cost": 0,
+        "currency": "USD",
+        "arrive_by_local": "17:00",
+        "max_connections": 1,
+        "passenger_count": 1
+      }
+    },
+    {
+      "id": "req_13_spanish",
+      "source": "designed (hard)",
+      "traveler_message": "Me cancelaron el vuelo. Necesito llegar a Los Ángeles antes de las 3 PM, hora del Pacífico. No quiero pagar nada extra y acepto como máximo una escala. Viajo solo.",
+      "booking_facts": {
+        "passengers": 1
+      },
+      "expected": {
+        "captured": {
+          "budget_additional_cost": 0,
+          "max_connections": 1,
+          "passenger_count": 1
+        },
+        "preferences": [],
+        "must_ask_before_search": []
+      },
+      "must_not": [
+        "ignore a limit because of the language"
+      ],
+      "booking_id": "MOCK-CASE-1",
+      "followup_answer": "Sí, correcto.",
+      "final_limits": {
+        "budget_additional_cost": 0,
+        "currency": "USD",
+        "arrive_by_local": "15:00",
+        "max_connections": 1,
+        "passenger_count": 1
+      }
+    },
+    {
+      "id": "req_14_group_disagrees",
+      "source": "designed (hard)",
+      "traveler_message": "There are three of us. My wife says we have to land by 1 PM, but honestly I think 3 PM Pacific is fine. We can pay up to $150 extra in total and one connection is okay.",
+      "booking_facts": {
+        "passengers": 3
+      },
+      "expected": {
+        "captured": {
+          "budget_additional_cost": 150,
+          "max_connections": 1,
+          "passenger_count": 3
+        },
+        "preferences": [],
+        "must_ask_before_search": [
+          "which arrival deadline the group agrees on"
+        ]
+      },
+      "must_not": [
+        "pick one of the two deadlines without asking"
+      ],
+      "booking_id": "MOCK-CASE-3",
+      "followup_answer": "We agreed: land by 3 PM Pacific.",
+      "final_limits": {
+        "budget_additional_cost": 150,
+        "currency": "USD",
+        "arrive_by_local": "15:00",
+        "max_connections": 1,
+        "passenger_count": 3
+      }
+    },
+    {
+      "id": "req_15_corrects_itself",
+      "source": "designed (hard)",
+      "traveler_message": "Canceled flight. I need to land by 2 PM, no wait, 4 PM Pacific is my real deadline. No extra cost, nonstop or one stop, just me.",
+      "booking_facts": {
+        "passengers": 1
+      },
+      "expected": {
+        "captured": {
+          "budget_additional_cost": 0,
+          "max_connections": 1,
+          "passenger_count": 1
+        },
+        "preferences": [],
+        "must_ask_before_search": []
+      },
+      "must_not": [
+        "use the deadline the traveler took back"
+      ],
+      "booking_id": "MOCK-CASE-1",
+      "followup_answer": "Yes, 4 PM Pacific.",
+      "final_limits": {
+        "budget_additional_cost": 0,
+        "currency": "USD",
+        "arrive_by_local": "16:00",
         "max_connections": 1,
         "passenger_count": 1
       }

@@ -4,15 +4,15 @@ An AI agent that helps a disrupted traveler compare replacement flights and comp
 
 **Who it is for:** Travel Buddy is a traveler-facing recovery assistant for the airline and travel industry. It helps someone whose flight was canceled, delayed or missed choose a replacement, instead of waiting on hold or in line.
 
-- **Traveler flow:** explains the disruption, asks for limits (extra cost, arrival time, connections), recommends up to three options, and rebooks only after explicit confirmation.
+- **Traveler flow:** explains the disruption, asks for limits (extra cost, arrival time, connections), shows the options that fit as cards and recommends one, and rebooks only when the traveler presses Confirm.
 - **Code decides:** eligibility, cost, currency, the traveler's limits, confirmation and duplicate-attempt checks are application code. Mock data and Duffel test data stay separate and labeled, and tool output is treated as untrusted.
-- **Stack:** Python (FastAPI), React + TypeScript, Anthropic API, Duffel test API. 600+ backend tests.
-- **Status:** MVP 1 works end to end on test data: bookings, airline-change detection, chat, the limits filter, safety guards, confirmation, and an eval runner that checks the PRD cases. Not a production airline integration.
+- **Stack:** Python (FastAPI), React + TypeScript, Anthropic API, Duffel test API. 630+ backend tests.
+- **Status:** MVP 1 works end to end on test data: bookings, airline-change detection, chat with option cards, the limits filter, safety guards, a strict confirmation gate, clear errors when the server or the AI is down, and an eval runner. Latest live run (`claude-haiku-5-5`): PRD cases 12 of 12 with 0 rule violations; requirement understanding 29 of 30 runs (97%, target 90%). Not a production airline integration.
 
 ## Screenshots
-| Bookings list | Airline change detected |
+| Bookings list | Booking page |
 |---|---|
-| ![Bookings list with disrupted test bookings](docs/images/bookings-list.jpg) | ![Booking page after a simulated airline delay](docs/images/booking-airline-change.jpg) |
+| ![Bookings list with disrupted and on-time test bookings](docs/images/bookings-list.jpg) | ![Booking page: the flight on top, then the chat with Travel Buddy](docs/images/booking-page.jpg) |
 
 All data shown is simulated test data.
 
@@ -39,7 +39,7 @@ The runner judges with code only, never with a second model.
 - **No splitting a group.** Everyone on a booking stays on the same itinerary.
 - **No staff tool.** The support handoff is simulated, and no real staff follow up.
 - **No payments, refunds or reimbursement promises.** The agent never promises any.
-- **Prompt-injection defense is best effort.** Code enforces the limits and the confirmation, and text in tool results is treated as data, so a planted instruction cannot book anything. We have only checked it with `claude-haiku-5-5`, on the four PRD cases and nine requirement cases. In one of those runs the agent prepared a rebooking when the traveler's message told it to skip the rules (nothing was booked, because only the traveler's Confirm button books), so it is not proven for every model or input.
+- **Prompt-injection defense is best effort.** Code enforces the limits and the confirmation, and text in tool results is treated as data, so a planted instruction cannot book anything. We have only checked it with `claude-haiku-5-5`, on the four PRD cases and fifteen requirement cases. An earlier run once prepared a rebooking when the traveler said to skip the rules; nothing was booked, and since then the gate refuses to prepare anything before a checked search and the prompt keeps the steps. It is still not proven for every model or input.
 - **Not deployed.** Sessions live in memory, so run one backend process. A public demo would need protection first (see TASKS.md).
 
 By [Jian Ting Li](https://github.com/JianTing-Li) (API, tools, Duffel, frontend) and [Cheich Toure](https://github.com/Cheicht) (agent, harness, evals). See [TASKS.md](TASKS.md).

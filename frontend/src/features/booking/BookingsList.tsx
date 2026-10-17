@@ -59,7 +59,7 @@ export function BookingsList({ api, onReset }: { api: BookingsApi; onReset: () =
       {bookings && bookings.length === 0 && (
         <div className="card empty">
           <h2 className="card-title">No bookings yet</h2>
-          <p>Start a session to see bookings here.</p>
+          <p>There are no bookings to show.</p>
         </div>
       )}
       <div className="stack">

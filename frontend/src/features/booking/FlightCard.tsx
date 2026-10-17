@@ -21,6 +21,7 @@ export function FlightCard({ detail, changes, showSource }: Props) {
   const travelers = `${summary.passenger_count} ${summary.passenger_count === 1 ? 'traveler' : 'travelers'}`
   const rebooked = summary.rebooked && confirmation
   const status = statusText(summary.status, trip.disruption_details.delay_minutes)
+  const latestChange = summary.rebooked ? undefined : changes.at(-1)
 
   return (
     <section className="card flight-card" aria-labelledby="booking-title">
@@ -38,7 +39,7 @@ export function FlightCard({ detail, changes, showSource }: Props) {
       </div>
 
       {rebooked ? (
-        <div className="flight-status flight-status--success" role="status">
+        <div key="status" className="flight-status flight-status--success" role="status">
           <h2>You're rebooked</h2>
           <p>
             Confirmation {confirmation.confirmation_id}. Extra cost{' '}
@@ -46,19 +47,16 @@ export function FlightCard({ detail, changes, showSource }: Props) {
           </p>
         </div>
       ) : (
-        <div className={`flight-status flight-status--${status.tone}`} role="status">
+        // A change the app just found replaces the status line, and draws the eye once (keyed by the change).
+        <div
+          key={latestChange?.change_id ?? 'status'}
+          className={`flight-status flight-status--${status.tone}${latestChange ? ' flight-status--change' : ''}`}
+          role="status"
+        >
           <h2>{status.title}</h2>
-          {status.text && <p>{status.text}</p>}
+          {(latestChange?.summary ?? status.text) && <p>{latestChange?.summary ?? status.text}</p>}
         </div>
       )}
-
-      {!summary.rebooked &&
-        changes.map((change) => (
-          <div className="flight-status flight-status--warn flight-status--change" role="status" key={change.change_id}>
-            <h2>Airline change</h2>
-            <p>{change.summary}</p>
-          </div>
-        ))}
 
       {rebooked && (
         <FlightRow

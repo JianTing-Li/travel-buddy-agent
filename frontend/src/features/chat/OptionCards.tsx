@@ -83,7 +83,14 @@ function OptionCard({ option, index, chosen, disabled, onChoose }: CardProps) {
       <p className={`option-cost${option.additional_cost === 0 ? ' option-cost--free' : ''}`}>
         {cost(option.additional_cost, option.currency)}
       </p>
-      <button className="btn btn-small" type="button" onClick={onChoose} disabled={disabled || chosen} aria-pressed={chosen}>
+      <button
+        className="btn btn-small"
+        type="button"
+        onClick={onChoose}
+        disabled={disabled || chosen}
+        aria-pressed={chosen}
+        aria-label={`${chosen ? 'Chosen' : 'Choose'}: ${flightLabel(d.airline, d.flight)}, leaves ${formatTime(d.departs)}`}
+      >
         {chosen ? 'Chosen' : 'Choose'}
       </button>
     </li>

@@ -152,6 +152,8 @@ def _build(names: list[str], client: DuffelClient | None, starters: bool = False
             searched[kwargs["booking_id"]] = {"options": result.get("options", []),
                                               "excluded": result.get("excluded_by_limits", []),
                                               "limits": kwargs["limits"]}
+            # new results mean a new choice: an option prepared earlier no longer gets a confirm card
+            prepared.pop(kwargs["booking_id"], None)
         return result
 
     tools = {**gate_tools, "search_replacements": search_replacements, "prepare_rebooking": prepare_rebooking}

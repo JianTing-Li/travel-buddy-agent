@@ -98,7 +98,7 @@ def test_the_agent_hears_about_a_change_on_the_next_turn_only():
     check(client, session_id)  # a repeat check adds no second notice
     client.post("/chat", json={"booking_id": "MOCK-CASE-1", "message": "What happened?"}, headers=auth(session_id))
     first_user = model.requests[0]["messages"][-1]["content"]
-    assert first_user.count("[App notice]") == 1 and "delayed the departure by 45 minutes" in first_user
+    assert first_user.count("[App notice]") == 1 and "delayed your flight by 45 minutes" in first_user
     assert "get_trip_context" in first_user and first_user.endswith("What happened?")
     client.post("/chat", json={"booking_id": "MOCK-CASE-1", "message": "Thanks"}, headers=auth(session_id))
     assert model.requests[1]["messages"][-1]["content"] == "Thanks"

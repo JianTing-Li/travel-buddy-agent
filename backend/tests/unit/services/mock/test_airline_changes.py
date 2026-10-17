@@ -23,7 +23,7 @@ def test_a_delay_moves_the_departure_and_is_logged(service):
     assert isinstance(change, AirlineChange)
     assert change.kind == "delay" and change.data_source == "mock" and change.simulated is True
     assert change.change_id == "SIM-CHG-MOCK-CASE-3-1"
-    assert change.summary == "The airline delayed the departure by 90 minutes, to Oct 16, 9:30 AM (UTC-04:00)."
+    assert change.summary == "The airline delayed your flight by 90 minutes. It now leaves JFK at 9:30 AM on Oct 16."
     trip = service.get_trip_context("MOCK-CASE-3")
     assert trip.original_itinerary.departs == "2026-10-16T09:30-04:00"  # was 08:00
     assert trip.original_itinerary.status == "delayed"
