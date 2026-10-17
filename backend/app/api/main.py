@@ -75,10 +75,15 @@ def _system_prompt() -> str:
     return load_system_prompt()
 
 
-def _chat_system_prompt(booking_id: str, confirmation: dict[str, Any] | None = None) -> str:
+def _chat_system_prompt(booking_id: str, confirmation: dict[str, Any] | None = None,
+                        travel_day: str | None = None) -> str:
     """The agent's prompt plus app-controlled context; the booking id never comes from the traveler's text."""
     context = (f"{_system_prompt()}\n\nApp context (written by the application, not the traveler): the traveler has "
                f"opened booking {booking_id}. Use this booking_id when you call tools. All data is simulated.")
+    if travel_day:
+        # e.g. a missed flight that left yesterday: the replacements, and so the traveler's times, are on another day
+        context += (f" The replacement flights are on {travel_day}, not on the day of the original flight: read a time"
+                    f" the traveler gives as local time on {travel_day} unless they say another day.")
     if confirmation:
         # every turn, not only the one after confirming, so the agent never treats a rebooked trip as open
         context += (f" This booking is already rebooked (simulated, confirmation {confirmation.get('confirmation_id')})."
@@ -173,6 +178,7 @@ def create_app(
         session = app.state.sessions.get(x_session_id)
         if session is None:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session not found or expired. Start a new session.")
+        session.refresh_stale()  # untouched mock bookings never show flights that already left
         return session
 
     SessionDep = Annotated[Session, Depends(current_session)]
@@ -271,7 +277,8 @@ def create_app(
             user_message = "\n".join([*notices, "", body.message]) if notices else body.message
             result = run_turn(
                 client, model_name,
-                _chat_system_prompt(booking_id, session.service_for(booking_id).get_confirmation(booking_id)),
+                _chat_system_prompt(booking_id, session.service_for(booking_id).get_confirmation(booking_id),
+                                    _other_travel_day(session, booking_id)),
                 session.histories.get(booking_id, []),
                 user_message, session.tools, [*session.toolset.schemas, RECOMMEND_SCHEMA],
             )
@@ -329,6 +336,16 @@ def create_app(
     return app
 
 
+def _other_travel_day(session: Session, booking_id: str) -> str | None:
+    """The replacement flights' day, when it differs from the original flight's day (mock bookings only)."""
+    service = session.service_for(booking_id)
+    if service is not session.service:
+        return None
+    day = service.travel_day(booking_id)
+    original = service.get_trip_context(booking_id).original_itinerary.departs[:10]
+    return day if day and day != original else None
+
+
 def _receipt(confirmation: dict[str, Any]) -> str:
     """The app's note in the chat once a rebooking is confirmed, in the words travelers read."""
     flight = confirmation.get("updated_itinerary") or {}
@@ -361,9 +378,11 @@ def add_dev_routes(app: FastAPI, SessionDep: Any, BookingDep: Any, get_duffel_cl
         body = body or DevBookingCreate()
         seed = body.seed if body.seed is not None else secrets.randbelow(MAX_SEED + 1)
         try:
-            scenario = generate_scenario(seed, scenario=body.scenario, situation=body.situation)
+            def build() -> Any:
+                return generate_scenario(seed, scenario=body.scenario, situation=body.situation)
+            scenario = build()
             with session.lock:
-                booking_id = session.add_booking(scenario)
+                booking_id = session.add_booking(scenario, source=build)
                 summary = _summary(session, booking_id)
         except GeneratorError as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None

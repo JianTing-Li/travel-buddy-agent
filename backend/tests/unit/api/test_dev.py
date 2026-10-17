@@ -1,4 +1,5 @@
 """Unit tests for the /dev test endpoints: only in dev mode, mock-only, scoped to the session. Owner: Jian."""
+from datetime import timedelta
 from types import SimpleNamespace as NS
 
 import pytest
@@ -319,3 +320,16 @@ def test_clear_disruption_is_dev_only_and_needs_an_owned_booking():
     assert client.post("/dev/bookings/MOCK-CASE-1/clear", headers=auth(session_id)).status_code == 404
     client, session_id = start()
     assert client.post("/dev/bookings/MOCK-NOPE/clear", headers=auth(session_id)).status_code == 404
+
+
+def test_a_session_refreshes_untouched_bookings_whose_flights_left_but_keeps_one_in_use():
+    client, session_id = start()
+    session = client.app.state.sessions.get(session_id)
+    session.histories["MOCK-CASE-1"] = [{"role": "user", "content": "hi"}]  # in use
+    before = {b: session.service._bookings[b] for b in ("MOCK-CASE-1", "MOCK-CASE-4")}
+    real_now = session.service._now
+    session.service._now = lambda: real_now() + timedelta(days=3)  # the session was left open for days
+    client.get("/bookings", headers=auth(session_id))
+    session.service._now = real_now
+    assert session.service._bookings["MOCK-CASE-1"] is before["MOCK-CASE-1"]  # kept: its chat started
+    assert session.service._bookings["MOCK-CASE-4"] is not before["MOCK-CASE-4"]  # rebuilt with fresh dates

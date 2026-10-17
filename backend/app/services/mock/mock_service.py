@@ -15,8 +15,8 @@ Safety rules enforced here, as the mock "validation and confirmation service":
   and runs at most once per booking.
 """
 import threading
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Literal
+from datetime import date, datetime, time, timedelta, timezone
+from typing import Any, Callable, Literal
 
 from ...contract.models import Disruption, Handoff, Limits, Option, TripContext, ValidationResult
 from ..airline_change import AirlineChange
@@ -29,7 +29,7 @@ from ..errors import (
 )
 from ..validation import diff_options, local_time_text, validate_option
 from . import provisional
-from .scenarios import Scenario, load_scenario, scenario_names
+from .scenarios import MIN_LEAD, Scenario, load_scenario, scenario_names
 
 DUFFEL_ID_PREFIXES = ("ord_", "off_", "orq_", "oco_", "ocr_", "ocg_", "aic_", "sli_", "pas_")
 SIMULATED_NOTE = "SIMULATED rebooking. No real airline ticket was created and nothing was sent to Duffel."
@@ -77,9 +77,13 @@ _diff = diff_options
 
 
 class MockService:
-    def __init__(self, scenarios: list[str] | None = None, today: date | None = None) -> None:
+    def __init__(self, scenarios: list[str] | None = None, today: date | None = None,
+                 now: Callable[[], datetime] | None = None) -> None:
         self._names = scenarios if scenarios is not None else scenario_names()
         self._today = today
+        # The clock that decides whether a flight has left. A fixed `today` (tests) is read as the start of that day.
+        self._now = now or ((lambda: datetime.combine(today, time.min, timezone.utc)) if today
+                            else (lambda: datetime.now(timezone.utc)))
         self._lock = threading.RLock()
         self._bookings: dict[str, _Booking] = {}
         self.reset()
@@ -117,8 +121,7 @@ class MockService:
         with self._lock:
             return sorted(self._booking(booking_id).faults)
 
-    @staticmethod
-    def _current(booking: _Booking, option_id: str) -> Option:
+    def _current(self, booking: _Booking, option_id: str) -> Option:
         """The option as the service reports it right now, with any active faults applied (a copy)."""
         try:
             option = booking.options[option_id]
@@ -133,6 +136,8 @@ class MockService:
             view.validity = provisional.VALIDITY_UNAVAILABLE
         if "changed_details" in booking.faults and booking.searched:
             view.additional_cost = round(option.additional_cost + CHANGED_DETAILS_EXTRA_COST, 2)
+        if datetime.fromisoformat(view.flight_details.departs) <= self._now():
+            view.validity = provisional.VALIDITY_UNAVAILABLE  # it already left: never offered, prepared or booked
         return view
 
     def _booking(self, booking_id: str) -> _Booking:
@@ -143,11 +148,13 @@ class MockService:
         except KeyError:
             raise UnknownBookingError(f"Mock booking '{booking_id}' not found") from None
 
-    def clear_disruption(self, booking_id: str) -> TripContext:
+    def clear_disruption(self, booking_id: str, rebuilt: Scenario | None = None) -> TripContext:
         """Put a booking back to normal for testing: on time, with no airline changes, faults, prepared option or
-        rebooking. Its options are the scenario's originals again."""
+        rebooking. Its options are the scenario's originals again, or `rebuilt` (the same booking with fresh dates)."""
         with self._lock:
             booking = self._booking(booking_id)
+            if rebuilt is not None:
+                booking.scenario = rebuilt
             fresh = _Booking(booking.scenario)
             fresh.trip.original_itinerary.status = "on time"
             fresh.trip.disruption_details = Disruption(type="none reported")
@@ -159,8 +166,36 @@ class MockService:
                 itinerary.departs = (datetime.fromisoformat(original.departs) - back).isoformat(timespec="minutes")
                 if original.arrives:
                     itinerary.arrives = (datetime.fromisoformat(original.arrives) - back).isoformat(timespec="minutes")
+            itinerary = fresh.trip.original_itinerary
+            while datetime.fromisoformat(itinerary.departs) <= self._now():  # an on-time flight hasn't left yet
+                itinerary.departs = _next_day(itinerary.departs)
+                itinerary.arrives = _next_day(itinerary.arrives) if itinerary.arrives else None
             self._bookings[booking_id] = fresh
             return fresh.trip.model_copy(deep=True)
+
+    def needs_refresh(self, booking_id: str) -> bool:
+        """True when nobody has touched the booking yet and its first replacement is about to leave or already
+        left: the caller rebuilds it with fresh dates. A booking in use keeps its dates."""
+        with self._lock:
+            booking = self._booking(booking_id)
+            if booking.confirmation or booking.changes or booking.faults or booking.prepared or booking.searched:
+                return False
+            departures = [datetime.fromisoformat(o.flight_details.departs) for o in booking.options.values()]
+            return bool(departures) and min(departures) < self._now() + MIN_LEAD
+
+    def replace_booking(self, scenario: Scenario) -> None:
+        """Swap a booking for a fresh build of the same booking (same id), discarding its simulated state."""
+        with self._lock:
+            self._booking(scenario.booking_id)
+            self._bookings[scenario.booking_id] = _Booking(scenario)
+
+    def travel_day(self, booking_id: str) -> str | None:
+        """The local date (YYYY-MM-DD) of the first replacement flight, without counting as a search."""
+        with self._lock:
+            departures = [o.flight_details.departs for o in self._booking(booking_id).options.values()]
+        if not departures:
+            return None
+        return min(departures, key=datetime.fromisoformat)[:10]
 
     def get_trip_context(self, booking_id: str) -> TripContext:
         with self._lock:
@@ -300,3 +335,7 @@ class MockService:
             )
             booking.handoffs.append(handoff)
             return handoff.model_copy(deep=True)
+
+
+def _next_day(moment: str) -> str:
+    return (datetime.fromisoformat(moment) + timedelta(days=1)).isoformat(timespec="minutes")

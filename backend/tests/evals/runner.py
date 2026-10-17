@@ -44,7 +44,7 @@ def play(scenario: Scenario, mode: str, live_client: Any = None, model_name: str
         session_id = api.post("/sessions").json()["session_id"]
         headers = {"X-Session-Id": session_id}
         detail = api.get(f"/bookings/{scenario.booking_id}", headers=headers).json()
-        ctx = Ctx(booking_id=scenario.booking_id, day=detail["trip"]["original_itinerary"]["departs"][:10])
+        ctx = Ctx(booking_id=scenario.booking_id, day=_travel_day(api, session_id, scenario.booking_id, detail))
 
         for index, turn in enumerate(scenario.turns):
             recorder.turn = index
@@ -185,3 +185,10 @@ def main(argv: list[str] | None = None, live_client_factory: Callable[[], Any] |
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def _travel_day(api: Any, session_id: str, booking_id: str, detail: dict[str, Any]) -> str:
+    """The day the replacement flights are on: the original flight's day, except for a missed flight that already
+    left the day before. Read from the in-process app, not from the model."""
+    service = api.app.state.sessions.get(session_id).service
+    return service.travel_day(booking_id) or detail["trip"]["original_itinerary"]["departs"][:10]

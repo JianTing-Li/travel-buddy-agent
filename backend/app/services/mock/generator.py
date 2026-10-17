@@ -8,12 +8,12 @@ Random bookings get 3 to 5 options chosen to make real trade-offs: one costs not
 earlier flights cost more (the earliest is always a paid nonstop), and one option has a connection.
 """
 import random
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from ...contract.models import Option, TripContext
 from . import provisional
-from .scenarios import MOCK_AIRLINE, Scenario, load_scenario
+from .scenarios import MOCK_AIRLINE, Scenario, base_day, load_scenario
 
 AIRPORT_ZONES = {
     "JFK": "America/New_York", "BOS": "America/New_York", "MIA": "America/New_York",
@@ -49,25 +49,48 @@ def _renamed(base: Scenario, booking_id: str, seed: int) -> Scenario:
 
 
 def generate_scenario(seed: int, today: date | None = None, scenario: str | None = None,
-                      situation: str = "random", booking_id: str | None = None) -> Scenario:
+                      situation: str = "random", booking_id: str | None = None,
+                      now: datetime | None = None) -> Scenario:
     """Build a mock booking. `scenario` re-issues one of the eval cases; otherwise the seed decides everything.
 
     `situation` sets what the booking starts as: on time, canceled, delayed, missed, or random (canceled or missed).
-    The seed still decides the route, times and options, so the same seed and situation give the same booking.
-    `booking_id` replaces the default MOCK-GEN-<seed> id.
+    The seed decides the route, clock times and options, so the same seed and situation give the same booking.
+    `booking_id` replaces the default MOCK-GEN-<seed> id. A fixed `today` (tests) fixes the dates; otherwise they
+    follow `now` (default: the current time) so every replacement is still in the future and a missed flight is past.
     """
     if not 0 <= seed <= MAX_SEED:
         raise GeneratorError(f"seed must be between 0 and {MAX_SEED}")
     if situation not in SITUATIONS:
         raise GeneratorError(f"situation must be one of: {', '.join(SITUATIONS)}")
-    today = today or date.today()
     if scenario is not None:
         try:
-            base = load_scenario(scenario, today=today)
+            base = load_scenario(scenario, today=today, now=now)
         except Exception as exc:  # ScenarioError for an unknown name
             raise GeneratorError(str(exc)) from None
         return _renamed(base, f"{base.booking_id}-G{seed}", seed)
+    if today is not None:
+        return _generate(seed, today, situation, booking_id)
 
+    now = now or datetime.now(timezone.utc)
+    origin = _generate(seed, now.date(), situation, booking_id).trip.original_itinerary.origin
+    start = base_day(lambda day: _first_departure(_generate(seed, day, situation, booking_id)), now,
+                     AIRPORT_ZONES[origin])
+    built = _generate(seed, start, situation, booking_id)
+    itinerary = built.trip.original_itinerary
+    if itinerary.status == "missed by traveler" and datetime.fromisoformat(itinerary.departs) > now:
+        for field in ("departs", "arrives"):  # a missed flight has already left
+            value = getattr(itinerary, field)
+            if value:
+                setattr(itinerary, field, (datetime.fromisoformat(value) - timedelta(days=1)).isoformat(timespec="minutes"))
+    return built
+
+
+def _first_departure(built: Scenario) -> datetime:
+    return min(datetime.fromisoformat(o.flight_details.departs) for o in built.options)
+
+
+def _generate(seed: int, today: date, situation: str, booking_id: str | None) -> Scenario:
+    """The booking for a seed with its dates based on `today`."""
     rng = random.Random(seed)
     origin, destination = rng.sample(sorted(AIRPORT_ZONES), 2)
     origin_zone, destination_zone = ZoneInfo(AIRPORT_ZONES[origin]), ZoneInfo(AIRPORT_ZONES[destination])
