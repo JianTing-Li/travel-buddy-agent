@@ -30,6 +30,9 @@ const GENERIC_ERROR = 'The server could not complete that request.'
 /** How long a request may take before the app gives up. A chat turn can include several model and tool calls. */
 const TIMEOUT_MS = 20_000
 const CHAT_TIMEOUT_MS = 100_000
+/** Sent on window when the server no longer knows this tab's session and a fresh one starts. */
+export const SESSION_RESET_EVENT = 'travel-buddy-session-reset'
+
 /** ApiError.status for a request that never got an answer. */
 export const OFFLINE = 0
 export const TIMED_OUT = 408
@@ -133,11 +136,18 @@ export function createHttpApi(
     if (init.body) headers['Content-Type'] = 'application/json'
     const response = await fetchWithin(fetchImpl, `${base}${path}`, { ...init, headers }, ms)
     if (response.status === 401 && retry) {
-      // Forget the session only if it is still the one that just failed: several requests can fail together,
-      // and only the first should start a replacement, which the others then share.
+      // The server forgot this session (it restarted or slept). Forget it only if it is still the one that just
+      // failed: several requests can fail together, and only the first should start a replacement.
       if (sessionPromise === used) {
         sessionPromise = null
         writeStored(null)
+        // Everything the screen shows came from the old session, so the app must start over too.
+        window.dispatchEvent(new Event(SESSION_RESET_EVENT))
+      }
+      // A chat message or a confirm must not land in the fresh session as if nothing happened: it would be answered
+      // without the conversation (or the rebooking) the traveler can still see. Reads can simply retry.
+      if (init.method === 'POST' && (path === '/chat' || path === '/confirm')) {
+        throw new ApiError(401, 'The session restarted.')
       }
       return call(path, init, false, ms)
     }

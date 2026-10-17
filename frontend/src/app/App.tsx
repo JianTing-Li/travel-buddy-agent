@@ -6,7 +6,7 @@ import { BookingsList } from '../features/booking/BookingsList.tsx'
 import type { BookingsApi } from './dataSource.ts'
 import { useConversations } from './conversations.ts'
 import { createFixtureApi } from './fixtures.ts'
-import { createHttpApi } from './httpApi.ts'
+import { createHttpApi, SESSION_RESET_EVENT } from './httpApi.ts'
 import { listHref, parseHash, useHash } from './route.ts'
 
 type Theme = 'light' | 'dark'
@@ -49,6 +49,18 @@ function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme)
   const route = parseHash(useHash())
   const conversations = useConversations()
+  // When the server restarts (or a free server wakes up), this tab gets a fresh session: clear what the old one
+  // showed and reload the page's data, so the screen and Travel Buddy agree again.
+  const [resets, setResets] = useState(0)
+  const { clear } = conversations
+  useEffect(() => {
+    const onReset = () => {
+      clear()
+      setResets((n) => n + 1)
+    }
+    window.addEventListener(SESSION_RESET_EVENT, onReset)
+    return () => window.removeEventListener(SESSION_RESET_EVENT, onReset)
+  }, [clear])
 
   // Fade the colors for a moment while the theme changes (see .theme-switching in index.css).
   const switchTheme = (next: Theme) => {
@@ -117,13 +129,20 @@ function App() {
         </div>
       </header>
       <main className="container">
+        {resets > 0 && (
+          <div className="restart-notice" role="status">
+            <p>The server restarted, so your session started fresh and earlier chats were cleared. Please send your
+              last message again.</p>
+            <button className="btn btn-small" type="button" onClick={() => setResets(0)}>OK</button>
+          </div>
+        )}
         {route.name === 'booking' ? <BookingDetail
-            key={route.id}
+            key={`${route.id}:${resets}`}
             api={api}
             bookingId={route.id}
             conversation={conversations.get(route.id)}
             update={conversations.update}
-          /> : <BookingsList api={api} onReset={conversations.clear} />}
+          /> : <BookingsList key={resets} api={api} onReset={conversations.clear} />}
       </main>
       {/* The header's "Simulated" badge says it for the whole app; the footer only helps developers. */}
       {(api.kind === 'sample' || api.dev) && <footer className="footer">{api.label}</footer>}
