@@ -84,6 +84,21 @@
   font-size: 13px;
 }
 
+/* round icon button (the theme toggle) */
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.icon-btn:hover { background: var(--surface-2); border-color: var(--accent); }
+
 /* the dev tools switch in the header (dev builds and the public demo) */
 .switch {
   display: inline-flex;
@@ -100,7 +115,6 @@
   transition: background-color var(--dur) ease, box-shadow var(--dur) ease;
 }
 .switch:hover { border-color: var(--accent); }
-.switch-icon { font-size: 14px; line-height: 1; }
 .switch-track {
   position: relative;
   width: 34px;
@@ -209,7 +223,25 @@
 .empty { text-align: center; padding: 32px 16px; color: var(--text-2); }
 
 /* detail */
-.back { display: inline-block; margin-bottom: 12px; font-size: 14px; }
+/* back to the list: a clear button, not a small text link */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 7px 14px 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+.back:hover { border-color: var(--accent); background: var(--accent-bg); color: var(--accent-text); }
+.back-arrow { font-size: 17px; line-height: 1; transition: transform var(--dur-fast) ease; }
+.back:hover .back-arrow { transform: translateX(-2px); }
 
 .banner {
   display: flex;
