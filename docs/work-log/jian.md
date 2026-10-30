@@ -1,5 +1,11 @@
 # Jian work log
 
+## 2026-10-30: animated README demo (branch codex/readme-demo-gif)
+- Replaced the main README screenshot with `docs/images/travel-buddy-demo.gif`, a 42-second recording using real AI responses and simulated rebooking.
+- The paragraph covers three travelers, a $100 total extra-cost limit, arrival before 6 PM, a nonstop preference and permission for one connection. The flow selects the recommended $90 nonstop, reviews the flight, explicitly confirms and displays the receipt.
+- The GIF and README disclose that AI waiting time was shortened. The existing bookings-list image and original screenshot are retained.
+- Checked the README image path, GIF dimensions and duration, decoded all GIF frames, and ran `git diff --check`. No application code changed.
+
 ## 2026-10-17: a warm, positive Travel Buddy (branch feature/warm-chat)
 - Prompt v2 gains a "Personality" paragraph (v1 and the PRD text unchanged): warm, positive and calm; the first reply starts with one sincere line about the disruption; good news is said warmly, "nothing fits" is encouraging, a confirmed rebooking gets one celebratory sentence without repeating the receipt. Guardrails in the same paragraph: at most one exclamation mark, no emoji, never longer, never softening a cost, promising anything or claiming what the app hasn't confirmed.
 - App-written text to match: the receipt reads "You're all set! You're rebooked on SW 210: it leaves JFK at …"; the confirmed [App notice] says the traveler already saw a receipt; the rebooked context offers the support handoff only if the traveler asks for another flight.
