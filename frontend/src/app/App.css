@@ -390,6 +390,7 @@
 .skeleton-title { height: 26px; width: 55%; }
 .skeleton-block { height: 72px; }
 .skeleton-card { display: grid; gap: 10px; padding: 18px; min-height: 120px; }
+.waking-note { text-align: center; margin: 4px 0 0; }
 @keyframes shimmer {
   from { background-position: 100% 0; }
   to { background-position: -100% 0; }
