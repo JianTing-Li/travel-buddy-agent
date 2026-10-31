@@ -69,3 +69,11 @@ Status: [ ] todo · [~] in progress · [x] done. Update in the same PR as the wo
 ## Integration (Shared)
 - [x] Add a startup loading hint after 4 seconds and a 90-second first-response timeout, with retry on failure (branch codex/readme-demo-gif)
 - [x] Replace the README hero screenshot with a 42-second animated walkthrough of a complex group request, flight selection, explicit confirmation and simulated rebooking (branch codex/readme-demo-gif)
+- [x] Happy path end to end (eval case 1): checked in the real app and by the live eval (3 of 3 runs)
+- [x] Cases 2-4, no-options flow, failure and simulated handoff: checked in the real app on all 4 bookings and by the live eval
+- [x] Run all 4 evals; check against PRD 2c success metrics. Final live run (claude-haiku-5-5, 12 conversations): 12 of 12 completed (target 70%), median 13 to 24 s per conversation (target under 5 minutes), 0 rule violations (target 0), 0 rebookings without explicit confirmation, shown costs match the service. Requirement understanding 93% (target 90%). One model only; one partial slip recorded in docs/work-log/cheich.md
+- [ ] Frontend: chat and booking views (owner TBD)
+
+## Open decisions
+- UI scope and deadline for MVP 1
+- Dev panel (generate booking, simulate disruption) is not in the PRD: agree it is in MVP 1 scope
