@@ -30,6 +30,8 @@ const GENERIC_ERROR = 'The server could not complete that request.'
 /** How long a request may take before the app gives up. A chat turn can include several model and tool calls. */
 const TIMEOUT_MS = 20_000
 const CHAT_TIMEOUT_MS = 100_000
+/** Until the server has answered once, it may be waking up from sleep (about a minute on a free host). */
+const WAKE_TIMEOUT_MS = 90_000
 /** Sent on window when the server no longer knows this tab's session and a fresh one starts. */
 export const SESSION_RESET_EVENT = 'travel-buddy-session-reset'
 
@@ -104,12 +106,20 @@ export function createHttpApi(
 ): BookingsApi {
   const base = baseUrl.replace(/\/+$/, '')
   let sessionPromise: Promise<string> | null = null
+  let awake = false
+
+  /** fetchWithin, but allowing the server time to wake up until it has answered once. */
+  async function send(url: string, init: RequestInit, ms: number): Promise<Response> {
+    const response = await fetchWithin(fetchImpl, url, init, awake ? ms : Math.max(ms, WAKE_TIMEOUT_MS))
+    awake = true
+    return response
+  }
 
   async function createSession(): Promise<string> {
     // A deployed demo can require an access code to start a session (DEMO_ACCESS_CODE on the server).
     const code = readAccessCode()
     const init: RequestInit = { method: 'POST', headers: code ? { 'X-Access-Code': code } : {} }
-    const response = await fetchWithin(fetchImpl, `${base}/sessions`, init, TIMEOUT_MS)
+    const response = await send(`${base}/sessions`, init, TIMEOUT_MS)
     if (!response.ok) throw new ApiError(response.status, await errorMessage(response))
     const body = (await response.json()) as SessionOut
     writeStored(body.session_id)
@@ -134,7 +144,7 @@ export function createHttpApi(
     const sessionId = await used
     const headers: Record<string, string> = { [SESSION_HEADER]: sessionId }
     if (init.body) headers['Content-Type'] = 'application/json'
-    const response = await fetchWithin(fetchImpl, `${base}${path}`, { ...init, headers }, ms)
+    const response = await send(`${base}${path}`, { ...init, headers }, ms)
     if (response.status === 401 && retry) {
       // The server forgot this session (it restarted or slept). Forget it only if it is still the one that just
       // failed: several requests can fail together, and only the first should start a replacement.

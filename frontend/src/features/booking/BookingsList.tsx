@@ -9,6 +9,8 @@ import { AccessCode } from './AccessCode.tsx'
 import { cityName } from './airports.ts'
 import { formatShort } from './format.ts'
 import { SourcePill, StatusPill } from './Pills.tsx'
+import { loadProblem } from './wake.ts'
+import { WakingNote } from './Waking.tsx'
 
 /** The action the card offers depends on where the booking stands. */
 function actionLabel(booking: BookingSummary): string {
@@ -36,7 +38,7 @@ export function BookingsList({ api, onReset }: { api: BookingsApi; onReset: () =
         if (cancelled) return
         if (e instanceof ApiError && e.status === 403) setLocked((l) => (l === 'no' ? 'ask' : 'wrong'))
         else if (e instanceof ApiError && e.status === 429) setError(e.message)
-        else setError("Couldn't load your bookings. Check your connection, then try again.")
+        else setError(`Couldn't load your bookings. ${loadProblem(e)}`)
       })
     return () => {
       cancelled = true
@@ -78,6 +80,7 @@ export function BookingsList({ api, onReset }: { api: BookingsApi; onReset: () =
               <span className="skeleton skeleton-line" style={{ width: '60%' }} />
             </div>
           ))}
+          <WakingNote />
         </div>
       )}
       {bookings && bookings.length === 0 && (

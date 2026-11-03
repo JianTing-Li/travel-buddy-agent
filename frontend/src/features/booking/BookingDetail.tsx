@@ -17,6 +17,8 @@ import { ConfirmCard, type ConfirmProblem } from './ConfirmCard.tsx'
 import { AccessCode } from './AccessCode.tsx'
 import { FlightCard } from './FlightCard.tsx'
 import { flightLabel, formatTime } from './format.ts'
+import { loadProblem } from './wake.ts'
+import { WakingNote } from './Waking.tsx'
 
 /** What the traveler sees when a message gets no answer, by cause. Never shown as if Travel Buddy said it. */
 const CANT_REACH = "Can't reach Travel Buddy. Check your connection, then try again."
@@ -47,6 +49,7 @@ interface Props {
 export function BookingDetail({ api, bookingId, conversation, update }: Props) {
   const [detail, setDetail] = useState<BookingDetailData | null>(null)
   const [loadError, setLoadError] = useState<'not found' | 'failed' | 'locked' | 'wrong code' | null>(null)
+  const [loadMessage, setLoadMessage] = useState('')
   const [reload, setReload] = useState(0)
   const [sending, setSending] = useState(false)
   // The last message that got no answer, and how many times in a row that happened.
@@ -61,6 +64,7 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
       .catch((e) => {
         if (cancelled) return
         const status = e instanceof ApiError ? e.status : null
+        setLoadMessage(loadProblem(e))
         setLoadError((before) => status === 404 ? 'not found'
           : status === 403 ? (before === 'locked' || before === 'wrong code' ? 'wrong code' : 'locked') : 'failed')
       })
@@ -224,7 +228,7 @@ export function BookingDetail({ api, bookingId, conversation, update }: Props) {
           ) : (
             <>
               <h1 className="card-title">Couldn't load this booking</h1>
-              <p>Check your connection, then try again.</p>
+              <p>{loadMessage}</p>
               <button className="btn btn-small" type="button" style={{ marginTop: 12 }}
                 onClick={() => { setLoadError(null); setReload((n) => n + 1) }}>
                 Try again
@@ -307,6 +311,7 @@ function BookingSkeleton() {
         <span className="skeleton skeleton-line" style={{ width: '40%' }} />
         <span className="skeleton skeleton-block" style={{ marginTop: 12 }} />
       </div>
+      <WakingNote />
     </section>
   )
 }

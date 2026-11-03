@@ -4,7 +4,9 @@
 
 **[Try the live demo →](https://travel-buddy-agent-delta.vercel.app)** Open a canceled booking and tell Travel Buddy what you need. The first visit can take up to a minute while the free server wakes up.
 
-![Travel Buddy: the traveler's limits in plain words, flight options as cards with a recommended pick, and a rebooking receipt](docs/images/booking-page.jpg)
+![Travel Buddy demo: a complex request for three travelers, recommended flights within a $100 total budget, explicit confirmation, and a rebooking receipt](docs/images/travel-buddy-demo.gif)
+
+*42-second walkthrough with real AI responses and simulated rebooking. AI waiting time is shortened.*
 
 - **AI with guardrails in code.** Claude understands the traveler and explains the options. Application code enforces their limits, the price and the final Confirm button. The model has no tool that can book.
 - **Measured, not assumed.** An eval runner, judged by code, replays scenarios against the live model. Latest run: **12 of 12** PRD scenarios completed with **0 rule violations**, and **97%** requirement understanding (target 90%) across 15 cases, including typos, Spanish and a group that disagrees.
